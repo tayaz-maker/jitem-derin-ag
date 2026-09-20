@@ -31,7 +31,7 @@ export function StartScreen() {
       <img src="/images/office.jpg" alt="" className="absolute inset-0 size-full object-cover opacity-40" />
       <div className="absolute inset-0 bg-linear-to-b from-bg/70 via-bg/80 to-bg" />
 
-      <div className="relative z-10 mx-auto flex w-full max-w-3xl flex-1 flex-col justify-end gap-5 overflow-y-auto px-5 pb-10 pt-12 sm:justify-center sm:pb-16">
+      <div className="relative z-10 mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col justify-end gap-5 overflow-y-auto overscroll-contain px-5 pb-10 pt-12 sm:justify-center sm:pb-16">
         <header className="space-y-2">
           <div className="flex items-center justify-between gap-2">
             <p className="scan font-mono text-[11px] text-olive">{t(locale, "meta.kicker")}</p>
