@@ -26,6 +26,7 @@ import { detectShellMode } from "../embed.ts";
 import { investigationView } from "./investigation.ts";
 import { factionSignals } from "./intel.ts";
 import { briefingFrom } from "./briefing.ts";
+import { ALL_CLAIMS } from "../db/catalog.ts";
 
 describe("campaign engine", () => {
   it("starts with research-backed visible nodes", () => {
@@ -456,5 +457,81 @@ describe("replay json", () => {
     assert.ok(Array.isArray(j.decisions));
     assert.ok(j.dossier);
     assert.equal(replayFilename(2026), "DERIN-AG-1986-1996-2026.json");
+  });
+});
+
+describe("researcher and lawyer loops", () => {
+  it("compare writes a sourced comparison and faction notice", () => {
+    let s = createGame("arastirmaci", 21);
+    s = { ...s, phase: "actions", actionsLeft: 4 };
+    assert.equal(canPlay(s, "kaynak_karsilastir"), true);
+    const next = executeAction(s, { id: "kaynak_karsilastir" });
+    assert.ok((next.investigation.comparisons ?? []).length >= 1);
+    const cmp = next.investigation.comparisons![0];
+    const claim = ALL_CLAIMS.find((c) => c.id === cmp.claimId);
+    assert.ok(claim);
+    assert.ok(claim!.sourceIds.length >= 1);
+    assert.equal(next.tags.includes("src-compared"), true);
+    assert.ok(next.factions.media.knowledgeBase[cmp.claimId]);
+    assert.ok(next.factions.hukuk.knowledgeBase[cmp.claimId]);
+  });
+
+  it("evidence chain binds a claim, not a generic zincir-tN", () => {
+    let s = createGame("hukuk", 22);
+    s = { ...s, phase: "actions", actionsLeft: 4 };
+    s = executeAction(s, { id: "delil_zincir" });
+    assert.ok(s.investigation.documents.length >= 1);
+    assert.equal(s.investigation.documents.some((d) => d.startsWith("zincir-t")), false);
+    assert.ok((s.investigation.chain ?? []).length >= 1);
+    const link = s.investigation.chain![0];
+    assert.ok(ALL_CLAIMS.some((c) => c.id === link.claimId));
+    assert.match(link.documentId, /^doc-/);
+  });
+
+  it("proof threshold stays cold without documents and advances with a chain", () => {
+    let s = createGame("hukuk", 23);
+    s = { ...s, phase: "actions", actionsLeft: 4, turn: 5 };
+    const hold = executeAction(s, { id: "kanit_esigi" });
+    assert.ok(hold.tags.includes("inv-limit"));
+    let chained = createGame("hukuk", 24);
+    chained = { ...chained, phase: "actions", actionsLeft: 4, turn: 5 };
+    chained = executeAction(chained, { id: "delil_zincir" });
+    chained = { ...chained, turn: 6, phase: "actions", actionsLeft: 4 };
+    chained = executeAction(chained, { id: "delil_zincir" });
+    chained = { ...chained, phase: "actions", actionsLeft: 4 };
+    chained = executeAction(chained, { id: "kanit_esigi" });
+    assert.ok(chained.tags.includes("inv-direct"));
+  });
+
+  it("new sourced claims hook compare/chain/ending systems", () => {
+    for (const id of ["clm_aygan_dogan_split", "clm_kutlu_vs_official", "clm_hanefi_emniyet_split"]) {
+      const c = ALL_CLAIMS.find((x) => x.id === id);
+      assert.ok(c, id);
+      assert.ok(c!.sourceIds.length >= 2);
+      assert.ok(c!.contradiction);
+      assert.equal(c!.fiction, false);
+    }
+    const r = createGame("arastirmaci", 1);
+    assert.ok(r.hand.clm_aygan_dogan_split);
+    const h = createGame("hukuk", 1);
+    assert.ok(h.hand.clm_kutlu_vs_official);
+    const famR = FAMILIES.find((f) => f.id === "fam_source_clash")!;
+    const famH = FAMILIES.find((f) => f.id === "fam_chain_consequence")!;
+    let s = createGame("arastirmaci", 25);
+    s = { ...s, turn: 4, investigation: { ...s.investigation, comparisons: [{ claimId: "clm_aygan_dogan_split", sourceIds: ["src_aygan", "src_dogan"], turn: 3 }] } };
+    assert.equal(familyEligible(famR, s, false), true);
+    let l = createGame("hukuk", 26);
+    l = { ...l, turn: 6, investigation: { ...l.investigation, documents: ["doc-x"], chain: [{ claimId: "clm_kutlu_vs_official", documentId: "doc-x", turn: 5 }] } };
+    assert.equal(familyEligible(famH, l, false), true);
+  });
+
+  it("old save without comparisons still migrates", () => {
+    const raw = serialize(createGame("saha", 2));
+    delete (raw.state.investigation as { comparisons?: unknown }).comparisons;
+    delete (raw.state.investigation as { chain?: unknown }).chain;
+    const back = parseSave(JSON.stringify(raw));
+    assert.ok(back);
+    assert.deepEqual(back!.investigation.comparisons, []);
+    assert.deepEqual(back!.investigation.chain, []);
   });
 });

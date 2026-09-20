@@ -70,8 +70,10 @@ export function migrate(raw: GameState | Record<string, unknown>): GameState {
           heat: (state.investigation as GameState["investigation"]).heat ?? 0,
           documents: (state.investigation as GameState["investigation"]).documents ?? [],
           suppressed: (state.investigation as GameState["investigation"]).suppressed ?? [],
+          comparisons: (state.investigation as GameState["investigation"]).comparisons ?? [],
+          chain: (state.investigation as GameState["investigation"]).chain ?? [],
         }
-      : { stage: "dormant", heat: 0, documents: [], suppressed: [] },
+      : { stage: "dormant", heat: 0, documents: [], suppressed: [], comparisons: [], chain: [] },
     objectives: Array.isArray(state.objectives) ? state.objectives : [],
     replay: Array.isArray(state.replay) ? state.replay : [],
     replayMeta: state.replayMeta && isRecord(state.replayMeta)

@@ -220,6 +220,22 @@ export function causalNarrative(state: GameState, locale: Locale = "tr"): string
         ? "Public and legal heat rose. Some ties were documented; the order-gap remained."
         : "Kamu ve hukuk ısındı. Bazı bağlar belgelendi; emir boşluğu durdu.",
     );
+    const chainN = state.investigation.chain?.length ?? 0;
+    const cmpN = state.investigation.comparisons?.length ?? 0;
+    if (chainN >= 2) {
+      lines.push(
+        en
+          ? "The legal line contributed: claim-bound evidence links moved the file a tier without inventing an order."
+          : "Hukuk hattı katkı verdi: iddiaya bağlı delil halkaları dosyayı bir kat ilerletti; emir uydurulmadı.",
+      );
+    }
+    if (cmpN >= 1) {
+      lines.push(
+        en
+          ? "The researcher line contributed: two sources were set side by side. Contradiction stayed on file."
+          : "Araştırmacı hattı katkı verdi: iki kaynak yan yana kondu. Çelişki dosyada kaldı.",
+      );
+    }
   } else if (spentN >= 2) {
     lines.push(
       en
@@ -270,6 +286,7 @@ export function pickEnding(state: GameState): EndingId | null {
   const spentN = Object.values(state.stance).filter((v) => v === "spend").length;
   if (inv === "public" || inv === "response") {
     if (state.stats.hukuk >= 55 && state.stats.kamuoyu >= 42) return "kismi_adalet";
+    if ((state.investigation.chain?.length ?? 0) >= 2 && state.stats.hukuk >= 48) return "kismi_adalet";
   }
   if (state.stats.etki < 16 && state.stats.kara >= 38 && state.stats.saha < 20) return "rakip_zafer";
   if (state.stats.saha < 14 && state.stats.etki >= 32 && state.stats.giz >= 22) return "kurumsal_tasfiye";

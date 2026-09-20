@@ -250,6 +250,10 @@ export interface InvestigationState {
   heat: number;
   documents: string[];
   suppressed: string[];
+  /** Researcher: sourced compare records. Additive; old saves omit. */
+  comparisons?: Array<{ claimId: string; sourceIds: string[]; turn: number }>;
+  /** Lawyer: claim-bound chain links. Additive; old saves omit. */
+  chain?: Array<{ claimId: string; documentId: string; turn: number }>;
 }
 
 export interface Objective {

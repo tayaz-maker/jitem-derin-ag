@@ -73,6 +73,9 @@ export function initialTruth(): Record<string, KnowledgeStatus> {
     clm_kocadag_catli_precrash: "PARTIAL",
     clm_eymur_emniyet_warn: "TRUE",
     clm_tbmm_commission: "TRUE",
+    clm_aygan_dogan_split: "PARTIAL",
+    clm_kutlu_vs_official: "PARTIAL",
+    clm_hanefi_emniyet_split: "UNKNOWN",
   };
 }
 
@@ -95,11 +98,13 @@ export function initialHand(hat: Hat): Record<string, KnowledgeEntry> {
     out.clm_informant_layer = entry("clm_informant_layer", "RUMOR", { source: "kaynak karşılaştırması", confidence: 32 });
     out.clm_eymur_abas_split = entry("clm_eymur_abas_split", "RUMOR", { source: "açık yazı", confidence: 38 });
     out.clm_jitem_founding_date = entry("clm_jitem_founding_date", "PARTIAL", { source: "belge boşluğu", confidence: 55 });
+    out.clm_aygan_dogan_split = entry("clm_aygan_dogan_split", "RUMOR", { source: "iki anlatı", confidence: 34 });
   }
   if (hat === "hukuk") {
     out.clm_jitem_exists = entry("clm_jitem_exists", "UNKNOWN", { source: "dosya", confidence: 15 });
     out.clm_tbmm_commission = entry("clm_tbmm_commission", "RUMOR", { source: "meclis karesi", confidence: 30 });
     out.clm_jitem_founding_date = entry("clm_jitem_founding_date", "UNKNOWN", { source: "standart", confidence: 10 });
+    out.clm_kutlu_vs_official = entry("clm_kutlu_vs_official", "RUMOR", { source: "teftiş / resmi dil", confidence: 28 });
   }
   return out;
 }

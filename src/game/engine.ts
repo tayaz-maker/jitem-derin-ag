@@ -3,7 +3,7 @@ import { actOf, mechanicUnlocked } from "./sim/acts.ts";
 import { seedEdgeLive, touchEdge } from "./sim/edges.ts";
 import { applyConsequence, applyFamilyFire, pickSideFamilies, pickVariant, selectAnchorFamily, viewEvent } from "./sim/families.ts";
 import { initialFactions, tickFactions } from "./sim/factions.ts";
-import { addDocument, tickInvestigation } from "./sim/investigation.ts";
+import { addDocument, recordChainLink, recordComparison, tickInvestigation } from "./sim/investigation.ts";
 import { entry, initialHand, initialTruth, setFactionKnow, setHand, tickKnowledge } from "./sim/knowledge.ts";
 import { remember, tickMemory } from "./sim/memory.ts";
 import { syncObjectives } from "./sim/objectives.ts";
@@ -149,7 +149,7 @@ export function createGame(hat: Hat, seed?: number): GameState {
     factions: initialFactions(),
     hand: initialHand(hat),
     truth: initialTruth(),
-    investigation: { stage: "dormant", heat: 0, documents: [], suppressed: [] },
+    investigation: { stage: "dormant", heat: 0, documents: [], suppressed: [], comparisons: [], chain: [] },
     objectives: [],
     replay: [],
     replayMeta: emptyReplay(hat, worldSeed),
@@ -672,16 +672,23 @@ export function executeAction(state: GameState, plan: PlannedAction): GameState 
     }
     case "kaynak_karsilastir": {
       const held = Object.values(next.hand).filter((h) => h.status !== "UNKNOWN");
-      const clash = ALL_CLAIMS.filter((c) => c.contradiction && held.some((h) => h.claimId === c.id));
+      const clash = ALL_CLAIMS.filter((c) => c.contradiction && held.some((h) => h.claimId === c.id) && c.sourceIds.length >= 2);
+      const fallback = ALL_CLAIMS.filter((c) => c.contradiction && held.some((h) => h.claimId === c.id));
+      const pick = clash[0] ?? fallback[0];
       next = applyStat(next, "bilgi", 8);
       next = applyStat(next, "giz", -3);
-      next = applyStat(next, "kamuoyu", clash.length ? 2 : 1);
-      if (clash[0]) next = setHand(next, entry(clash[0].id, "PARTIAL", { source: "karşılaştırma", confidence: 58 }));
+      next = applyStat(next, "kamuoyu", pick ? 2 : 1);
+      if (pick) {
+        next = setHand(next, entry(pick.id, "PARTIAL", { source: pick.sourceIds.join(" / "), confidence: 58 }));
+        next = recordComparison(next, pick.id, pick.sourceIds);
+        next = setFactionKnow(next, "media", entry(pick.id, "RUMOR", { source: "karşılaştırma sızıntısı", confidence: 30 }));
+        next = setFactionKnow(next, "hukuk", entry(pick.id, "PARTIAL", { source: "karşılaştırma notu", confidence: 40 }));
+      }
       next = addLog(
         next,
-        clash[0]
-          ? `Kaynaklar karşılaştırıldı. Çelişki açıldı: ${clash[0].title}. Tek doğru kilitlenmedi.`
-          : "Kaynaklar karşılaştırıldı. Elindeki kayıtlarda henüz çelişki yok.",
+        pick
+          ? `Kaynaklar karşılaştırıldı: ${pick.title}. ${pick.sourceIds.length} kaynak yan yana. Çelişki dosyaya işlendi; tek doğru kilitlenmedi.`
+          : "Kaynaklar karşılaştırıldı. Elindeki kayıtlarda henüz iki kaynaklı çelişki yok.",
         "aksiyon",
         "act.kaynak_karsilastir",
       );
@@ -697,26 +704,46 @@ export function executeAction(state: GameState, plan: PlannedAction): GameState 
       const claim = ALL_CLAIMS.find((c) => c.id === rumor.claimId);
       const world = next.truth[rumor.claimId];
       const nextStatus = claim?.contradiction || world === "UNKNOWN" || world === "PARTIAL" ? "PARTIAL" : world === "TRUE" ? "PARTIAL" : "RUMOR";
-      next = setHand(next, entry(rumor.claimId, nextStatus, { source: "yoklama", confidence: Math.min(70, rumor.confidence + 18) }));
+      const bump = claim?.evidence === "BELGELİ" ? 24 : claim?.evidence === "GÜÇLÜ" ? 18 : 10;
+      next = setHand(next, entry(rumor.claimId, nextStatus, { source: "yoklama", confidence: Math.min(72, rumor.confidence + bump) }));
       next = applyStat(next, "bilgi", 6);
       next = applyStat(next, "giz", -4);
       next = applyStat(next, "kamuoyu", 2);
+      next = { ...next, investigation: { ...next.investigation, heat: next.investigation.heat + 1 } };
       next = addLog(next, `Söylenti yoklandı: ${claim?.title ?? rumor.claimId}. Kesinleştirilmedi.`, "aksiyon", "act.dogrula");
       break;
     }
     case "delil_zincir": {
-      next = addDocument(next, `zincir-t${next.turn}`, false);
+      const held = Object.values(next.hand).filter((h) => h.status === "PARTIAL" || h.status === "TRUE");
+      const compared = (next.investigation.comparisons ?? []).map((c) => c.claimId);
+      const bound =
+        ALL_CLAIMS.find((c) => compared.includes(c.id) && held.some((h) => h.claimId === c.id)) ??
+        ALL_CLAIMS.find((c) => (c.evidence === "BELGELİ" || c.evidence === "GÜÇLÜ") && held.some((h) => h.claimId === c.id)) ??
+        ALL_CLAIMS.find((c) => held.some((h) => h.claimId === c.id));
+      const claimId = bound?.id ?? "clm_jitem_exists";
+      const docId = `doc-${claimId}-t${next.turn}`;
+      next = recordChainLink(next, claimId, docId);
       next = applyStat(next, "hukuk", 7);
       next = applyStat(next, "giz", -4);
       next = applyStat(next, "bilgi", 3);
-      next = addLog(next, "Delil zincirine halka eklendi. Emir üretilmedi.", "aksiyon", "act.delil_zincir");
+      next = setFactionKnow(next, "hukuk", entry(claimId, "PARTIAL", { source: "delil halkası", confidence: 48 }));
+      next = addLog(
+        next,
+        bound
+          ? `Delil zincirine halka: ${bound.title}. Emir üretilmedi.`
+          : "Delil zincirine halka eklendi. Emir üretilmedi.",
+        "aksiyon",
+        "act.delil_zincir",
+      );
       break;
     }
     case "kanit_esigi": {
       const docs = next.investigation.documents.length;
-      if (docs >= 2) {
+      const chainN = (next.investigation.chain ?? []).length;
+      const comparedN = (next.investigation.comparisons ?? []).length;
+      if (docs >= 2 || chainN >= 2) {
         next = { ...next, tags: [...next.tags, "inv-direct"] };
-        next = applyStat(next, "hukuk", 6);
+        next = applyStat(next, "hukuk", 6 + (comparedN >= 1 ? 2 : 0));
         next = applyStat(next, "giz", -3);
         next = addLog(next, "Kanıt eşiği işletildi. Dosya bir kat ilerledi.", "aksiyon", "act.kanit_esigi");
       } else {
