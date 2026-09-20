@@ -6,15 +6,80 @@ import { useGame } from "@/game/store";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
+function EventBody() {
+  const state = useGame((s) => s.state)!;
+  const chooseEvent = useGame((s) => s.chooseEvent);
+  const ev = eventViewFor(state);
+  if (!ev) return null;
+  const showHidden = state.stats.bilgi >= ev.hiddenBilgi;
+  const layer = LAYER_LABEL[ev.layer] ?? ev.layer;
+  const ux = sourceUxFor({
+    layer: ev.layer,
+    evidence: ev.evidence,
+    contradiction: ev.hidden.includes("TARTIŞMALI") ? ev.hidden : null,
+  });
+
+  return (
+    <article className="flex max-h-full flex-col">
+      <p className="text-[11px] font-medium text-olive">
+        Adım 1 · {ev.year}
+        {ev.anchor ? " · durdurulamaz çıpa" : ""}
+      </p>
+      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+        <h2 className="text-xl font-medium tracking-tight text-paper sm:text-2xl">{ev.title}</h2>
+        {ux.map((t) => (
+          <Badge key={t} tone={t === "TARTIŞMALI" || t === "ÇELİŞKİLİ" ? "tart" : t === "BELGELİ" || t === "TARİHSEL ÇIPA" ? "belgeli" : "guc"}>
+            {t}
+          </Badge>
+        ))}
+        <Badge tone={evidenceTone(ev.evidence)}>{ev.evidence}</Badge>
+        <Badge>{layer}</Badge>
+      </div>
+      <p className="mt-1 font-mono text-[11px] text-muted">{ev.fileNo}</p>
+      <p className="mt-3 text-sm leading-relaxed text-fg">{ev.body}</p>
+      {ev.addendum ? (
+        <p className="mt-3 border-l-2 border-warn/70 pl-3 text-sm leading-relaxed text-muted">{ev.addendum}</p>
+      ) : null}
+      {showHidden ? (
+        <div className="mt-3 border-l-2 border-olive/70 pl-3">
+          <p className="text-[11px] font-medium text-olive">Gizli madde · kaynaklara göre</p>
+          <p className="mt-1 text-sm leading-relaxed text-muted">{ev.hidden}</p>
+        </div>
+      ) : (
+        <p className="mt-3 text-xs text-subtle">Gizli madde kapalı. Bilgi {ev.hiddenBilgi}+ gerek — “Rapor yaz” veya “Dosya oku”.</p>
+      )}
+      <p className="mt-4 text-[11px] font-medium text-olive">Duruşunu seç — bağ / kişi / gerçek</p>
+      <div className="mt-2 grid gap-2">
+        {ev.choices.map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => chooseEvent(c.id)}
+            className="min-h-11 rounded-md border border-border bg-bg/50 px-3 py-3 text-left transition-colors duration-(--motion-quick) hover:border-olive/60 hover:bg-elevated"
+          >
+            <span className="block text-sm font-medium text-fg">{c.label}</span>
+            <span className="mt-0.5 block text-xs leading-snug text-muted">{c.hint}</span>
+          </button>
+        ))}
+      </div>
+      <Button variant="ghost" className="mt-2 w-full text-subtle" onClick={() => chooseEvent(ev.choices[0]?.id ?? "")}>
+        Kararsızsan ilk duruşu al
+      </Button>
+    </article>
+  );
+}
+
 export function EventModal({ embedded = false }: { embedded?: boolean }) {
   const state = useGame((s) => s.state);
-  const chooseEvent = useGame((s) => s.chooseEvent);
   const nextTurn = useGame((s) => s.nextTurn);
   if (!state) return null;
+
   if (embedded) {
     if (state.phase === "event") {
       return (
-        <p className="p-4 text-sm text-muted">Duruş penceresi açık. Seçimini oradan yap.</p>
+        <div className="p-4 pb-6">
+          <EventBody />
+        </div>
       );
     }
     const ev = EVENTS.find((e) => e.turn === state.turn);
@@ -35,76 +100,19 @@ export function EventModal({ embedded = false }: { embedded?: boolean }) {
             </Button>
           </div>
         ) : (
-          <p className="mt-4 text-xs text-subtle">İşler sekmesinden turu kapat.</p>
+          <p className="mt-4 text-xs text-subtle">İşler sekmesinden kapasiteni harca, turu kapat.</p>
         )}
       </article>
     );
   }
 
   if (state.phase !== "event") return null;
-  const ev = eventViewFor(state);
-  if (!ev) return null;
-  const showHidden = state.stats.bilgi >= ev.hiddenBilgi;
-  const layer = LAYER_LABEL[ev.layer] ?? ev.layer;
-  const ux = sourceUxFor({
-    layer: ev.layer,
-    evidence: ev.evidence,
-    contradiction: ev.hidden.includes("TARTIŞMALI") ? ev.hidden : null,
-  });
 
   return (
-    <div className="absolute inset-0 z-30 flex items-end justify-center bg-bg/75 p-3 sm:items-center sm:p-6">
-      <article className="max-h-[90dvh] w-full max-w-xl overflow-y-auto rounded-lg border border-border bg-surface p-5 sm:p-6">
-        <p className="text-[11px] font-medium text-olive">
-          Adım 1 · {ev.year}
-          {ev.anchor ? " · durdurulamaz çıpa" : ""}
-        </p>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <h2 className="text-2xl font-medium tracking-tight text-paper">{ev.title}</h2>
-          {ux.map((t) => (
-            <Badge key={t} tone={t === "TARTIŞMALI" || t === "ÇELİŞKİLİ" ? "tart" : t === "BELGELİ" || t === "TARİHSEL ÇIPA" ? "belgeli" : "guc"}>
-              {t}
-            </Badge>
-          ))}
-          <Badge tone={evidenceTone(ev.evidence)}>{ev.evidence}</Badge>
-          <Badge>{layer}</Badge>
-        </div>
-        <p className="mt-1 font-mono text-[11px] text-muted">{ev.fileNo}</p>
-        <p className="mt-4 text-sm leading-relaxed text-fg">{ev.body}</p>
-        {ev.addendum ? (
-          <p className="mt-3 border-l-2 border-warn/70 pl-3 text-sm leading-relaxed text-muted">
-            {ev.addendum}
-          </p>
-        ) : null}
-        {showHidden ? (
-          <div className="mt-4 border-l-2 border-olive/70 pl-3">
-            <p className="text-[11px] font-medium text-olive">Gizli madde · kaynaklara göre</p>
-            <p className="mt-1 text-sm leading-relaxed text-muted">{ev.hidden}</p>
-          </div>
-        ) : (
-          <p className="mt-4 text-xs text-subtle">
-            Gizli madde kapalı. Bilgi {ev.hiddenBilgi}+ gerek — “Rapor yaz” veya “Dosya oku”.
-          </p>
-        )}
-
-        <p className="mt-6 text-[11px] font-medium text-olive">Duruşunu seç — bağ / kişi / gerçek</p>
-        <div className="mt-2 grid gap-2">
-          {ev.choices.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => chooseEvent(c.id)}
-              className="min-h-11 rounded-md border border-border bg-bg/50 px-3 py-3 text-left transition-colors duration-(--motion-quick) hover:border-olive/60 hover:bg-elevated"
-            >
-              <span className="block text-sm font-medium text-fg">{c.label}</span>
-              <span className="mt-0.5 block text-xs leading-snug text-muted">{c.hint}</span>
-            </button>
-          ))}
-        </div>
-        <Button variant="ghost" className="mt-3 w-full text-subtle" onClick={() => chooseEvent(ev.choices[0]?.id ?? "")}>
-          Kararsızsan ilk duruşu al
-        </Button>
-      </article>
+    <div className="absolute inset-0 z-30 hidden items-end justify-center bg-bg/70 p-3 lg:flex lg:items-center lg:p-6">
+      <div className="max-h-[min(78dvh,640px)] w-full max-w-xl overflow-y-auto rounded-lg border border-border bg-surface p-5 sm:p-6">
+        <EventBody />
+      </div>
     </div>
   );
 }

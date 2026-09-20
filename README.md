@@ -13,14 +13,14 @@ Kaydetme anahtarı: `jitem-derin-ag-v3` · şema: `schemaVersion: 5`.
 Her tur:
 
 1. Dönem olayı (tarihsel çıpa veya kaynak iddiası) + duruş
-2. Sınırlı iş: bağ, kişi (koru / kullan / harca / mesafe), gerçek / düzen
-3. Diğer taraflar **kendi bildikleriyle** hareket eder
+2. **Operasyonel kapasite:** ağır iş 2–3, bakış 1. Saha 5, idari 4.
+3. Diğer taraflar **kendi bildikleriyle** hareket eder — raporda yalnızca bildiğin kadar görünür
 
 Çıpa olaylar (Abas, Ersever ölümü, 3 Kasım) durmaz. Çevresi değişir: kim dahil, ne kadar bilgi açılır, kim konuşur, soruşturma ısısı.
 
-İki başlangıç hattı: **Saha** (Ersever tipi, 3 iş) ve **İdari** (Doğan tipi, 2 iş). Kazanmak / kaybetmek yok; kapanış **SENİN 1986–1996 HİKÂYEN** dosyasıdır.
+İki başlangıç hattı: **Saha** (Ersever tipi, 5 kapasite, daha çok ısı) ve **İdari** (Doğan tipi, 4 kapasite, daha verimli kalkan). Kazanmak / kaybetmek yok; kapanış **SENİN 1986–1996 HİKÂYEN** dosyasıdır.
 
-Mobil beş sekme: Harita · Olay · Kişi · İşler · Rapor.
+Mobil beş sekme altta: Harita · Olay · Kişi · İşler · Rapor. HUD tek sıra.
 
 ## Nasıl çalıştırılır
 
@@ -37,6 +37,8 @@ npm run dev          # 0.0.0.0:8080
 npm run build
 npm run preview      # 127.0.0.1:8081
 ```
+
+Embedded (TarıkLab iframe ileride): `/?embed=1` — iç site header / duplicate back yok. Ayrıntı: [docs/TARIKLAB.md](docs/TARIKLAB.md).
 
 ## Test / typecheck / build
 
@@ -56,12 +58,13 @@ Kaynaksız iddia `test:game` içinde hata verir.
 |---|---|
 | **Research DB** | Kişi, kurum, iddia, bağ, olay, kaynak. Her kayıt kaynaklı. |
 | **Koşullu event family** | 39 aile / 67 varyant. Çıpa takvimi durmaz; varyant geçmişe ve bilgiye bağlı. |
-| **Asimetrik faction AI** | JİTEM, MİT, Emniyet, basın, hukuk, askerî, yeraltı, siyaset. Her biri kendi bilgisiyle hareket eder. |
+| **Asimetrik faction AI** | JİTEM, MİT, Emniyet, basın, hukuk, askerî, yeraltı, siyaset. Raporda KNOWN / SUSPECTED / RUMOR / UNKNOWN. |
 | **Actor memory** | Koru / kullan / harca / yalnız bırak / sızdır / rakibi tut / söz tut / söz boz. |
-| **İlişki grafı** | Sıkılaştır, gevşet, gözet, arabul, yalıt, ifşa, koru. BELGELİ kilit gevşemez. |
-| **Soruşturma** | uyku → söylenti → ön inceleme → soruşturma → delil → kamu → kurumsal yanıt. Durdurmak zorunda değilsin. |
-| **7 act** | 1986–1996. İlk 3 tur öğretici; sonra serbest. |
-| **Save / replay** | `jitem-derin-ag-v3`, şema 5, migrate + yedek. Bitişte replay indir + aynı tohum. |
+| **İlişki grafı** | Strateji alanı. Uzak = kurum kümeleri, yakın = kişi + bağ. “Neden dokunayım” seçilince görünür. |
+| **Soruşturma** | uyku → söylenti → ön inceleme → soruşturma → delil → kamu → kurumsal yanıt. Yükselten / azaltan / seçenekler UI’da. |
+| **Kapasite** | Saha 5 / idari 4. Bakış 1, orta 2, ağır 3. |
+| **7 act** | 1986–1996. İlk 3 tur öğretici (bağ / kişi / gerçek); sonra serbest. |
+| **Save / replay** | `jitem-derin-ag-v3`, şema 5, migrate + yedek. Bitişte `DERIN-AG-1986-1996-<seed>.json`. |
 
 Mimari: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)  
 Kaynak disiplini: [docs/SOURCES.md](docs/SOURCES.md)
@@ -77,12 +80,14 @@ schemaVersion: 5
 
 Eski prototip anahtarı `derin-ag-save-v1` yalnızca okunur ve migrate edilir. Başka bir oyunla paylaşma.
 
+Geri dönüş: act, son olay, soruşturma, kritik bağ, sıradaki problem tek kartta.
+
 ## Bilinçli eksikler
 
 - Araştırmacı / hukuk başlangıç hatları (tip hazır, içerik yok).
 - Katalog kasıtlı ince; 80 düğümlük geniş harita yok.
-- `giz_coktu` saha stilinde sık; idari/gizlilik ayakta kalıyor.
-- TarıkLab entegrasyonu yapılmadı — bu repo standalone.
+- Replay import / aynı kaydı oynatma yok — yalnız güvenilir export.
+- TarıkLab entegrasyonu yapılmadı — bu repo standalone. Embedded sözleşmesi hazır.
 
 ## Yığın
 

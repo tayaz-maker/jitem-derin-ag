@@ -1,5 +1,6 @@
 import { ACTION_GROUPS, ACTIONS, EDGES, EVIDENCE_META, NODES } from "@/game/data";
 import {
+  apFor,
   canPlay,
   isEdgeVisible,
   isNodeVisible,
@@ -10,10 +11,11 @@ import { evidenceTone } from "@/game/evidence";
 import { actOf, actLabel, mechanicUnlocked } from "@/game/sim/acts";
 import { LAYER_LABEL, sourceUxFor } from "@/game/sim/authority";
 import { edgePreview, liveLine } from "@/game/sim/edges";
-import { STAGE_LABEL } from "@/game/sim/investigation";
+import { investigationView } from "@/game/sim/investigation";
 import { playerViewOf, theySeePlayer } from "@/game/sim/knowledge";
 import { memoryLine } from "@/game/sim/memory";
 import { visibleObjectives } from "@/game/sim/objectives";
+import { nodeWhy, edgeWhy } from "@/game/sim/inspect";
 import { SOURCE_BY_ID } from "@/game/db";
 import { useGame } from "@/game/store";
 import type { ActionGroup, ActionId, Faction } from "@/game/types";
@@ -27,6 +29,7 @@ export function SidePanel({ forceTab }: { forceTab?: "is" | "dosya" }) {
   const [tab, setTab] = useState<"is" | "dosya">("is");
   if (!state) return null;
   const activeTab = forceTab ?? (state.phase === "actions" ? tab : "dosya");
+  const inv = investigationView(state);
 
   return (
     <aside className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto border-t border-border bg-surface p-3 sm:border-l sm:border-t-0 sm:p-4">
@@ -58,11 +61,31 @@ export function SidePanel({ forceTab }: { forceTab?: "is" | "dosya" }) {
       {state.phase === "actions" && activeTab === "is" ? <ActionBlock /> : null}
       {state.phase === "resolution" ? <ResolutionBlock /> : null}
 
-      {mechanicUnlocked(state, "investigation") ? (
-        <p className="text-[11px] text-muted">
-          Soruşturma: {STAGE_LABEL[state.investigation.stage]} · ısı {state.investigation.heat}
-        </p>
-      ) : null}
+      {mechanicUnlocked(state, "investigation") || inv.stage !== "dormant" ? (
+        <div className="rounded-sm border border-border bg-bg/30 p-2">
+          <p className="text-[11px] font-medium text-olive">
+            Soruşturma · {inv.label} · ısı {inv.heat}
+          </p>
+          <p className="mt-1 text-[11px] leading-snug text-muted">{inv.why}</p>
+          {inv.raising.length ? (
+            <p className="mt-1 text-[10px] text-stamp">Yükselten: {inv.raising.join(" · ")}</p>
+          ) : null}
+          {inv.lowering.length ? (
+            <p className="text-[10px] text-olive">Azaltan: {inv.lowering.join(" · ")}</p>
+          ) : null}
+          {inv.options.length ? (
+            <ul className="mt-1 space-y-0.5">
+              {inv.options.slice(0, 3).map((o) => (
+                <li key={o} className="text-[10px] text-subtle">
+                  {o}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : (
+        <p className="text-[11px] text-subtle">Soruşturma henüz aktif değil — giz incelirse uyanır.</p>
+      )}
 
       <div className="mt-auto space-y-1 border-t border-border pt-3">
         <p className="text-xs text-subtle">
@@ -109,6 +132,7 @@ export function PersonPane() {
           <Badge tone={evidenceTone(edge.evidence)}>{edge.evidence}</Badge>
           <Badge>{LAYER_LABEL[edge.layer] ?? edge.layer}</Badge>
         </div>
+        <p className="mt-2 text-xs font-medium text-paper">{edgeWhy(state, edge.id)}</p>
         <p className="mt-2 text-xs text-muted">{liveLine(live)}</p>
         <p className="mt-2 text-xs text-subtle">Kaynak: {edge.source}</p>
         {state.phase === "actions" ? (
@@ -152,6 +176,7 @@ export function PersonPane() {
             <Badge>{node.kind === "kisi" ? "kişi" : node.kind === "kurum" ? "kurum" : "koridor"}</Badge>
             {state.dead[node.id] ? <Badge tone="stamp">KAPALI</Badge> : null}
           </div>
+          <p className="mt-2 text-xs leading-snug text-paper">{nodeWhy(state, node.id)}</p>
           <div className="mt-1 flex flex-wrap gap-1">
             {ux.slice(0, 3).map((t) => (
               <Badge key={t}>{t}</Badge>
@@ -161,7 +186,9 @@ export function PersonPane() {
           <dl className="mt-3 space-y-1.5 text-xs leading-relaxed text-muted">
             <div>
               <dt className="text-paper">Kanıt</dt>
-              <dd>{node.evidence} · {src ? `${src.title}${src.location ? ` · ${src.location}` : ""}` : node.source}</dd>
+              <dd>
+                {node.evidence} · {src ? `${src.title}${src.location ? ` · ${src.location}` : ""}` : node.source}
+              </dd>
             </div>
             <div>
               <dt className="text-paper">Elindeki bilgi</dt>
@@ -179,7 +206,6 @@ export function PersonPane() {
               <dt className="text-paper">Faction / risk</dt>
               <dd>
                 {node.faction ?? "—"} · ısı {state.nodeHeat[node.id] ?? 0}
-                {node.faction ? ` · ${state.factions[node.faction]?.currentObjective ?? ""}` : ""}
               </dd>
             </div>
           </dl>
@@ -200,7 +226,8 @@ export function PersonPane() {
               </div>
               <div>
                 <dt className="text-paper">
-                  Motivasyon · {node.motivationKind === "unknown" ? "UNKNOWN" : node.motivationKind === "sourced" ? "kaynaklı" : "GAMEPLAY_ASSUMPTION"}
+                  Motivasyon ·{" "}
+                  {node.motivationKind === "unknown" ? "UNKNOWN" : node.motivationKind === "sourced" ? "kaynaklı" : "GAMEPLAY_ASSUMPTION"}
                 </dt>
                 <dd>{node.motivation}</dd>
               </div>
@@ -210,10 +237,10 @@ export function PersonPane() {
             <div className="mt-3 grid grid-cols-2 gap-1.5">
               {(
                 [
-                  ["kisi_koru", "Koru", "Sadakat artar, saha bağlanır."],
-                  ["kisi_kullan", "Kullan", "Fayda. Sadakat incelir."],
-                  ["kisi_harca", "Harca", "Bilgi için yak. Kin kalır."],
-                  ["kisi_mesafe", "Mesafe", "İz küçülür."],
+                  ["kisi_koru", "Koru", "2 kap · sadakat artar"],
+                  ["kisi_kullan", "Kullan", "2 kap · fayda, sadakat incelir"],
+                  ["kisi_harca", "Harca", "3 kap · bilgi için yak"],
+                  ["kisi_mesafe", "Mesafe", "1 kap · iz küçülür"],
                 ] as const
               ).map(([id, label, hint]) => (
                 <button
@@ -232,7 +259,7 @@ export function PersonPane() {
         </>
       ) : (
         <p className="mt-2 text-sm text-muted">
-          Soldaki haritada bir isme dokun. Sisli isimler dönem ve bilgiyle açılır. 80 düğüm birden basılmaz.
+          Haritada bir isme veya çizgiye dokun. Sisli isimler dönem ve bilgiyle açılır. “Neden dokunayım” seçilince görünür.
         </p>
       )}
     </div>
@@ -244,15 +271,12 @@ function ActionBlock() {
   const armAction = useGame((s) => s.armAction);
   const play = useGame((s) => s.play);
   const resolve = useGame((s) => s.resolve);
-  const [group, setGroup] = useState<ActionGroup>("saha");
-  const spent = (state.hat === "saha" ? 3 : 2) - state.actionsLeft;
+  const defaultGroup: ActionGroup =
+    state.turn === 1 ? "ag" : state.turn === 2 ? "kisi" : state.turn === 3 ? "bilgi" : state.hat === "idari" ? "koruma" : "saha";
+  const [group, setGroup] = useState<ActionGroup>(defaultGroup);
+  const max = apFor(state.hat);
+  const spent = max - state.actionsLeft;
   const act = actOf(state.turn);
-  const groups = ACTION_GROUPS.filter((g) => {
-    if (g.id === "kisi" && !mechanicUnlocked(state, "person")) return false;
-    if (g.id === "bilgi" && !mechanicUnlocked(state, "knowledge") && state.turn < 3) return false;
-    return true;
-  });
-  const list = ACTIONS.filter((a) => a.group === group && (!a.unlockAct || act >= a.unlockAct));
 
   const onAction = (id: ActionId) => {
     const def = ACTIONS.find((a) => a.id === id);
@@ -267,11 +291,19 @@ function ActionBlock() {
   return (
     <div className="space-y-3">
       <div className="flex items-baseline justify-between gap-2">
-        <p className="text-sm font-medium text-paper">Adım 2 · İş seç</p>
-        <p className="tabular text-xs text-muted">{state.actionsLeft} hak kaldı</p>
+        <p className="text-sm font-medium text-paper">Adım 2 · Kapasite</p>
+        <p className="tabular text-xs text-muted">
+          {state.actionsLeft}/{max} kaldı
+        </p>
+      </div>
+      <div className="h-1 overflow-hidden rounded-full bg-elevated">
+        <div className="h-full bg-olive" style={{ width: `${Math.round((state.actionsLeft / max) * 100)}%` }} />
       </div>
       <p className="text-xs leading-relaxed text-subtle">
-        {onboardingHint(state) ?? "Gizlilik bitmesin. Fazla rapor sis açar ama ifşa eder."}
+        {onboardingHint(state) ??
+          (state.hat === "saha"
+            ? "Saha: yüksek kapasite, daha çok ısı. Ağır iş 3, bakış 1."
+            : "İdari: daha az kapasite, koruma ve dosya daha verimli.")}
       </p>
       {visibleObjectives(state).filter((o) => o.status === "open" && !o.secret).length ? (
         <ul className="space-y-1 rounded-sm border border-border bg-bg/30 p-2">
@@ -288,46 +320,61 @@ function ActionBlock() {
       ) : null}
 
       <div className="grid grid-cols-5 gap-1">
-        {groups.map((g) => (
-          <button
-            key={g.id}
-            type="button"
-            onClick={() => setGroup(g.id)}
-            className={cn(
-              "min-h-10 rounded-sm px-1 text-xs font-medium",
-              group === g.id ? "bg-olive text-olive-fg" : "bg-bg/50 text-muted hover:text-fg",
-            )}
-          >
-            {g.label}
-          </button>
-        ))}
+        {ACTION_GROUPS.map((g) => {
+          const locked =
+            (g.id === "kisi" && !mechanicUnlocked(state, "person")) ||
+            (g.id === "bilgi" && !mechanicUnlocked(state, "knowledge") && state.turn < 3);
+          return (
+            <button
+              key={g.id}
+              type="button"
+              onClick={() => setGroup(g.id)}
+              className={cn(
+                "min-h-10 rounded-sm px-1 text-xs font-medium",
+                group === g.id ? "bg-olive text-olive-fg" : "bg-bg/50 text-muted hover:text-fg",
+                locked && "opacity-50",
+              )}
+            >
+              {g.label}
+            </button>
+          );
+        })}
       </div>
-      <p className="text-[11px] text-subtle">{ACTION_GROUPS.find((g) => g.id === group)?.hint}</p>
+      <p className="text-[11px] text-subtle">
+        {ACTION_GROUPS.find((g) => g.id === group)?.hint}
+        {group === "kisi" && !mechanicUnlocked(state, "person") ? " · henüz aktif değil (tur 2)" : ""}
+        {group === "bilgi" && !mechanicUnlocked(state, "knowledge") && state.turn < 3 ? " · henüz aktif değil (tur 3)" : ""}
+      </p>
 
       <div className="grid grid-cols-2 gap-1.5">
-        {list.map((a) => {
+        {ACTIONS.filter((a) => a.group === group).map((a) => {
+          const locked = Boolean(a.unlockAct && act < a.unlockAct);
           const armed = state.pendingAction === a.id;
           const ok = canPlay(state, a.id);
           return (
             <button
               key={a.id}
               type="button"
-              disabled={!ok && !armed}
+              disabled={(!ok && !armed) || locked}
               onClick={() => onAction(a.id)}
               className={cn(
                 "min-h-11 rounded-sm border px-2 py-2 text-left transition-colors duration-(--motion-quick)",
                 armed ? "border-olive bg-olive/15" : "border-border bg-bg/40 hover:border-olive/40",
-                !ok && !armed && "opacity-40",
+                ((!ok && !armed) || locked) && "opacity-40",
               )}
             >
-              <span className="block text-sm font-medium text-fg">{a.name}</span>
-              <span className="mt-0.5 block text-[11px] leading-snug text-muted">{a.blurb}</span>
-              <span className="mt-1 block text-[11px] text-olive">{a.cost}</span>
+              <span className="flex items-baseline justify-between gap-1">
+                <span className="text-sm font-medium text-fg">{a.name}</span>
+                <span className="font-mono text-[10px] text-olive">{a.ap}</span>
+              </span>
+              <span className="mt-0.5 block text-[11px] leading-snug text-muted">
+                {locked ? `Henüz aktif değil · ACT ${a.unlockAct}` : a.blurb}
+              </span>
+              <span className="mt-1 block text-[11px] text-olive">{locked ? "" : a.cost}</span>
             </button>
           );
         })}
       </div>
-      {list.length === 0 ? <p className="text-xs text-subtle">Bu grup henüz açılmadı.</p> : null}
 
       {state.pendingAction === "rakip_sogut" ? (
         <div className="rounded-sm border border-olive/40 bg-olive/10 p-2">
@@ -341,7 +388,10 @@ function ActionBlock() {
           </div>
         </div>
       ) : null}
-      {state.pendingAction && ["bag_guclendir", "bag_gevset", "bag_gozet", "bag_yalitim", "bag_ifsa", "bag_arabul"].includes(state.pendingAction) ? (
+      {state.pendingAction &&
+      ["bag_guclendir", "bag_gevset", "bag_gozet", "bag_yalitim", "bag_ifsa", "bag_arabul", "bag_koru"].includes(
+        state.pendingAction,
+      ) ? (
         <p className="rounded-sm border border-olive/40 bg-olive/10 px-2 py-2 text-xs text-paper">
           Haritada iki isim arasındaki çizgiye dokun.
         </p>
@@ -352,8 +402,17 @@ function ActionBlock() {
         </p>
       ) : null}
 
-      <Button variant={state.actionsLeft === 0 ? "default" : "outline"} className="w-full" onClick={resolve} disabled={spent < 1}>
-        {spent < 1 ? "Önce bir iş seç" : state.actionsLeft > 0 ? "Kalan hakkı bırak, turu kapat" : "Turu kapat — diğer hatlar hareket eder"}
+      <Button
+        variant={state.actionsLeft === 0 ? "default" : "outline"}
+        className="w-full"
+        onClick={resolve}
+        disabled={spent < 1}
+      >
+        {spent < 1
+          ? "Önce kapasite harca"
+          : state.actionsLeft > 0
+            ? "Kalan kapasiteyi bırak, turu kapat"
+            : "Turu kapat — diğer hatlar hareket eder"}
       </Button>
     </div>
   );

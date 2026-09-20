@@ -8,6 +8,9 @@ import {
   eventViewFor,
   isNodeVisible,
   resolveTurn,
+  apFor,
+  actionAp,
+  canPlay,
 } from "../engine.ts";
 import { validateResearch, classifyClaim } from "../db/validate.ts";
 import { DB_COUNTS } from "../db/index.ts";
@@ -18,7 +21,11 @@ import { tickInvestigation } from "./investigation.ts";
 import { pickEnding } from "./recap.ts";
 import { parseSave, serialize, migrate } from "./save.ts";
 import { autoCampaign, runBalance } from "./balance.ts";
-import { formatReplay } from "./recap.ts";
+import { formatReplay, formatReplayJson, replayFilename } from "./recap.ts";
+import { detectShellMode } from "../embed.ts";
+import { investigationView } from "./investigation.ts";
+import { factionSignals } from "./intel.ts";
+import { briefingFrom } from "./briefing.ts";
 
 describe("campaign engine", () => {
   it("starts with research-backed visible nodes", () => {
@@ -204,7 +211,7 @@ describe("deterministic seed", () => {
 
 describe("replay export", () => {
   it("includes namespace, seed and schema", () => {
-    const s = autoCampaign("gizlilik", 2026);
+    const s = autoCampaign("saha-gizlilik", 2026);
     const t = formatReplay(s);
     assert.match(t, /jitem-derin-ag-v3/);
     assert.match(t, /schema 5/);
@@ -239,7 +246,7 @@ describe("mobile pane contract", () => {
 
 describe("auto campaign", () => {
   it("finishes a seeded run", () => {
-    const s = autoCampaign("gizlilik", 2026);
+    const s = autoCampaign("saha-gizlilik", 2026);
     assert.ok(s.phase === "ended" || s.turn >= 10);
     assert.ok(s.decisions.length >= 3);
   });
@@ -264,9 +271,9 @@ describe("choice applies", () => {
 });
 
 describe("balance smoke", () => {
-  it("25 seeds do not all share one ending or softlock", () => {
-    const r = runBalance(25);
-    assert.equal(r.runs, 25);
+  it("50 seeds do not all share one ending or softlock", () => {
+    const r = runBalance(50);
+    assert.equal(r.runs, 50);
     assert.equal(r.softlocks, 0);
     assert.equal(r.sameEnding, false);
   });
@@ -356,5 +363,97 @@ describe("knowledge isolation after tick", () => {
     const s = createGame("saha", 2);
     assert.ok(s.hand.clm_jitem_exists);
     assert.equal(s.factions.media.knowledgeBase.clm_jitem_exists?.status, "UNKNOWN");
+  });
+});
+
+describe("action capacity", () => {
+  it("saha has 5, idari has 4, heavy ops cost 3", () => {
+    assert.equal(apFor("saha"), 5);
+    assert.equal(apFor("idari"), 4);
+    assert.equal(actionAp("dosya_oku"), 1);
+    assert.equal(actionAp("tim_kur"), 2);
+    assert.equal(actionAp("kisi_harca"), 3);
+    assert.equal(actionAp("saha_op"), 3);
+  });
+
+  it("refuses an action the pool cannot pay", () => {
+    let s = createGame("idari", 9);
+    s = { ...s, phase: "actions", actionsLeft: 1, selectedNodeId: "ersever" };
+    assert.equal(canPlay(s, "kisi_harca"), false);
+    assert.equal(canPlay(s, "dosya_oku"), true);
+    const before = s.actionsLeft;
+    s = executeAction(s, { id: "kisi_harca", nodeId: "ersever" });
+    assert.equal(s.actionsLeft, before);
+    assert.equal(s.stance.ersever, undefined);
+  });
+
+  it("refunds full cost when edge is missing", () => {
+    let s = createGame("saha", 3);
+    s = { ...s, phase: "actions", actionsLeft: 5, selectedEdgeId: null };
+    s = executeAction(s, { id: "bag_guclendir" });
+    assert.equal(s.actionsLeft, 5);
+  });
+});
+
+describe("embedded shell", () => {
+  it("reads embed query and iframe parent", () => {
+    const standalone: { parent: unknown } = { parent: null };
+    standalone.parent = standalone;
+    assert.equal(detectShellMode({ search: "" }, standalone), "standalone");
+    assert.equal(detectShellMode({ search: "?embed=1" }, standalone), "embedded");
+    assert.equal(detectShellMode({ search: "" }, { __DERIN_AG_EMBEDDED: true }), "embedded");
+    assert.equal(detectShellMode({ search: "" }, { parent: {} }), "embedded");
+  });
+});
+
+describe("intel fog", () => {
+  it("does not print raw faction objectives as known fact", () => {
+    const s = createGame("saha", 4);
+    const signals = factionSignals(s);
+    assert.ok(signals.some((x) => x.faction === "jitem"));
+    assert.equal(
+      signals.some((x) => x.headline.includes(s.factions.mit.currentObjective) && x.grade === "KNOWN" && x.faction !== "jitem"),
+      false,
+    );
+  });
+});
+
+describe("investigation view", () => {
+  it("exposes raising factors without dumping hidden formulas", () => {
+    const s = createGame("saha", 5);
+    const v = investigationView({
+      ...s,
+      stats: { ...s.stats, giz: 20, hukuk: 30, kamuoyu: 32 },
+      flags: { ...s.flags, investigationOpen: true },
+      investigation: { ...s.investigation, stage: "inquiry", heat: 12 },
+    });
+    assert.equal(v.label, "ön inceleme");
+    assert.ok(v.raising.length >= 1);
+    assert.ok(v.why.length > 10);
+    assert.ok(v.options.length >= 1);
+  });
+});
+
+describe("returning player briefing", () => {
+  it("names act, event and next problem", () => {
+    const s = createGame("saha", 11);
+    const b = briefingFrom(s);
+    assert.match(b.act, /ACT/);
+    assert.ok(b.lastEvent.length > 2);
+    assert.ok(b.nextProblem.length > 4);
+    assert.equal(b.turn, 1);
+  });
+});
+
+describe("replay json", () => {
+  it("uses DERIN-AG filename and schema 5 payload", () => {
+    const s = autoCampaign("idari-koruma", 2026);
+    const j = formatReplayJson(s);
+    assert.equal(j.saveKey, "jitem-derin-ag-v3");
+    assert.equal(j.schemaVersion, 5);
+    assert.equal(j.seed, 2026);
+    assert.ok(Array.isArray(j.decisions));
+    assert.ok(j.dossier);
+    assert.equal(replayFilename(2026), "DERIN-AG-1986-1996-2026.json");
   });
 });
