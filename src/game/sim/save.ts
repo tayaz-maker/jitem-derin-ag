@@ -4,6 +4,10 @@ import { initialHand, initialTruth } from "./knowledge.ts";
 import type { GameState, Hat } from "../types.ts";
 import { SAVE_VERSION, SCHEMA_VERSION } from "../types.ts";
 
+function apFallback(hat: Hat) {
+  return hat === "saha" ? 5 : 4;
+}
+
 const FLAG_DEFAULTS: GameState["flags"] = {
   commandShifted: false,
   abasDead: false,
@@ -83,7 +87,7 @@ export function migrate(raw: GameState | Record<string, unknown>): GameState {
           major: (state.replayMeta as GameState["replayMeta"]).major ?? [],
         }
       : { seed: worldSeed, hat, decisions: state.decisions ?? [], events: [], factions: [], major: [] },
-    actionsLeft: typeof state.actionsLeft === "number" ? state.actionsLeft : hat === "saha" ? 3 : 2,
+    actionsLeft: typeof state.actionsLeft === "number" ? state.actionsLeft : apFallback(hat),
     flags: { ...FLAG_DEFAULTS, ...(isRecord(state.flags) ? state.flags : {}) },
     selectedNodeId: state.selectedNodeId ?? "jitem",
     selectedEdgeId: state.selectedEdgeId ?? null,

@@ -2,15 +2,52 @@
 
 Bu repo **standalone**. `tayaz-maker/tariklab` içine **şimdilik commit atılmaz**.
 
-Amaç: Derin Ağ’ı lab’e alırken mevcut oyunların route, save ve asset’leriyle **çakıştırmamak**.
+Amaç: Derin Ağ’ı lab’e alırken mevcut oyunların route, save ve asset’leriyle **çakıştırmamak**. TC SIM’deki `100vh` + outer shell + duplicate back hatasını **tekrarlamamak**.
 
 ## Hazır olan
 
 - Oyun `src/game/` + `src/components/game/` içinde izole
 - Save anahtarı zaten ayrı: `jitem-derin-ag-v3` (şema 5)
+- Embedded shell sözleşmesi: `src/game/embed.ts`
 - Ek npm paketi yok (React / zustand / Tailwind / lucide)
 - Auth / DB kullanılmıyor
 - Bu rehber + `ARCHITECTURE.md` + `SOURCES.md`
+
+## Embedded mode (zorunlu sözleşme)
+
+Lab iframe / gömülü rota açınca oyun **iç site kabuğunu taklit etmez**.
+
+Aktif etme (ilk eşleşen):
+
+1. `/?embed=1` veya `/?embedded=1`
+2. `window.__DERIN_AG_EMBEDDED = true` (parent set eder)
+3. `window.parent !== window` (iframe)
+
+`applyShellMode()` `document.documentElement.dataset.shell = "embedded"` yazar.
+
+| Konu | Standalone | Embedded |
+|---|---|---|
+| Global back | Küçük “başa dön” (oyun reset) | **Gizlenir** — outer shell’in back’i |
+| Dil TR/EN | Yok (oyun TR) | **Eklenmez** — outer sahip |
+| Site header / wordmark | Küçük “DERİN AĞ” (sm+) | **Gizlenir** |
+| Gameplay HUD | Kompakt: yıl, tur, 4 stat, kapasite | **Aynı HUD kalır** |
+| Yükseklik | `.game-shell { height: 100dvh }` | `.game-shell { height: 100% }` — **100vh varsayımı yok** |
+| Safe area | `viewport-fit=cover` + `env(safe-area-inset-*)` | Outer padding varsa oyun ekstra 100vh eklemez |
+| Onboarding | İlk 3 tur, oyunun kendi ipucu | **İkinci lab onboarding yok** |
+
+Iframe örneği:
+
+```html
+<iframe
+  src="https://example.invalid/jitem?embed=1"
+  style="width:100%;height:100%;border:0;display:block"
+  allow="fullscreen"
+></iframe>
+```
+
+Parent `height: 100%` zincirini kendi shell’inde kurar. Oyun `100vh` ile outer’ı ezmez.
+
+Header yüksekliği (hedef): mobil HUD ~44px + safe-area; alt nav ~48px + safe-area. Outer lab header **ayrı** — oyun kendi global nav’ını koymaz.
 
 ## 1. Taşınacaklar
 
@@ -46,7 +83,9 @@ src/routes/jitem.tsx
 src/routes/oyunlar/derin-ag.tsx
 ```
 
-Kök `index`’e gömme. Navigasyona tek link.
+Kök `index`’e gömme. Navigasyona tek link. Gömülü açılış: aynı rota + `?embed=1`.
+
+Asset prefix: hepsi `/images/...` kök relative. Lab `base` / subdirectory kullanıyorsa `public/images` site köküne kopyalanmalı. Vite `base` değişirse oyun içindeki `/images` ve `/favicon.svg` lab’in prefix’ine map edilir — **bu repoda base `/`**.
 
 ## 3. Save izolasyonu (kritik)
 
@@ -58,11 +97,15 @@ LEGACY_SAVE_KEY = "derin-ag-save-v1"   # yalnız okuma / migrate
 
 Başka TarıkLab oyununun `localStorage` anahtarıyla **paylaşma**. Prefix’i değiştirme; mevcut kampanyalar kopar.
 
-## 4. Asset yolları
+## 4. Duplicate shell / onboarding yasağı
 
-Hepsi `/images/...` kök relative. Lab subdirectory + Vite `base` kullanıyorsa `public/images` yine site köküne kopyalanmalı.
+Lab’e alınırken **ekleme**:
 
-OG kartı (`public/og.jpg`, `src/lib/og/site.json` type `x:game`) bu oyuna özel kalır. Lab ana sayfa kartını ezme.
+- ikinci geri tuşu
+- ikinci dil seçici
+- ikinci “nasıl oynanır” lab turu (oyunun Dosya’sı yeter)
+- `h-screen` / `100vh` wrapper
+- outer header’ı içeri kopyalamak
 
 ## 5. Bağımlılıklar
 
@@ -76,7 +119,7 @@ node --experimental-strip-types --test src/game/db/validate.test.ts src/game/sim
 
 ## 6. Lab’de değişecek dosyalar (gelecek PR)
 
-1. Yeni route dosyası (yukarı)
+1. Yeni route dosyası (yukarı) + `?embed=1` varsayılanı iframe için
 2. Lab nav linki
 3. İsteğe bağlı: lab oyun listesine “Derin Ağ” kartı (kendi OG’si)
 4. **Değiştirilmeyecek:** diğer oyunların `SAVE_KEY`, lab auth popup, onboarding
@@ -85,12 +128,13 @@ Tek PR, tek oyun. Diğer simülasyonlara dokunma.
 
 ## 7. Deploy sonrası kontrol listesi
 
-- Açılış: iki hat kartı + uyarı metni
+- Açılış: iki hat kartı + varsa “kaldığın yer” brifingi
 - Tur 1 olay: TARİHSEL / KAYNAK etiketi + 3 duruş
-- Mobil: Harita / Olay / Kişi / İşler / Rapor
-- Save: yenile → “Kaldığım yerden”
+- Mobil 360 / 390: HUD tek sıra, alt nav, harita görünür, event ekranı yutmuyor
+- Save: yenile → act + son olay + soruşturma
 - Anahtar: DevTools’ta yalnızca `jitem-derin-ag-v3`
-- Son: SENİN 1986–1996 HİKÂYEN (kimi korudun / harcadın)
+- Son: SENİN 1986–1996 HİKÂYEN + `DERIN-AG-1986-1996-<seed>.json`
+- `?embed=1`: wordmark ve reset-back yok, HUD var, yükseklik parent’a oturur
 - Lab’in diğer oyunları aynı tarayıcıda kayıtlarını kaybetmemiş
 
 ## 8. Dokunulmaması gerekenler

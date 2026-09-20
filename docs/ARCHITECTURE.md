@@ -18,7 +18,7 @@ src/game/
   types.ts       şema, SAVE_KEY, ActionId
 ```
 
-UI: `src/components/game/`. Mobil beş sekme `GameApp`. Olay duruşu `EventModal` overlay.
+UI: `src/components/game/`. Mobil beş sekme alt nav. Olay duruşu masaüstünde overlay, mobilde Olay sekmesi. HUD tek sıra. Embedded: `src/game/embed.ts`.
 
 Auth ve Postgres **kapalı**. `src/lib/auth` ve `src/lib/db` iskele durur; oyun onları kullanmaz.
 
@@ -123,7 +123,7 @@ LEGACY_SAVE_KEY = "derin-ag-save-v1"
 
 `src/game/sim/save.ts`: `serialize` / `parseSave` / `migrate`. Eksik v3 alanları doldurulur. Yazarken `:bak` yedek. Bozuk JSON yedekten okunur.
 
-`replayMeta`: seed, hat, decisions, events, factions, major. UI export yok; veri duruyor.
+`replayMeta`: seed, hat, decisions, events, factions, major. Bitiş ekranı `DERIN-AG-1986-1996-<seed>.json` indirir (`formatReplayJson`). Import yok.
 
 RNG: `worldSeed` / `eventSeed` / `aiSeed` + `rngCursor`. Aynı tohum + aynı karar = aynı açılış varyantı.
 
@@ -131,16 +131,20 @@ RNG: `worldSeed` / `eventSeed` / `aiSeed` + `rngCursor`. Aynı tohum + aynı kar
 
 `src/game/sim/recap.ts` — `pickEnding` + `buildDossier`.
 
-Erken `giz_coktu` kapısı: tur ≥ 8, `gizCrisisTurns ≥ 3`, hukuk ≥ 55, giz < 6. Tur 2 giz 11 kampanyayı bitirmez.
+Erken `giz_coktu` kapısı: tur ≥ 9, `gizCrisisTurns ≥ 4`, hukuk ≥ 62, giz < 4. Tur 2 giz 11 kampanyayı bitirmez. Agresif / ifşa stilleri bedel öder; gizlilik/koruma ayakta kalabilir.
 
 Dossier başlığı: **SENİN 1986–1996 HİKÂYEN**.
 
 ## Balance
 
-`src/game/sim/balance.ts` — 5 stil × 25 tohum. Softlock 0 beklenir. Tek ending’e kilitlenmemeli.
+`src/game/sim/balance.ts` — 6 stil × 50 tohum. Softlock 0 beklenir. Tek ending’e kilitlenmemeli.
+
+Kapasite: saha 5, idari 4. `ActionDef.ap` 1–3. `canPlay` havuz yetmezse false.
 
 ## UI sözleşmesi
 
-- Masaüstü: harita + yan panel; olay overlay her duruşta görünür
-- Mobil: 5 sekme; overlay duruşta altta
+- Masaüstü: harita + yan panel; olay overlay `lg+`
+- Mobil: alt 5 sekme; olay Olay sekmesinde; HUD ~44px; `viewport-fit=cover`
+- Embedded: `?embed=1` / iframe — duplicate back/wordmark yok, `height: 100%`
+- Faction raporu: KNOWN / SUSPECTED / RUMOR / UNKNOWN
 - Kaynak rozetleri: BELGELİ / GÜÇLÜ / TARTIŞMALI / BOŞLUK + katman etiketi

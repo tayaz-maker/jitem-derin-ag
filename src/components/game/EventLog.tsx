@@ -1,9 +1,9 @@
 import { useGame } from "@/game/store";
 import { actLabel, mechanicUnlocked } from "@/game/sim/acts";
-import { STAGE_LABEL } from "@/game/sim/investigation";
+import { investigationView } from "@/game/sim/investigation";
 import { knowledgeLabel } from "@/game/sim/knowledge";
 import { visibleObjectives } from "@/game/sim/objectives";
-import { FACTION_DEFS } from "@/game/sim/factions";
+import { factionSignals, intelGradeLabel } from "@/game/sim/intel";
 
 export function EventLog() {
   const state = useGame((s) => s.state);
@@ -11,8 +11,8 @@ export function EventLog() {
   const logs = [...state.logs].slice(-8).reverse();
 
   return (
-    <footer className="hidden h-[120px] shrink-0 border-t border-border bg-bg/90 md:block">
-      <div className="flex h-full flex-col px-4 py-2">
+    <footer className="hidden h-[96px] shrink-0 border-t border-border bg-bg/90 lg:block">
+      <div className="flex h-full flex-col px-4 py-1.5">
         <p className="text-[11px] font-medium text-olive">Kayıt · {actLabel(state)}</p>
         <ol className="mt-1 min-h-0 flex-1 space-y-1 overflow-y-auto">
           {logs.map((l, i) => (
@@ -45,20 +45,26 @@ export function ReportPane() {
   const logs = [...state.logs].slice(-12).reverse();
   const hand = Object.values(state.hand).filter((h) => h.status !== "UNKNOWN");
   const objs = visibleObjectives(state);
-  const showFac = mechanicUnlocked(state, "knowledge");
+  const showFac = mechanicUnlocked(state, "knowledge") || state.turn >= 3;
+  const inv = investigationView(state);
+  const signals = factionSignals(state);
 
   return (
     <div className="space-y-4">
       <div>
         <p className="scan font-mono text-[10px] text-olive">{actLabel(state)}</p>
         <h2 className="text-lg font-medium text-paper">Rapor</h2>
-        <p className="mt-1 text-xs text-subtle">Elindeki bilgi. Oyun gerçeği ayrı durur.</p>
+        <p className="mt-1 text-xs text-subtle">Elindeki bilgi. Karşı hatların iç planı görünmez.</p>
       </div>
-      {mechanicUnlocked(state, "investigation") ? (
-        <p className="text-xs text-muted">
-          Soruşturma: {STAGE_LABEL[state.investigation.stage]} · ısı {state.investigation.heat} · belgeler{" "}
-          {state.investigation.documents.length} · bastırılan {state.investigation.suppressed.length}
-        </p>
+      {inv.stage !== "dormant" || mechanicUnlocked(state, "investigation") ? (
+        <div className="rounded-sm border border-border bg-bg/30 p-2">
+          <p className="text-[11px] font-medium text-olive">
+            Soruşturma · {inv.label} · ısı {inv.heat}
+          </p>
+          <p className="mt-1 text-xs leading-snug text-muted">{inv.why}</p>
+          {inv.raising.length ? <p className="mt-1 text-[10px] text-stamp">Yükselten: {inv.raising.join(" · ")}</p> : null}
+          {inv.lowering.length ? <p className="text-[10px] text-olive">Azaltan: {inv.lowering.join(" · ")}</p> : null}
+        </div>
       ) : null}
       {objs.length ? (
         <ul className="space-y-1">
@@ -82,16 +88,18 @@ export function ReportPane() {
       </div>
       {showFac ? (
         <div>
-          <p className="text-[11px] font-medium text-olive">Karşı hatlar (bildikleri tam değil)</p>
-          <ul className="mt-1 space-y-1">
-            {FACTION_DEFS.filter((f) => state.revealed[f.id] || f.id === "jitem" || (f.id === "mit" && state.turn >= 3) || (f.id === "emniyet" && state.turn >= 8)).map((f) => (
-              <li key={f.id} className="text-xs text-muted">
-                {f.name}: {state.factions[f.id]?.currentObjective} · {state.factions[f.id]?.lastAct || "sessiz"}
+          <p className="text-[11px] font-medium text-olive">Karşı hatlar (bildiğin kadar)</p>
+          <ul className="mt-1 space-y-1.5">
+            {signals.map((s) => (
+              <li key={s.faction} className="text-xs leading-snug text-muted">
+                <span className="font-mono text-[10px] text-olive">{intelGradeLabel(s.grade)}</span> {s.headline}
               </li>
             ))}
           </ul>
         </div>
-      ) : null}
+      ) : (
+        <p className="text-[11px] text-subtle">Karşı hat raporu tur 3’te açılır.</p>
+      )}
       <div>
         <p className="text-[11px] font-medium text-olive">Kayıt</p>
         <ol className="mt-1 space-y-1">

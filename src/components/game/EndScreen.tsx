@@ -1,14 +1,14 @@
 import { endingOf } from "@/game/engine";
-import { formatReplay } from "@/game/sim/recap";
+import { formatReplayJson, replayFilename } from "@/game/sim/recap";
 import { useGame } from "@/game/store";
 import { Button } from "@/components/ui/button";
 
-function downloadReplay(text: string, seed: number) {
-  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+function downloadReplay(stateSeed: number, payload: unknown) {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `derin-ag-${seed}.txt`;
+  a.download = replayFilename(stateSeed);
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -22,7 +22,7 @@ export function EndScreen() {
   const end = endingOf(state.ending);
   const d = state.dossier;
   const road = state.ending === "susurluk_patlama" || state.flags.susurluk;
-  const replay = formatReplay(state);
+  const replay = formatReplayJson(state);
 
   const blocks: { title: string; body: string }[] = d
     ? [
@@ -40,17 +40,19 @@ export function EndScreen() {
     : [];
 
   return (
-    <div className="relative flex min-h-dvh flex-col overflow-hidden bg-bg text-fg">
+    <div className="game-shell relative flex min-h-0 flex-col overflow-hidden bg-bg text-fg">
       <img src={road ? "/images/road.jpg" : "/images/office.jpg"} alt="" className="absolute inset-0 size-full object-cover opacity-35" />
       <div className="absolute inset-0 bg-linear-to-t from-bg via-bg/80 to-bg/50" />
-      <div className="relative z-10 mx-auto flex w-full max-w-xl flex-1 flex-col justify-end gap-4 px-5 pb-14 pt-16">
+      <div className="relative z-10 mx-auto flex w-full max-w-xl flex-1 flex-col justify-end gap-4 overflow-y-auto px-5 pb-14 pt-12">
         <p className="scan font-mono text-[11px] text-olive">SENİN 1986–1996 HİKÂYEN</p>
         <p className="font-mono text-xs text-stamp">{end.verdict}</p>
         <h1 className="text-4xl font-medium tracking-tight text-paper">{end.title}</h1>
         <p className="text-sm leading-relaxed text-muted">{end.body}</p>
-        <p className="font-mono text-[11px] text-subtle">tohum {state.worldSeed} · {state.hat} hattı</p>
+        <p className="font-mono text-[11px] text-subtle">
+          tohum {state.worldSeed} · {state.hat} hattı
+        </p>
         {blocks.length ? (
-          <dl className="max-h-[40dvh] space-y-2 overflow-y-auto rounded-md border border-border bg-surface/80 p-3 text-xs leading-relaxed">
+          <dl className="max-h-[36dvh] space-y-2 overflow-y-auto rounded-md border border-border bg-surface/80 p-3 text-xs leading-relaxed">
             {blocks.map((b) => (
               <div key={b.title}>
                 <dt className="text-paper">{b.title}</dt>
@@ -81,8 +83,8 @@ export function EndScreen() {
           <Button variant="secondary" onClick={() => start(state.hat, state.worldSeed)}>
             Aynı tohum
           </Button>
-          <Button variant="outline" onClick={() => downloadReplay(replay, state.worldSeed)}>
-            Replay indir
+          <Button variant="outline" onClick={() => downloadReplay(state.worldSeed, replay)}>
+            Replay JSON
           </Button>
           <Button variant="ghost" onClick={clearSave}>
             Masa kapat

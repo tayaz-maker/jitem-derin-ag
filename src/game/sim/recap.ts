@@ -86,8 +86,43 @@ export function buildRecap(state: GameState): string[] {
   return lines;
 }
 
-export function formatReplay(state: GameState): string {
+export function replayFilename(seed: number) {
+  return `DERIN-AG-1986-1996-${seed}.json`;
+}
+
+export function formatReplayJson(state: GameState) {
   const d = state.dossier ?? buildDossier(state);
+  const frames = state.replayMeta.events.length ? state.replayMeta.events : state.replay;
+  return {
+    saveKey: SAVE_KEY,
+    schemaVersion: SCHEMA_VERSION,
+    seed: state.worldSeed,
+    hat: state.hat,
+    turn: state.turn,
+    ending: state.ending,
+    stats: state.stats,
+    investigation: state.investigation,
+    decisions: state.decisions,
+    events: frames.map((f) => ({
+      turn: f.turn,
+      familyId: f.familyId ?? null,
+      variantId: f.variantId ?? null,
+      note: f.note,
+      factionActs: f.factionActs,
+    })),
+    factionActions: Object.values(state.factions).map((f) => ({
+      id: f.id,
+      lastAct: f.lastAct,
+      memory: f.memory.slice(-4),
+    })),
+    major: state.replayMeta.major,
+    dossier: d,
+  };
+}
+
+export function formatReplay(state: GameState): string {
+  const json = formatReplayJson(state);
+  const d = json.dossier;
   const lines: string[] = [
     "DERİN AĞ — SENİN 1986–1996 HİKÂYEN",
     `${SAVE_KEY} · schema ${SCHEMA_VERSION}`,
@@ -102,14 +137,13 @@ export function formatReplay(state: GameState): string {
   }
   if (!state.decisions.length) lines.push("(kayıt yok)");
   lines.push("", "OLAYLAR");
-  const frames = state.replayMeta.events.length ? state.replayMeta.events : state.replay;
-  for (const f of frames) {
+  for (const f of json.events) {
     if (!f.familyId && !f.note) continue;
     lines.push(`t${f.turn} ${f.familyId ?? "—"}/${f.variantId ?? "—"} ${f.note}`);
   }
   lines.push("", "FACTION");
-  for (const f of Object.values(state.factions)) {
-    lines.push(`${f.id}: ${f.currentObjective} · son ${f.lastAct || "—"} · bellek ${f.memory.slice(-3).join(",") || "—"}`);
+  for (const f of json.factionActions) {
+    lines.push(`${f.id}: son ${f.lastAct || "—"} · bellek ${f.memory.join(",") || "—"}`);
   }
   return lines.join("\n");
 }
@@ -127,7 +161,7 @@ export function pickEnding(state: GameState): EndingId | null {
   if (state.flags.commandShifted && state.stats.saha < 12 && state.stats.etki < 12 && state.turn >= 5) {
     return "komuta_felaketi";
   }
-  if (state.flags.gizCrisisTurns >= 3 && state.stats.hukuk >= 55 && state.stats.giz < 6 && state.turn >= 8) {
+  if (state.flags.gizCrisisTurns >= 4 && state.stats.hukuk >= 62 && state.stats.giz < 4 && state.turn >= 9) {
     return "giz_coktu";
   }
   if (state.stats.sadakat < 10 && state.stats.saha >= 45 && state.turn >= 8) {

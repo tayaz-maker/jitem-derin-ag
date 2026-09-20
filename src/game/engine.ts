@@ -41,7 +41,11 @@ export function eventViewFor(state: GameState) {
 }
 
 export function apFor(hat: Hat) {
-  return hat === "saha" ? 3 : 2;
+  return hat === "saha" ? 5 : 4;
+}
+
+export function actionAp(id: ActionId) {
+  return ACTIONS.find((a) => a.id === id)?.ap ?? 1;
 }
 
 function addLog(state: GameState, text: string, kind: LogEntry["kind"]): GameState {
@@ -294,9 +298,10 @@ export function applyEventChoice(state: GameState, choiceId: string): GameState 
 }
 
 export function canPlay(state: GameState, id: ActionId) {
-  if (state.phase !== "actions" || state.actionsLeft <= 0) return false;
+  if (state.phase !== "actions") return false;
   const def = ACTIONS.find((a) => a.id === id);
   if (!def) return false;
+  if (state.actionsLeft < def.ap) return false;
   if (def.unlockAct && actOf(state.turn) < def.unlockAct) return false;
   if (def.group === "kisi" && !mechanicUnlocked(state, "person")) return false;
   if ((id === "rapor_yaz" || id === "inkar_yaz") && !mechanicUnlocked(state, "knowledge")) return false;
@@ -323,10 +328,10 @@ function runPerson(
   const nodeId = plan.nodeId ?? state.selectedNodeId;
   const node = nodeId ? nodeById(nodeId) : undefined;
   if (!node || !isNodeVisible(state, node.id)) {
-    return addLog({ ...state, actionsLeft: state.actionsLeft + 1 }, "Kişi seçilmedi.", "sistem");
+    return addLog({ ...state, actionsLeft: state.actionsLeft + actionAp(plan.id) }, "Kişi seçilmedi.", "sistem");
   }
   if (state.dead[node.id] && kind !== "distance") {
-    return addLog({ ...state, actionsLeft: state.actionsLeft + 1 }, "Kapalı düğüm harcanmaz.", "sistem");
+    return addLog({ ...state, actionsLeft: state.actionsLeft + actionAp(plan.id) }, "Kapalı düğüm harcanmaz.", "sistem");
   }
   let next = apply(setStance(state, node.id, kind));
   const tag: MemoryTag =
@@ -355,7 +360,8 @@ function needEdge(state: GameState, plan: PlannedAction) {
 
 export function executeAction(state: GameState, plan: PlannedAction): GameState {
   if (!canPlay(state, plan.id)) return state;
-  let next: GameState = { ...state, actionsLeft: state.actionsLeft - 1, pendingAction: null };
+  const apCost = actionAp(plan.id);
+  let next: GameState = { ...state, actionsLeft: state.actionsLeft - apCost, pendingAction: null };
   const sahaHat = state.hat === "saha";
   const idariHat = state.hat === "idari";
 
@@ -383,7 +389,7 @@ export function executeAction(state: GameState, plan: PlannedAction): GameState 
       const edge = needEdge(next, plan);
       if (!edge) {
         next = addLog(next, "Bağ yok. Yeni efsane hat uydurulmaz.", "sistem");
-        next.actionsLeft += 1;
+        next.actionsLeft += apCost;
         break;
       }
       const cur = next.edgeStr[edge.id] ?? 1;
@@ -400,12 +406,12 @@ export function executeAction(state: GameState, plan: PlannedAction): GameState 
       const edge = needEdge(next, plan);
       if (!edge) {
         next = addLog(next, "Gevşetilecek bağ seçilmedi.", "sistem");
-        next.actionsLeft += 1;
+        next.actionsLeft += apCost;
         break;
       }
       if (edge.belgelıLockTurn && next.turn >= edge.belgelıLockTurn) {
         next = addLog(next, "BELGELİ kilit. Bu bağ gevşemez.", "sistem");
-        next.actionsLeft += 1;
+        next.actionsLeft += apCost;
         break;
       }
       const cur = next.edgeStr[edge.id] ?? 1;
@@ -422,7 +428,7 @@ export function executeAction(state: GameState, plan: PlannedAction): GameState 
       const edge = needEdge(next, plan);
       if (!edge) {
         next = addLog(next, "Gözetilecek bağ seçilmedi.", "sistem");
-        next.actionsLeft += 1;
+        next.actionsLeft += apCost;
         break;
       }
       next = touchEdge(next, edge.id, { secrecy: -6 });
@@ -436,12 +442,12 @@ export function executeAction(state: GameState, plan: PlannedAction): GameState 
       const edge = needEdge(next, plan);
       if (!edge) {
         next = addLog(next, "Yalıtılacak bağ seçilmedi.", "sistem");
-        next.actionsLeft += 1;
+        next.actionsLeft += apCost;
         break;
       }
       if (edge.belgelıLockTurn && next.turn >= edge.belgelıLockTurn) {
         next = addLog(next, "BELGELİ kilit. Yalıtım bu bağı koparmaz.", "sistem");
-        next.actionsLeft += 1;
+        next.actionsLeft += apCost;
         break;
       }
       const cur = next.edgeStr[edge.id] ?? 1;
@@ -456,7 +462,7 @@ export function executeAction(state: GameState, plan: PlannedAction): GameState 
       const edge = needEdge(next, plan);
       if (!edge) {
         next = addLog(next, "İfşa edilecek bağ seçilmedi.", "sistem");
-        next.actionsLeft += 1;
+        next.actionsLeft += apCost;
         break;
       }
       next = touchEdge(next, edge.id, { secrecy: -22, tension: 16 });
@@ -472,7 +478,7 @@ export function executeAction(state: GameState, plan: PlannedAction): GameState 
       const edge = needEdge(next, plan);
       if (!edge) {
         next = addLog(next, "Arabuluculuk için bağ seçilmedi.", "sistem");
-        next.actionsLeft += 1;
+        next.actionsLeft += apCost;
         break;
       }
       next = touchEdge(next, edge.id, { tension: -16, trust: 8, secrecy: -4 });
@@ -485,7 +491,7 @@ export function executeAction(state: GameState, plan: PlannedAction): GameState 
       const edge = needEdge(next, plan);
       if (!edge) {
         next = addLog(next, "Korunacak bağ seçilmedi.", "sistem");
-        next.actionsLeft += 1;
+        next.actionsLeft += apCost;
         break;
       }
       next = touchEdge(next, edge.id, { secrecy: 14, tension: -6, trust: 6, dependency: 8 });
@@ -509,12 +515,12 @@ export function executeAction(state: GameState, plan: PlannedAction): GameState 
       const faction = plan.faction;
       if (!faction || (faction !== "mit" && faction !== "emniyet")) {
         next = addLog(next, "Hedef hat seçilmedi (MİT / Emniyet).", "sistem");
-        next.actionsLeft += 1;
+        next.actionsLeft += apCost;
         break;
       }
       if (faction === "emniyet" && !mechanicUnlocked(next, "emniyet") && next.turn < 8) {
         next = addLog(next, "Emniyet hattı henüz ısınmadı.", "sistem");
-        next.actionsLeft += 1;
+        next.actionsLeft += apCost;
         break;
       }
       if (faction === "mit") next.flags = { ...next.flags, mitCooledUntil: next.turn + 1 };
@@ -682,7 +688,7 @@ function tickResources(state: GameState, notes: string[]): GameState {
         gizCrisisTurns: next.flags.gizCrisisTurns + 1,
       },
     };
-    next = applyStat(next, "hukuk", 6);
+    next = applyStat(next, "hukuk", 3);
     notes.push("Yumuşak kırılma: gizlilik kritik. Kampanya bitmedi — soruşturma açıldı.");
   } else {
     next = { ...next, flags: { ...next.flags, gizCrisisTurns: 0 } };

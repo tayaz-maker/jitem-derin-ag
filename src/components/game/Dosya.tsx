@@ -67,7 +67,7 @@ function Pitch() {
       <p>
         Her tur üç soru: bu bağı güçlendireyim mi; bu kişiyi koruyayım mı harcayayım mı;
         gerçeği açayım mı düzeni tutayım mı. Cevaplar puan değil — taraf bilgisi, sadakat,
-        soruşturma ve alternatif son üretir.
+        soruşturma ve alternatif son üretir. Saha 5 kapasite, idari 4. Ağır iş 2–3, bakış 1.
       </p>
       <p>
         Emredebilirsin: saha kapasitesi, inkâr, var olan bağ, kendi ağındaki kişi.

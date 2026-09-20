@@ -12,31 +12,43 @@ import {
 } from "../engine.ts";
 import type { ActionId, GameState, Hat, PlannedAction } from "../types.ts";
 
-export type PlayStyle = "saha-start" | "idari-start" | "agresif" | "gizlilik" | "ifsa";
+export type PlayStyle =
+  | "saha-agresif"
+  | "saha-gizlilik"
+  | "saha-bilgi"
+  | "idari-koruma"
+  | "idari-ifsa"
+  | "karma";
 
 const STYLE_HAT: Record<PlayStyle, Hat> = {
-  "saha-start": "saha",
-  "idari-start": "idari",
-  agresif: "saha",
-  gizlilik: "idari",
-  ifsa: "saha",
+  "saha-agresif": "saha",
+  "saha-gizlilik": "saha",
+  "saha-bilgi": "saha",
+  "idari-koruma": "idari",
+  "idari-ifsa": "idari",
+  karma: "saha",
 };
 
 function preferredActions(style: PlayStyle): ActionId[] {
-  if (style === "agresif") return ["tim_kur", "saha_op", "kisi_kullan", "kisi_harca", "kara_topla", "itirafci_al", "bag_guclendir"];
-  if (style === "gizlilik") return ["inkar_yaz", "sizinti_bastir", "kisi_koru", "bag_yalitim", "bag_gevset", "medya_kes", "ankara_koru"];
-  if (style === "ifsa") return ["rapor_yaz", "dosya_oku", "bag_ifsa", "soru_ac", "kisi_harca", "bag_gozet"];
-  if (style === "idari-start") return ["inkar_yaz", "ankara_koru", "dosya_oku", "bag_guclendir", "kisi_koru", "sizinti_bastir"];
-  return ["tim_kur", "bag_guclendir", "kisi_koru", "kara_topla", "rapor_yaz", "saha_op"];
+  if (style === "saha-agresif") return ["tim_kur", "saha_op", "kisi_kullan", "kisi_harca", "kara_topla", "itirafci_al", "bag_guclendir"];
+  if (style === "saha-gizlilik") return ["inkar_yaz", "sizinti_bastir", "kisi_koru", "bag_yalitim", "bag_gevset", "medya_kes", "ankara_koru"];
+  if (style === "saha-bilgi") return ["rapor_yaz", "dosya_oku", "bag_gozet", "kisi_harca", "bag_ifsa", "soru_ac"];
+  if (style === "idari-koruma") return ["inkar_yaz", "ankara_koru", "dosya_oku", "bag_koru", "kisi_koru", "sizinti_bastir", "soru_sinir"];
+  if (style === "idari-ifsa") return ["rapor_yaz", "dosya_oku", "bag_ifsa", "soru_ac", "kisi_harca", "bag_gozet"];
+  return ["tim_kur", "bag_guclendir", "kisi_koru", "kara_topla", "rapor_yaz", "inkar_yaz", "dosya_oku"];
 }
 
 function pickChoice(state: GameState, style: PlayStyle) {
   const view = eventViewFor(state);
   const choices = view?.choices ?? [];
   if (!choices.length) return "";
-  if (style === "gizlilik") return choices.find((c) => c.id.includes("bas") || c.id.includes("inkar") || c.id.includes("resmi") || c.id.includes("mesafe"))?.id ?? choices[0].id;
-  if (style === "ifsa") return choices.find((c) => c.id.includes("not") || c.id.includes("oku") || c.id.includes("dosya"))?.id ?? choices[choices.length - 1].id;
-  if (style === "agresif") return choices[0].id;
+  if (style === "saha-gizlilik" || style === "idari-koruma") {
+    return choices.find((c) => c.id.includes("bas") || c.id.includes("inkar") || c.id.includes("resmi") || c.id.includes("mesafe"))?.id ?? choices[0].id;
+  }
+  if (style === "idari-ifsa" || style === "saha-bilgi") {
+    return choices.find((c) => c.id.includes("not") || c.id.includes("oku") || c.id.includes("dosya"))?.id ?? choices[choices.length - 1].id;
+  }
+  if (style === "saha-agresif") return choices[0].id;
   return choices[Math.min(1, choices.length - 1)].id;
 }
 
@@ -73,7 +85,7 @@ export function autoCampaign(style: PlayStyle, seed: number): GameState {
     }
     if (s.phase === "actions") {
       let steps = 0;
-      while (s.phase === "actions" && s.actionsLeft > 0 && steps < 4) {
+      while (s.phase === "actions" && s.actionsLeft > 0 && steps < 8) {
         const plan = planFor(s, style);
         if (!plan) break;
         const before = s.actionsLeft;
@@ -94,9 +106,12 @@ export function autoCampaign(style: PlayStyle, seed: number): GameState {
 export interface BalanceReport {
   runs: number;
   endings: Record<string, number>;
+  byStyle: Record<string, Record<string, number>>;
   avgGiz: number;
   avgSaha: number;
   avgKara: number;
+  avgHukuk: number;
+  avgActionsPerTurn: number;
   softlocks: number;
   sameEnding: boolean;
   runawayGiz: number;
@@ -104,27 +119,42 @@ export interface BalanceReport {
   notes: string[];
 }
 
-export function runBalance(seeds = 25): BalanceReport {
-  const styles: PlayStyle[] = ["saha-start", "idari-start", "agresif", "gizlilik", "ifsa"];
+export const BALANCE_STYLES: PlayStyle[] = [
+  "saha-agresif",
+  "saha-gizlilik",
+  "saha-bilgi",
+  "idari-koruma",
+  "idari-ifsa",
+  "karma",
+];
+
+export function runBalance(seeds = 50): BalanceReport {
   const endings: Record<string, number> = {};
+  const byStyle: Record<string, Record<string, number>> = {};
   let giz = 0;
   let saha = 0;
   let kara = 0;
+  let hukuk = 0;
+  let acts = 0;
   let softlocks = 0;
   let runawayGiz = 0;
   let infiniteKara = 0;
   const notes: string[] = [];
   let n = 0;
   for (let i = 0; i < seeds; i++) {
-    const style = styles[i % styles.length];
+    const style = BALANCE_STYLES[i % BALANCE_STYLES.length];
     const seed = 1000 + i * 7919;
     const s = autoCampaign(style, seed);
     n += 1;
     const end = s.ending ?? "none";
     endings[end] = (endings[end] ?? 0) + 1;
+    byStyle[style] ??= {};
+    byStyle[style][end] = (byStyle[style][end] ?? 0) + 1;
     giz += s.stats.giz;
     saha += s.stats.saha;
     kara += s.stats.kara;
+    hukuk += s.stats.hukuk;
+    acts += s.decisions.filter((d) => d.kind === "action" || d.kind === "stance").length;
     if (s.phase !== "ended") softlocks += 1;
     if (s.stats.giz <= 0 && s.turn < 6) runawayGiz += 1;
     if (s.stats.kara >= 95) infiniteKara += 1;
@@ -135,12 +165,17 @@ export function runBalance(seeds = 25): BalanceReport {
   if (runawayGiz) notes.push(`Erken giz çöküşü ${runawayGiz}.`);
   if (infiniteKara) notes.push(`Kara tavan ${infiniteKara}.`);
   if (giz / n > 90) notes.push("Giz çok yüksek — inkâr bedelsiz kalabilir.");
+  const gizCoktu = endings.giz_coktu ?? 0;
+  if (gizCoktu > seeds * 0.55) notes.push(`giz_coktu dominant (${gizCoktu}/${seeds}).`);
   return {
     runs: n,
     endings,
+    byStyle,
     avgGiz: Math.round(giz / n),
     avgSaha: Math.round(saha / n),
     avgKara: Math.round(kara / n),
+    avgHukuk: Math.round(hukuk / n),
+    avgActionsPerTurn: Math.round((acts / n) * 10) / 10,
     softlocks,
     sameEnding: distinct === 1,
     runawayGiz,

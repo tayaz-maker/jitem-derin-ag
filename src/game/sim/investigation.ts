@@ -1,5 +1,6 @@
 import type { GameState, InvestigationStage } from "../types.ts";
 import { applyStat } from "./stats.ts";
+import { mechanicUnlocked } from "./acts.ts";
 
 const ORDER: InvestigationStage[] = [
   "dormant",
@@ -20,6 +21,61 @@ export const STAGE_LABEL: Record<InvestigationStage, string> = {
   public: "kamu baskısı",
   response: "kurumsal yanıt",
 };
+
+export interface InvestigationView {
+  stage: InvestigationStage;
+  label: string;
+  heat: number;
+  why: string;
+  raising: string[];
+  lowering: string[];
+  options: string[];
+}
+
+export function investigationView(state: GameState): InvestigationView {
+  const stage = state.investigation.stage;
+  const raising: string[] = [];
+  const lowering: string[] = [];
+  if (state.stats.giz < 42) raising.push("Gizlilik ince");
+  if (state.stats.hukuk >= 22) raising.push("Hukuk ısısı");
+  if (state.stats.kamuoyu >= 28) raising.push("Kamuoyu");
+  if (state.flags.investigationOpen) raising.push("Açık yüzey");
+  if (state.investigation.documents.length) raising.push("Dolaşan belge");
+  if (state.stats.giz >= 50) lowering.push("Kalın gizlilik");
+  if (state.stats.etki >= 48) lowering.push("Siyasi kalkan");
+  if (state.investigation.suppressed.length) lowering.push("Bastırılan dosya");
+  if (state.stats.hukuk < 16) lowering.push("Hukuk soğuk");
+
+  const options: string[] = [];
+  if (mechanicUnlocked(state, "investigation") && stage !== "dormant") {
+    options.push("Yönlendir — dosyayı kendi hattına kaydır (durdurmaz)");
+    options.push("Sınırla — dar tut, söndürmez");
+    options.push("Yüzeyi aç — kamu öne, giz yanar");
+    options.push("Sızıntı kes — inkâr dili; kaseti yok etmez");
+  } else if (stage === "dormant") {
+    options.push("Henüz dosya yok. Giz incelirse söylenti uyanır.");
+  }
+
+  const why: Record<InvestigationStage, string> = {
+    dormant: "Resmi yüzey kapalı. İnce gizlilik veya kamu ısısı söylenti üretir.",
+    rumor: "Söylenti. Henüz dosya değil. Hukuk ısınırsa ön inceleme açılır.",
+    inquiry: "Ön inceleme. Emir üretmez; iz bırakır. Yönlendirebilirsin.",
+    investigation: "Soruşturma yürüyor. Tamamen durdurmak zorunda değilsin.",
+    evidence: "Delil eşiği. Bastırılanlar karanlıkta, açılanlar kamuya yürür.",
+    public: "Kamu ve meclis aynı kareye bakıyor. Çıpa takvimi durmaz.",
+    response: "Kurumsal yanıt: inkâr, parçalı kabul, tasfiye — hepsi birden olabilir.",
+  };
+
+  return {
+    stage,
+    label: STAGE_LABEL[stage],
+    heat: state.investigation.heat,
+    why: why[stage],
+    raising,
+    lowering,
+    options,
+  };
+}
 
 function bump(stage: InvestigationStage, steps = 1): InvestigationStage {
   const i = Math.min(ORDER.length - 1, ORDER.indexOf(stage) + steps);
