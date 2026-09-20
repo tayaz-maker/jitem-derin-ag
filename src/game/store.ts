@@ -10,6 +10,9 @@ import {
 import { parseSave, serialize } from "./sim/save.ts";
 import type { ActionId, Faction, GameState, Hat, MobilePane } from "./types.ts";
 import { LEGACY_SAVE_KEY, SAVE_KEY } from "./types.ts";
+import type { InteractiveCopy } from "./i18n/types.ts";
+import { resultForAction } from "./i18n/interactive.ts";
+import { useLocale } from "./i18n/locale.ts";
 
 interface Store {
   hydrated: boolean;
@@ -17,6 +20,8 @@ interface Store {
   screen: "start" | "play" | "dosya";
   explainStat: string | null;
   mobilePane: MobilePane;
+  feedback: InteractiveCopy | null;
+  claimId: string | null;
   hydrate: () => void;
   start: (hat: Hat, seed?: number) => void;
   load: () => boolean;
@@ -26,6 +31,7 @@ interface Store {
   setExplainStat: (k: string | null) => void;
   setMobilePane: (p: MobilePane) => void;
   setGraphMode: (m: "people" | "factions") => void;
+  setClaimId: (id: string | null) => void;
   closeEvent: () => void;
   chooseEvent: (choiceId: string) => void;
   pickNode: (id: string | null) => void;
@@ -70,6 +76,8 @@ export const useGame = create<Store>((set, get) => ({
   screen: "start",
   explainStat: null,
   mobilePane: "map",
+  feedback: null,
+  claimId: null,
 
   hydrate: () => {
     if (get().hydrated) return;
@@ -84,7 +92,7 @@ export const useGame = create<Store>((set, get) => ({
   start: (hat, seed) => {
     const state = createGame(hat, seed);
     writeSave(state);
-    set({ state, screen: "play", explainStat: null, mobilePane: "olay" });
+    set({ state, screen: "play", explainStat: null, mobilePane: "olay", feedback: null, claimId: null });
   },
 
   load: () => {
@@ -102,12 +110,13 @@ export const useGame = create<Store>((set, get) => ({
     } catch {
       /* */
     }
-    set({ state: null, screen: "start", mobilePane: "map" });
+    set({ state: null, screen: "start", mobilePane: "map", feedback: null, claimId: null });
   },
 
   setScreen: (screen) => set({ screen }),
   setExplainStat: (explainStat) => set({ explainStat }),
   setMobilePane: (mobilePane) => set({ mobilePane }),
+  setClaimId: (claimId) => set({ claimId }),
   setGraphMode: (m) => {
     const s = get().state;
     if (!s) return;
@@ -135,8 +144,9 @@ export const useGame = create<Store>((set, get) => ({
     if (!s) return;
     if (s.pendingAction && NODE_ACTIONS.includes(s.pendingAction) && id) {
       const state = executeAction({ ...s, selectedNodeId: id }, { id: s.pendingAction, nodeId: id });
+      const locale = useLocale.getState().locale;
       writeSave(state);
-      set({ state });
+      set({ state, feedback: resultForAction(s.pendingAction, locale, state, id) });
       return;
     }
     set({
@@ -154,8 +164,9 @@ export const useGame = create<Store>((set, get) => ({
     if (!s) return;
     if (s.pendingAction && EDGE_ACTIONS.includes(s.pendingAction) && id) {
       const state = executeAction({ ...s, selectedEdgeId: id }, { id: s.pendingAction, edgeId: id });
+      const locale = useLocale.getState().locale;
       writeSave(state);
-      set({ state });
+      set({ state, feedback: resultForAction(s.pendingAction, locale, state, id) });
       return;
     }
     set({ state: { ...s, selectedEdgeId: id } });
@@ -181,8 +192,10 @@ export const useGame = create<Store>((set, get) => ({
         faction: opts?.faction,
       },
     );
+    const locale = useLocale.getState().locale;
+    const feedback = resultForAction(id, locale, state, opts?.nodeId ?? opts?.edgeId ?? s.selectedNodeId ?? s.selectedEdgeId ?? undefined);
     writeSave(state);
-    set({ state });
+    set({ state, feedback });
   },
 
   resolve: () => {
@@ -190,7 +203,7 @@ export const useGame = create<Store>((set, get) => ({
     if (!s || s.phase !== "actions") return;
     const state = resolveTurn(s);
     writeSave(state);
-    set({ state, mobilePane: "rapor" });
+    set({ state, mobilePane: "rapor", feedback: null });
   },
 
   nextTurn: () => {

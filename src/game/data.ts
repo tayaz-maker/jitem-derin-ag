@@ -636,6 +636,10 @@ export const ACTIONS: ActionDef[] = [
   { id: "soru_yonlendir", name: "Soruşturmayı sapıt", blurb: "Dosyayı kendi hattına kaydır. Durdurmaz.", cost: "2 kap · Hukuk + · Koruma −", risk: "İz", group: "koruma", needs: "none", authority: "influence", ap: 2, unlockAct: 4 },
   { id: "soru_sinir", name: "Soruşturmayı sınırla", blurb: "Dar tut. Söndürmez. Isı düşer.", cost: "2 kap · Hukuk − · Giz +", risk: "Kin / kamu", group: "koruma", needs: "none", authority: "influence", ap: 2, unlockAct: 4 },
   { id: "soru_ac", name: "Yüzeyi aç", blurb: "Kamu öne. Giz yanar. Çıpa durmaz.", cost: "3 kap · Kamu + · Hukuk + · Giz −−", risk: "Görünürlük", group: "bilgi", needs: "none", authority: "influence", ap: 3, unlockAct: 4 },
+  { id: "kaynak_karsilastir", name: "Kaynak karşılaştır", blurb: "Çelişkiyi aç. Tek doğru kilitlemez.", cost: "2 kap · Bilgi + · Giz −", risk: "Kamu ısınabilir", group: "bilgi", needs: "none", authority: "influence", ap: 2 },
+  { id: "dogrula", name: "Söylentiyi yokla", blurb: "Kısmi bilgiye çek. Kesinleştirmez.", cost: "2 kap · Bilgi + · Giz −", risk: "Sızıntı", group: "bilgi", needs: "none", authority: "influence", ap: 2 },
+  { id: "delil_zincir", name: "Delil zinciri", blurb: "Belge halkası. Emir üretmez.", cost: "2 kap · Hukuk + · Giz −", risk: "İz", group: "koruma", needs: "none", authority: "influence", ap: 2 },
+  { id: "kanit_esigi", name: "Kanıt eşiği", blurb: "Belge varsa kat ilerle; yoksa spekülasyonu kes.", cost: "2 kap", risk: "Kurum direnci", group: "koruma", needs: "none", authority: "influence", ap: 2, unlockAct: 2 },
 ];
 
 export const ACTION_GROUPS: { id: ActionGroup; label: string; hint: string }[] = [
@@ -951,3 +955,8 @@ export const NPC_LINES = [
     wants: "Sahada kalmak. Komuta kayarsa ve GİZ incelirse konuşur. Kahramanlık aramaz.",
   },
 ] as const;
+
+export const NODE_BY_ID = Object.fromEntries(NODES.map((n) => [n.id, n]));
+export const EDGE_BY_ID = Object.fromEntries(EDGES.map((e) => [e.id, e]));
+export const ACTION_BY_ID = Object.fromEntries(ACTIONS.map((a) => [a.id, a]));
+

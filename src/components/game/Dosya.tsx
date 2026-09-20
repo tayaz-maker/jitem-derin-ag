@@ -4,42 +4,56 @@ import { EVENTS, NPC_LINES, STAT_META } from "@/game/data";
 import { useGame } from "@/game/store";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { eventCopy, t, useLocale } from "@/game/i18n";
+import { LangSwitch } from "./LangSwitch";
 
-const TABS = ["Pitch", "Kaynak", "Ağ", "Olaylar", "NPC", "Arayüz"] as const;
+const TAB_KEYS = ["Pitch", "Kaynak", "Ağ", "Olaylar", "NPC", "Arayüz"] as const;
+const TAB_I18N: Record<(typeof TAB_KEYS)[number], string> = {
+  Pitch: "dosya.tabPitch",
+  Kaynak: "dosya.tabSource",
+  Ağ: "dosya.tabNet",
+  Olaylar: "dosya.tabEvents",
+  NPC: "dosya.tabNpc",
+  Arayüz: "dosya.tabUi",
+};
 
 export function Dosya() {
   const setScreen = useGame((s) => s.setScreen);
   const state = useGame((s) => s.state);
-  const [tab, setTab] = useState<(typeof TABS)[number]>("Pitch");
+  const locale = useLocale((s) => s.locale);
+  const [tab, setTab] = useState<(typeof TAB_KEYS)[number]>("Pitch");
 
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-fg">
       <header className="flex items-center justify-between border-b border-border px-4 py-3">
         <div>
-          <p className="scan font-mono text-[10px] text-olive">Arşiv notu</p>
-          <h1 className="text-lg font-medium">Derin Ağ — dosya</h1>
+          <p className="scan font-mono text-[10px] text-olive">{t(locale, "dosya.kicker")}</p>
+          <h1 className="text-lg font-medium">{t(locale, "dosya.title")}</h1>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Kapat"
-          onClick={() => setScreen(state ? "play" : "start")}
-        >
-          <X />
-        </Button>
+        <div className="flex items-center gap-1">
+          <LangSwitch />
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={t(locale, "dosya.close")}
+            onClick={() => setScreen(state ? "play" : "start")}
+          >
+            <X />
+          </Button>
+        </div>
       </header>
       <nav className="flex gap-1 overflow-x-auto border-b border-border px-3 py-2">
-        {TABS.map((t) => (
+        {TAB_KEYS.map((id) => (
           <button
-            key={t}
+            key={id}
             type="button"
-            onClick={() => setTab(t)}
+            onClick={() => setTab(id)}
             className={cn(
-              "rounded-sm px-3 py-2 text-xs font-medium",
-              tab === t ? "bg-elevated text-paper" : "text-muted hover:text-fg",
+              "min-h-10 rounded-sm px-3 py-2 text-xs font-medium",
+              tab === id ? "bg-elevated text-paper" : "text-muted hover:text-fg",
             )}
           >
-            {t}
+            {t(locale, TAB_I18N[id])}
           </button>
         ))}
       </nav>
@@ -56,97 +70,77 @@ export function Dosya() {
 }
 
 function Pitch() {
+  const locale = useLocale((s) => s.locale);
   return (
     <div className="space-y-3 text-fg/90">
-      <p>
-        <strong className="text-paper">Derin Ağ</strong> tek oyunculu, tur tabanlı
-        bir yönetim ve ilişki grafı oyunudur. Oyuncu bir şahıs değildir; gayri resmi
-        bir özel harp / istihbarat–mafya kesişim masasıdır. 1986–1996 kampanyası,
-        saha hattı (Ersever tipi) veya idari hat (Doğan tipi) ile açılır.
-      </p>
-      <p>
-        Her tur üç soru: bu bağı güçlendireyim mi; bu kişiyi koruyayım mı harcayayım mı;
-        gerçeği açayım mı düzeni tutayım mı. Cevaplar puan değil — taraf bilgisi, sadakat,
-        soruşturma ve alternatif son üretir. Saha 5 kapasite, idari 4. Ağır iş 2–3, bakış 1.
-      </p>
-      <p>
-        Emredebilirsin: saha kapasitesi, inkâr, var olan bağ, kendi ağındaki kişi.
-        Etkilersin: MİT/Emniyet soğutma, Ankara, basın. Asla: çıpa ölümler, 3 Kasım,
-        uydurma bağ, suikast emri, diğer kurumun kafasındaki bilgi.
-      </p>
-      <p>
-        Kaybetme: GİZ çöker, komuta kayması felakete döner, konuşan içerideki
-        (Ersever eşiği) kırılır, veya Susurluk tipi görünürlük patlar. Tek doğru
-        komplo çözümü yoktur. Parçalı, rekabetçi, çoğu zaman birbirinden habersiz
-        çıkar ağları. Resmi inkâr ile fiilî yapı gerilimi korunur. Uydurma tarihsel
-        bağ üretilmez.
-      </p>
+      <p>{t(locale, "dosya.p1")}</p>
+      <p>{t(locale, "dosya.p2")}</p>
+      <p>{t(locale, "dosya.p3")}</p>
+      <p>{t(locale, "dosya.p4")}</p>
     </div>
   );
 }
 
 function Kaynak() {
+  const locale = useLocale((s) => s.locale);
   return (
     <div className="space-y-4">
-      <p>Beş stat, 0–100. Tur sonu tick + aksiyon + NPC.</p>
+      <p>{t(locale, "dosya.stats")}</p>
       <ul className="space-y-2">
-        {Object.values(STAT_META).map((s) => (
-          <li key={s.label}>
-            <span className="font-mono text-olive">{s.label}</span>
-            <span className="text-fg"> — {s.hint}</span>
+        {(Object.keys(STAT_META) as Array<keyof typeof STAT_META>).map((k) => (
+          <li key={k}>
+            <span className="font-mono text-olive">{t(locale, `stat.${k}.label`)}</span>
+            <span className="text-fg"> — {t(locale, `stat.${k}.hint`)}</span>
           </li>
         ))}
       </ul>
       <div className="space-y-1 font-mono text-xs text-subtle">
-        <p>GİZ tick = 1 + bağ sıkılığı / 8</p>
-        <p>{"KARA < 20 → SAHA −4"}</p>
-        <p>SAHA ≥ 50 → KARA +3</p>
-        <p>{"GİZ < 40 → BİLGİ −2 (asimetri erir)"}</p>
-        <p>TARTIŞMALI bağ güçlendirme: GİZ −10</p>
-        <p>Rapor: BİLGİ +14, GİZ −9, sis açılır</p>
-        <p>Saha hattı 3 AP / idari 2 AP</p>
-        <p>
-          {"GİZ < 12 anında ifşa. Tur 10: GİZ≥28 ve SAHA≥18 ve ETKİ≥16 → kontrol"}
-        </p>
+        <p>{t(locale, "dosya.gizTick")}</p>
+        <p>{t(locale, "dosya.karaTick")}</p>
+        <p>{t(locale, "dosya.sahaTick")}</p>
+        <p>{t(locale, "dosya.gizLeak")}</p>
+        <p>{t(locale, "dosya.disputed")}</p>
+        <p>{t(locale, "dosya.report")}</p>
+        <p>{t(locale, "dosya.ap")}</p>
+        <p>{t(locale, "dosya.fail")}</p>
       </div>
     </div>
   );
 }
 
 function Ag() {
+  const locale = useLocale((s) => s.locale);
   return (
     <div className="space-y-3">
-      <p>16 düğüm, yalnızca kaynakta geçen bağlar. Yeni efsane hat yok.</p>
-      <p>
-        Kurum: JİTEM, MİT, Emniyet. Kişi: Doğan, Ersever, Küçük, Abas, Eymür, Eken,
-        Yeşil, Aygan, Çatlı, Kocadağ, Bucak, Gonca Us. Koridor: Güneydoğu saha.
-      </p>
-      <p>
-        BELGELİ kilit (Çatlı–Kocadağ–Bucak–Gonca) 3 Kasım’da atılır. TARTIŞMALI
-        bağlar güçlendirilebilir; ifşa maliyeti yüksektir. Sis: BİLGİ eşiği veya
-        dönem olayı açar.
-      </p>
+      <p>{t(locale, "dosya.net1")}</p>
+      <p>{t(locale, "dosya.net2")}</p>
+      <p>{t(locale, "dosya.net3")}</p>
     </div>
   );
 }
 
 function Olaylar() {
+  const locale = useLocale((s) => s.locale);
   return (
     <ol className="space-y-3">
-      {EVENTS.map((e) => (
-        <li key={e.id}>
-          <p className="font-mono text-[11px] text-olive">
-            {e.fileNo} · {e.year} · {e.evidence}
-          </p>
-          <p className="text-fg">{e.title}</p>
-          <p className="text-xs">{e.body.slice(0, 140)}…</p>
-        </li>
-      ))}
+      {EVENTS.map((e) => {
+        const loc = eventCopy(locale, e.id);
+        return (
+          <li key={e.id}>
+            <p className="font-mono text-[11px] text-olive">
+              {e.fileNo} · {e.year} · {t(locale, `evidence.${e.evidence}.label`)}
+            </p>
+            <p className="text-fg">{loc?.title ?? e.title}</p>
+            <p className="text-xs">{(loc?.body ?? e.body).slice(0, 140)}…</p>
+          </li>
+        );
+      })}
     </ol>
   );
 }
 
 function Npc() {
+  const locale = useLocale((s) => s.locale);
   return (
     <ul className="space-y-3">
       {NPC_LINES.map((n) => (
@@ -157,20 +151,21 @@ function Npc() {
       ))}
       <li>
         <p className="text-fg">Yeşil</p>
-        <p>Emir kulu operatif. Kendi başına karar verici değil. Saha şişirir, GİZ yer.</p>
+        <p>{t(locale, "dosya.yesil")}</p>
       </li>
     </ul>
   );
 }
 
 function Arayuz() {
+  const locale = useLocale((s) => s.locale);
   return (
     <ul className="list-disc space-y-2 pl-4">
-      <li>Üst bar: dönem + 5 stat (dokununca açıklama)</li>
-      <li>Sol: ilişki haritası</li>
-      <li>Sağ: İşler / seçili kişi</li>
-      <li>Olay kartı: her dönemde 3 duruş</li>
-      <li>Alt: kayıt</li>
+      <li>{t(locale, "dosya.ui1")}</li>
+      <li>{t(locale, "dosya.ui2")}</li>
+      <li>{t(locale, "dosya.ui3")}</li>
+      <li>{t(locale, "dosya.ui4")}</li>
+      <li>{t(locale, "dosya.ui5")}</li>
     </ul>
   );
 }

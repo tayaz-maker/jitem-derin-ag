@@ -427,9 +427,10 @@ describe("investigation view", () => {
       flags: { ...s.flags, investigationOpen: true },
       investigation: { ...s.investigation, stage: "inquiry", heat: 12 },
     });
-    assert.equal(v.label, "ön inceleme");
+    assert.equal(v.stage, "inquiry");
+    assert.equal(v.label, "inv.inquiry");
     assert.ok(v.raising.length >= 1);
-    assert.ok(v.why.length > 10);
+    assert.ok(v.raising.every((k) => k.startsWith("inv.")));
     assert.ok(v.options.length >= 1);
   });
 });

@@ -9,29 +9,34 @@ export interface IntelSignal {
   name: string;
   grade: IntelGrade;
   headline: string;
+  why?: string;
+  risk?: string;
 }
 
-const ACT_HEADLINE: Record<string, { grade: IntelGrade; text: string }> = {
-  "freelance-capacity": { grade: "SUSPECTED", text: "Saha hattında emirsiz kapasite kayması duyuldu." },
-  "spent-resentment": { grade: "RUMOR", text: "İçeride harcanan hat kırgın; sızıntı söylentisi." },
-  "scrape-funds": { grade: "RUMOR", text: "Örtülü kaynak arayışı. Kesin değil." },
-  "distance-jitem": { grade: "SUSPECTED", text: "MİT hattında mesafe / soğutma hareketi." },
-  "wait": { grade: "SUSPECTED", text: "MİT hattı bekliyor. Sinyal zayıf." },
-  "protect-self": { grade: "SUSPECTED", text: "MİT kendi kurumunu kapatıyor." },
-  "abas-shock": { grade: "KNOWN", text: "MİT şoku: Abas hattı kırıldı. JİTEM’e bağ TARTIŞMALI durur." },
-  "catli-rise": { grade: "SUSPECTED", text: "Emniyet kesişiminde ısınma." },
-  "cool": { grade: "SUSPECTED", text: "Karşı hat soğutuldu; eşgüdüm yok." },
-  "leak": { grade: "RUMOR", text: "Yeraltı sızıntısı söylentisi." },
-  ride: { grade: "RUMOR", text: "Yeraltı fayda arıyor." },
-  shield: { grade: "SUSPECTED", text: "Siyasi kalkan duruyor." },
-  distance: { grade: "SUSPECTED", text: "Siyaset kamu ısısından çekiliyor." },
-  "crash-distance": { grade: "KNOWN", text: "Siyaset kaza karesinden mesafe koyuyor." },
-  commission: { grade: "KNOWN", text: "Hukuk / meclis karesi açıldı." },
-  "press-rumor": { grade: "RUMOR", text: "Basında söylenti büyüyor." },
-  "press-false": { grade: "RUMOR", text: "Basın yanlış veya eksik yazıyor." },
-  "press-push": { grade: "SUSPECTED", text: "Basın baskısı artıyor." },
-  "file-open": { grade: "SUSPECTED", text: "Savcı hattında dosya ısısı." },
-  "file-block": { grade: "SUSPECTED", text: "Hukuk siyasi bloke ile karşılaştı." },
+const ACT_HEADLINE: Record<string, { grade: IntelGrade; key: string }> = {
+  "freelance-capacity": { grade: "SUSPECTED", key: "intel.act.freelance" },
+  "spent-resentment": { grade: "RUMOR", key: "intel.act.resentment" },
+  "scrape-funds": { grade: "RUMOR", key: "intel.act.scrape" },
+  "distance-jitem": { grade: "SUSPECTED", key: "intel.act.distance" },
+  wait: { grade: "SUSPECTED", key: "intel.act.wait" },
+  "protect-self": { grade: "SUSPECTED", key: "intel.act.protect" },
+  "abas-shock": { grade: "KNOWN", key: "intel.act.abas" },
+  "catli-rise": { grade: "SUSPECTED", key: "intel.act.catli" },
+  cool: { grade: "SUSPECTED", key: "intel.act.cool" },
+  cooled: { grade: "SUSPECTED", key: "intel.act.cooled" },
+  leak: { grade: "RUMOR", key: "intel.act.leak" },
+  ride: { grade: "RUMOR", key: "intel.act.ride" },
+  shield: { grade: "SUSPECTED", key: "intel.act.shield" },
+  distance: { grade: "SUSPECTED", key: "intel.act.politics" },
+  "crash-distance": { grade: "KNOWN", key: "intel.act.crash" },
+  commission: { grade: "KNOWN", key: "intel.act.commission" },
+  "press-rumor": { grade: "RUMOR", key: "intel.act.pressRumor" },
+  "press-false": { grade: "RUMOR", key: "intel.act.pressFalse" },
+  "press-push": { grade: "SUSPECTED", key: "intel.act.pressPush" },
+  "file-open": { grade: "SUSPECTED", key: "intel.act.fileOpen" },
+  "file-block": { grade: "SUSPECTED", key: "intel.act.fileBlock" },
+  memo: { grade: "SUSPECTED", key: "intel.act.memo" },
+  "false-bind": { grade: "RUMOR", key: "intel.act.falseBind" },
 };
 
 function factionVisible(state: GameState, id: Faction): boolean {
@@ -62,16 +67,13 @@ function gradeFor(state: GameState, id: Faction, lastAct: string): IntelGrade {
   return mapped?.grade ?? "SUSPECTED";
 }
 
-function headlineFor(id: Faction, name: string, lastAct: string, grade: IntelGrade): string {
-  if (grade === "UNKNOWN" && !lastAct) return `${name}: sis. Elinde somut hareket yok.`;
+function headlineFor(id: Faction, lastAct: string, grade: IntelGrade): string {
+  if (id === "jitem") return "intel.jitem";
+  if (grade === "UNKNOWN" && !lastAct) return "intel.fog";
   const mapped = ACT_HEADLINE[lastAct];
-  if (mapped) {
-    if (grade === "RUMOR" && mapped.grade === "KNOWN") return `Söylenti: ${mapped.text}`;
-    return mapped.text;
-  }
-  if (grade === "UNKNOWN") return `${name}: hareket olabilir, okunamadı.`;
-  if (id === "jitem") return "Kendi hattın. Kapasite ve inkâr dili sende.";
-  return `${name}: hareketlilik. İç plan görünmüyor.`;
+  if (mapped) return mapped.key;
+  if (grade === "UNKNOWN") return "intel.unread";
+  return "intel.stir";
 }
 
 export function factionSignals(state: GameState): IntelSignal[] {
@@ -85,15 +87,17 @@ export function factionSignals(state: GameState): IntelSignal[] {
       faction: def.id,
       name: def.name,
       grade,
-      headline: headlineFor(def.id, def.name, lastAct, grade),
+      headline: headlineFor(def.id, lastAct, grade),
+      why: grade === "RUMOR" || lastAct === "press-push" || lastAct === "press-rumor" ? "press" : undefined,
+      risk: grade !== "UNKNOWN" && def.id !== "jitem" ? "inquiry" : undefined,
     });
   }
   return out;
 }
 
 export function intelGradeLabel(g: IntelGrade) {
-  if (g === "KNOWN") return "BİLİNEN";
-  if (g === "SUSPECTED") return "ŞÜPHE";
-  if (g === "RUMOR") return "SÖYLENTİ";
-  return "BİLİNMEYEN";
+  if (g === "KNOWN") return "fog.KNOWN";
+  if (g === "SUSPECTED") return "fog.SUSPECTED";
+  if (g === "RUMOR") return "fog.RUMOR";
+  return "fog.UNKNOWN";
 }

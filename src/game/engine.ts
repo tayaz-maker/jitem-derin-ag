@@ -4,12 +4,14 @@ import { seedEdgeLive, touchEdge } from "./sim/edges.ts";
 import { applyConsequence, applyFamilyFire, pickSideFamilies, pickVariant, selectAnchorFamily, viewEvent } from "./sim/families.ts";
 import { initialFactions, tickFactions } from "./sim/factions.ts";
 import { addDocument, tickInvestigation } from "./sim/investigation.ts";
-import { entry, initialHand, initialTruth, setHand, tickKnowledge } from "./sim/knowledge.ts";
+import { entry, initialHand, initialTruth, setFactionKnow, setHand, tickKnowledge } from "./sim/knowledge.ts";
 import { remember, tickMemory } from "./sim/memory.ts";
 import { syncObjectives } from "./sim/objectives.ts";
 import { pickSeed } from "./sim/rng.ts";
 import { buildDossier, buildRecap, pickEnding, pushDecision } from "./sim/recap.ts";
 import { applyMany, applyStat, clamp } from "./sim/stats.ts";
+import { apFor as hatAp, defaultStats, hatBlocks, hatOpeningLog, hatTick } from "./sim/hats.ts";
+import { ALL_CLAIMS } from "./db/catalog.ts";
 import type {
   ActionId,
   EndingId,
@@ -23,6 +25,10 @@ import type {
 import { SAVE_VERSION, SCHEMA_VERSION } from "./types.ts";
 
 export { applyStat, clamp };
+
+export function apFor(hat: Hat) {
+  return hatAp(hat);
+}
 
 export function nodeById(id: string) {
   return NODES.find((n) => n.id === id);
@@ -40,19 +46,19 @@ export function eventViewFor(state: GameState) {
   return viewEvent(state);
 }
 
-export function apFor(hat: Hat) {
-  return hat === "saha" ? 5 : 4;
-}
-
 export function actionAp(id: ActionId) {
   return ACTIONS.find((a) => a.id === id)?.ap ?? 1;
 }
 
-function addLog(state: GameState, text: string, kind: LogEntry["kind"]): GameState {
+function setFactionKnowSafe(state: GameState, fac: GameState["factions"][string]["id"], claimId: string, status: "TRUE" | "PARTIAL" | "RUMOR") {
+  return setFactionKnow(state, fac, entry(claimId, status, { source: "dönem", confidence: status === "TRUE" ? 70 : 40 }));
+}
+
+function addLog(state: GameState, text: string, kind: LogEntry["kind"], key?: string, params?: Record<string, string | number>): GameState {
   const ev = eventFor(state.turn);
   return {
     ...state,
-    logs: [...state.logs, { turn: state.turn, year: ev?.year ?? "—", text, kind }],
+    logs: [...state.logs, { turn: state.turn, year: ev?.year ?? "—", text, kind, key, params }],
   };
 }
 
@@ -92,10 +98,8 @@ export function revealDueNodes(state: GameState): GameState {
   return changed ? { ...state, revealed } : state;
 }
 
-function defaultStats(hat: Hat): GameState["stats"] {
-  return hat === "saha"
-    ? { etki: 42, kara: 38, giz: 72, bilgi: 22, saha: 56, sadakat: 58, kamuoyu: 12, hukuk: 10 }
-    : { etki: 56, kara: 42, giz: 76, bilgi: 28, saha: 34, sadakat: 40, kamuoyu: 18, hukuk: 16 };
+function defaultStatsFor(hat: Hat): GameState["stats"] {
+  return defaultStats(hat);
 }
 
 function emptyReplay(hat: Hat, seed: number): GameState["replayMeta"] {
@@ -116,7 +120,7 @@ export function createGame(hat: Hat, seed?: number): GameState {
     hat,
     turn: 1,
     phase: "event",
-    stats: defaultStats(hat),
+    stats: defaultStatsFor(hat),
     nodeHeat: {},
     edgeStr,
     edgeLive: seedEdgeLive(),
@@ -131,7 +135,12 @@ export function createGame(hat: Hat, seed?: number): GameState {
         text:
           hat === "saha"
             ? "Masa: saha hattı. Ersever tipi. Emredilen: kapasite ve inkâr. Emredilmeyen: çıpa ölümler."
-            : "Masa: idari hat. Doğan tipi. Emredilen: dosya ve kalkan. Çıpa takvim durmaz.",
+            : hat === "idari"
+              ? "Masa: idari hat. Doğan tipi. Emredilen: dosya ve kalkan. Çıpa takvim durmaz."
+              : hat === "arastirmaci"
+                ? "Masa: araştırmacı hat. Emredilen: kaynak, çelişki, kamu. Emredilmeyen: saha emri, yeni iddia."
+                : "Masa: hukuk hattı. Emredilen: delil zinciri ve eşik. Emredilmeyen: saha operasyonu.",
+        key: hatOpeningLog(hat),
         kind: "sistem",
       },
     ],
@@ -202,6 +211,22 @@ export function applyEvent(state: GameState): GameState {
         next.edgeStr = { ...next.edgeStr, [e.id]: 3 };
       }
     }
+    next = setHand(next, entry("clm_tbmm_commission", "TRUE", { source: "kaza kaydı", confidence: 88 }));
+    next = setHand(next, entry("clm_kocadag_catli_precrash", "PARTIAL", { source: "aynı araç", confidence: 62 }));
+    next = setFactionKnowSafe(next, "hukuk", "clm_tbmm_commission", "TRUE");
+    next = setFactionKnowSafe(next, "media", "clm_susurluk_car", "TRUE");
+  }
+  if (ev.turn === 5) {
+    next = setHand(next, entry("clm_abas_watch_withdrawn", next.hat === "arastirmaci" ? "PARTIAL" : "RUMOR", { source: "Pipo hattı", confidence: next.hat === "arastirmaci" ? 48 : 28 }));
+    next = setFactionKnowSafe(next, "mit", "clm_abas_watch_withdrawn", "PARTIAL");
+  }
+  if (ev.turn === 6) {
+    next = setHand(next, entry("clm_ersever_tapes", "TRUE", { source: "kaset", confidence: 80 }));
+    next = addDocument(next, "kaset-1993", next.flags.leakSuppressed);
+  }
+  if (ev.turn === 8) {
+    next = setHand(next, entry("clm_eymur_emniyet_warn", next.hat === "arastirmaci" ? "PARTIAL" : "RUMOR", { source: "Eymür", confidence: 50 }));
+    next = setFactionKnowSafe(next, "media", "clm_eymur_emniyet_warn", "RUMOR");
   }
 
   const view = viewEvent(next);
@@ -262,7 +287,7 @@ export function applyEventChoice(state: GameState, choiceId: string): GameState 
   if (!choice) return startActions(state);
 
   let next = applyMany(state, choice.effects);
-  next = addLog(next, choice.log, "aksiyon");
+  next = addLog(next, choice.log, "aksiyon", `choice.${choice.id}`);
   next = pushDecision(next, { kind: "choice", id: choice.id, summary: choice.log });
   if (choice.tags?.length) next = { ...next, tags: [...next.tags, ...choice.tags] };
   next = startActions(next);
@@ -302,6 +327,7 @@ export function canPlay(state: GameState, id: ActionId) {
   const def = ACTIONS.find((a) => a.id === id);
   if (!def) return false;
   if (state.actionsLeft < def.ap) return false;
+  if (hatBlocks(state.hat, id)) return false;
   if (def.unlockAct && actOf(state.turn) < def.unlockAct) return false;
   if (def.group === "kisi" && !mechanicUnlocked(state, "person")) return false;
   if ((id === "rapor_yaz" || id === "inkar_yaz") && !mechanicUnlocked(state, "knowledge")) return false;
@@ -311,6 +337,9 @@ export function canPlay(state: GameState, id: ActionId) {
   if (id === "ankara_koru" && state.stats.kara < 5) return false;
   if (id === "medya_kes" && state.stats.etki < 4) return false;
   if (id === "saha_op" && state.flags.erseverDead && state.turn === 7) return false;
+  if ((id === "kaynak_karsilastir" || id === "dogrula") && state.hat !== "arastirmaci") return false;
+  if ((id === "delil_zincir" || id === "kanit_esigi") && state.hat !== "hukuk") return false;
+  if (id === "dogrula" && !Object.values(state.hand).some((h) => h.status === "RUMOR" || h.status === "PARTIAL")) return false;
   return true;
 }
 
@@ -636,9 +665,66 @@ export function executeAction(state: GameState, plan: PlannedAction): GameState 
     case "soru_sinir": {
       next = { ...next, tags: [...next.tags, "inv-limit"] };
       next = applyStat(next, "giz", 4);
-      next = applyStat(next, "hukuk", -3);
+      next = applyStat(next, "hukuk", next.hat === "hukuk" ? -5 : -3);
       next = applyStat(next, "kamuoyu", 1);
-      next = addLog(next, "Soruşturma sınırlandı. Dar tutuldu; sönmedi.", "aksiyon");
+      next = addLog(next, "Soruşturma sınırlandı. Dar tutuldu; sönmedi.", "aksiyon", "act.soru_sinir");
+      break;
+    }
+    case "kaynak_karsilastir": {
+      const held = Object.values(next.hand).filter((h) => h.status !== "UNKNOWN");
+      const clash = ALL_CLAIMS.filter((c) => c.contradiction && held.some((h) => h.claimId === c.id));
+      next = applyStat(next, "bilgi", 8);
+      next = applyStat(next, "giz", -3);
+      next = applyStat(next, "kamuoyu", clash.length ? 2 : 1);
+      if (clash[0]) next = setHand(next, entry(clash[0].id, "PARTIAL", { source: "karşılaştırma", confidence: 58 }));
+      next = addLog(
+        next,
+        clash[0]
+          ? `Kaynaklar karşılaştırıldı. Çelişki açıldı: ${clash[0].title}. Tek doğru kilitlenmedi.`
+          : "Kaynaklar karşılaştırıldı. Elindeki kayıtlarda henüz çelişki yok.",
+        "aksiyon",
+        "act.kaynak_karsilastir",
+      );
+      break;
+    }
+    case "dogrula": {
+      const rumor = Object.values(next.hand).find((h) => h.status === "RUMOR") ?? Object.values(next.hand).find((h) => h.status === "PARTIAL");
+      if (!rumor) {
+        next.actionsLeft += apCost;
+        next = addLog(next, "Yoklanacak söylenti yok.", "sistem", "act.dogrula.none");
+        break;
+      }
+      const claim = ALL_CLAIMS.find((c) => c.id === rumor.claimId);
+      const world = next.truth[rumor.claimId];
+      const nextStatus = claim?.contradiction || world === "UNKNOWN" || world === "PARTIAL" ? "PARTIAL" : world === "TRUE" ? "PARTIAL" : "RUMOR";
+      next = setHand(next, entry(rumor.claimId, nextStatus, { source: "yoklama", confidence: Math.min(70, rumor.confidence + 18) }));
+      next = applyStat(next, "bilgi", 6);
+      next = applyStat(next, "giz", -4);
+      next = applyStat(next, "kamuoyu", 2);
+      next = addLog(next, `Söylenti yoklandı: ${claim?.title ?? rumor.claimId}. Kesinleştirilmedi.`, "aksiyon", "act.dogrula");
+      break;
+    }
+    case "delil_zincir": {
+      next = addDocument(next, `zincir-t${next.turn}`, false);
+      next = applyStat(next, "hukuk", 7);
+      next = applyStat(next, "giz", -4);
+      next = applyStat(next, "bilgi", 3);
+      next = addLog(next, "Delil zincirine halka eklendi. Emir üretilmedi.", "aksiyon", "act.delil_zincir");
+      break;
+    }
+    case "kanit_esigi": {
+      const docs = next.investigation.documents.length;
+      if (docs >= 2) {
+        next = { ...next, tags: [...next.tags, "inv-direct"] };
+        next = applyStat(next, "hukuk", 6);
+        next = applyStat(next, "giz", -3);
+        next = addLog(next, "Kanıt eşiği işletildi. Dosya bir kat ilerledi.", "aksiyon", "act.kanit_esigi");
+      } else {
+        next = { ...next, tags: [...next.tags, "inv-limit"] };
+        next = applyStat(next, "hukuk", 3);
+        next = applyStat(next, "giz", 2);
+        next = addLog(next, "Eşik tutuldu: belge yetersiz. Spekülasyon öne alınmadı; soruşturma sönmedi.", "aksiyon", "act.kanit_esigi.hold");
+      }
       break;
     }
   }
@@ -661,14 +747,21 @@ function tickResources(state: GameState, notes: string[]): GameState {
   const t = tightness(next);
   const gizDrain = 1 + Math.floor(t / 8);
   next = applyStat(next, "giz", -gizDrain);
-  notes.push(`Ağ sızdırmazlık tick: Giz −${gizDrain} (bağ sıkılığı ${t}).`);
+  notes.push(`note.tick.giz|n=${gizDrain}|t=${t}`);
 
   if (next.hat === "idari") next = applyStat(next, "etki", 1);
-  else next = applyStat(next, "etki", -1);
+  else if (next.hat === "saha") next = applyStat(next, "etki", -1);
+  else if (next.hat === "arastirmaci") {
+    next = applyStat(next, "bilgi", 1);
+    if (next.stats.kamuoyu >= 24) next = applyStat(next, "giz", -1);
+  } else if (next.hat === "hukuk") {
+    if (next.investigation.stage !== "dormant") next = applyStat(next, "hukuk", 1);
+  }
+  next = hatTick(next, notes);
 
   if (next.stats.kara < 20) {
     next = applyStat(next, "saha", -4);
-    notes.push("Örtülü kaynak kıt. Saha açlığı.");
+    notes.push("note.tick.kara");
   } else if (next.stats.saha >= 50) {
     next = applyStat(next, "kara", 3);
   }
@@ -676,7 +769,7 @@ function tickResources(state: GameState, notes: string[]): GameState {
   if (next.stats.giz < 40) {
     next = applyStat(next, "bilgi", -2);
     next = applyStat(next, "kamuoyu", 2);
-    notes.push("Giz inceldi. Münhasır bilgi kamuya sızıyor — asimetri eriyor.");
+    notes.push("note.tick.gizThin");
   }
 
   if (next.stats.giz < 12) {
@@ -689,14 +782,14 @@ function tickResources(state: GameState, notes: string[]): GameState {
       },
     };
     next = applyStat(next, "hukuk", 3);
-    notes.push("Yumuşak kırılma: gizlilik kritik. Kampanya bitmedi — soruşturma açıldı.");
+    notes.push("note.tick.crisis");
   } else {
     next = { ...next, flags: { ...next.flags, gizCrisisTurns: 0 } };
   }
 
   if (next.stats.sadakat < 25) {
     next = applyStat(next, "saha", -2);
-    notes.push("Sadakat düşük. Saha freelance kayıyor.");
+    notes.push("note.tick.loyalty");
   }
 
   return next;
@@ -740,11 +833,25 @@ export function resolveTurn(state: GameState): GameState {
   next = revealDueNodes(next);
 
   for (const n of notes) {
-    const kind = n.startsWith("Ağ sızdırmazlık")
+    const kind: LogEntry["kind"] = n.startsWith("note.tick")
       ? "sistem"
-      : n.includes("MİT") || n.includes("Emniyet") || n.includes("JİTEM") || n.includes("Ersever") || n.includes("3 Kasım") || n.includes("Abas") || n.includes("Basın") || n.includes("Siyaset") || n.includes("Asker")
-        ? "npc"
-        : "gizli";
+      : n.startsWith("note.inv") || n.startsWith("note.know") || n.startsWith("note.mem")
+        ? "gizli"
+        : n.startsWith("note.")
+          ? "npc"
+          : n.startsWith("Ağ sızdırmazlık")
+            ? "sistem"
+            : n.includes("MİT") ||
+                n.includes("Emniyet") ||
+                n.includes("JİTEM") ||
+                n.includes("Ersever") ||
+                n.includes("3 Kasım") ||
+                n.includes("Abas") ||
+                n.includes("Basın") ||
+                n.includes("Siyaset") ||
+                n.includes("Asker")
+              ? "npc"
+              : "gizli";
     next = addLog(next, n, kind);
   }
 
@@ -783,14 +890,8 @@ export function endingOf(id: EndingId) {
 }
 
 export function onboardingHint(state: GameState): string | null {
-  if (state.turn === 1 && state.phase === "actions") {
-    return "Tur 1 — ilişki: Ağ grubundan bir bağı sıkılaştır veya gevşet. Yeni hat uydurulmaz.";
-  }
-  if (state.turn === 2 && state.phase === "actions") {
-    return "Tur 2 — kişi: Haritadan bir isim seç, Kişi grubundan koru / kullan / harca / mesafe.";
-  }
-  if (state.turn === 3 && state.phase === "actions") {
-    return "Tur 3 — bilgi: Gerçeği aç (rapor) veya düzeni tut (inkâr). Sonra serbestsin.";
-  }
+  if (state.turn === 1 && state.phase === "actions") return "onboard.t1";
+  if (state.turn === 2 && state.phase === "actions") return "onboard.t2";
+  if (state.turn === 3 && state.phase === "actions") return "onboard.t3";
   return null;
 }

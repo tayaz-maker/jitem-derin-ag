@@ -1,6 +1,6 @@
 export type Evidence = "BELGELİ" | "GÜÇLÜ" | "TARTIŞMALI" | "BOŞLUK";
 export type NodeKind = "kurum" | "kisi" | "koridor";
-export type Hat = "saha" | "idari";
+export type Hat = "saha" | "idari" | "arastirmaci" | "hukuk";
 export type Phase = "start" | "event" | "actions" | "resolution" | "ended";
 export type Faction =
   | "jitem"
@@ -39,6 +39,8 @@ export type InvestigationStage =
   | "response";
 export type CampaignAct = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 export type MobilePane = "map" | "olay" | "kisi" | "isler" | "rapor";
+export type Locale = "tr" | "en";
+export type FogGrade = "KNOWN" | "SUSPECTED" | "RUMOR" | "UNKNOWN";
 
 export type StatKey =
   | "etki"
@@ -111,7 +113,11 @@ export type ActionId =
   | "kisi_mesafe"
   | "soru_yonlendir"
   | "soru_ac"
-  | "soru_sinir";
+  | "soru_sinir"
+  | "kaynak_karsilastir"
+  | "dogrula"
+  | "delil_zincir"
+  | "kanit_esigi";
 
 export interface ActionDef {
   id: ActionId;
@@ -157,6 +163,8 @@ export interface LogEntry {
   turn: number;
   year: string;
   text: string;
+  key?: string;
+  params?: Record<string, string | number>;
   kind: "olay" | "aksiyon" | "npc" | "gizli" | "sistem";
 }
 
@@ -265,6 +273,7 @@ export interface Dossier {
   contradictions: string[];
   anchorDrift: string[];
   orderLeft: string;
+  causal?: string[];
 }
 
 export interface ReplayFrame {

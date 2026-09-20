@@ -1,8 +1,8 @@
 import { ALL_CLAIMS } from "../db/catalog.ts";
 import { EDGES, NODES } from "../data.ts";
 import { SAVE_KEY, SCHEMA_VERSION } from "../types.ts";
-import type { Decision, Dossier, EndingId, GameState } from "../types.ts";
-import { STAGE_LABEL } from "./investigation.ts";
+import type { Decision, Dossier, EndingId, GameState, Locale } from "../types.ts";
+import { t } from "../i18n/copy.ts";
 
 export function pushDecision(state: GameState, d: Omit<Decision, "turn">): GameState {
   return {
@@ -13,6 +13,22 @@ export function pushDecision(state: GameState, d: Omit<Decision, "turn">): GameS
 
 function names(ids: string[]) {
   return ids.map((id) => NODES.find((n) => n.id === id)?.name ?? id);
+}
+
+function orderKey(state: GameState): "intact" | "legal" | "scatter" {
+  if (state.stats.giz >= 28 && state.stats.saha >= 18) return "intact";
+  if (state.stats.hukuk >= 50) return "legal";
+  return "scatter";
+}
+
+function driftKeys(state: GameState): string[] {
+  const keys: string[] = [];
+  if (state.flags.leakSuppressed) keys.push("drift.tapes");
+  if (hasSpend(state) && state.flags.erseverTalked) keys.push("drift.spent");
+  if (state.flags.emniyetCooledUntil > 0) keys.push("drift.emniyet");
+  if (state.investigation.stage === "dormant") keys.push("drift.sleep");
+  if (state.flags.yesilUsed) keys.push("drift.yesil");
+  return keys;
 }
 
 export function buildDossier(state: GameState): Dossier {
@@ -30,21 +46,12 @@ export function buildDossier(state: GameState): Dossier {
     .filter(([, k]) => k.status === "TRUE" || k.status === "PARTIAL")
     .map(([id]) => ALL_CLAIMS.find((c) => c.id === id)?.title ?? id);
   const contradictions = ALL_CLAIMS.filter((c) => c.contradiction).map((c) => `${c.title}: ${c.contradiction}`);
-  const anchorDrift: string[] = [];
-  if (state.flags.leakSuppressed) anchorDrift.push("Ersever kaseti bastırıldı; yok edilmedi.");
-  if (hasSpend(state) && state.flags.erseverTalked) anchorDrift.push("Harcanan saha hattı konuşmayı sertleştirdi.");
-  if (state.flags.emniyetCooledUntil > 0) anchorDrift.push("Emniyet soğutuldu; 3 Kasım durmadı, ısınma yavaşladı.");
-  if (state.investigation.stage === "dormant") anchorDrift.push("Soruşturma uyudu. Kamu karesi kaza ile açıldı.");
-  if (state.flags.yesilUsed) anchorDrift.push("Yeşil harcandı. Fail iddiası ısındı; emir boşluğu durur.");
-  const orderLeft =
-    state.stats.giz >= 28 && state.stats.saha >= 18
-      ? "Fiilî ağ ince, resmi dil hâlâ ‘yok’. Kontrollü parçalanma mümkün."
-      : state.stats.hukuk >= 50
-        ? "Hukuk ve kamu önde. Bazı bağlar kilitli, emirler boşlukta."
-        : "Düzen dağınık. Parçalı çıkar ağları kendi bildikleriyle yürüdü.";
+  const locale: Locale = "tr";
+  const anchorDrift = driftKeys(state).map((k) => t(locale, k));
+  const orderLeft = t(locale, `endOrder.${orderKey(state)}`);
 
   return {
-    title: "SENİN 1986–1996 HİKÂYEN",
+    title: t(locale, "end.title"),
     protectedActors,
     sacrificedActors,
     exposedDocuments,
@@ -55,6 +62,25 @@ export function buildDossier(state: GameState): Dossier {
     contradictions: contradictions.slice(0, 8),
     anchorDrift,
     orderLeft,
+    causal: causalNarrative(state),
+  };
+}
+
+export function displayDossier(state: GameState, locale: Locale) {
+  const d = state.dossier ?? buildDossier(state);
+  return {
+    title: t(locale, "end.title"),
+    protectedActors: d.protectedActors,
+    sacrificedActors: d.sacrificedActors,
+    exposedDocuments: d.exposedDocuments,
+    suppressedDocuments: d.suppressedDocuments,
+    risenFactions: d.risenFactions,
+    brokenTies: d.brokenTies,
+    publicKnowledge: d.publicKnowledge,
+    contradictions: d.contradictions,
+    anchorDrift: driftKeys(state).map((k) => t(locale, k)),
+    orderLeft: t(locale, `endOrder.${orderKey(state)}`),
+    causal: causalNarrative(state, locale),
   };
 }
 
@@ -78,7 +104,7 @@ export function buildRecap(state: GameState): string[] {
   );
   if (d.contradictions.length) lines.push(`Kaynakların çeliştiği noktalar: ${d.contradictions.slice(0, 3).join(" / ")}`);
   if (d.anchorDrift.length) lines.push(`Çıpalardan sapma: ${d.anchorDrift.join(" ")}`);
-  lines.push(`Soruşturma: ${STAGE_LABEL[state.investigation.stage]}.`);
+  lines.push(`Soruşturma: ${t("tr", `inv.${state.investigation.stage}`)}.`);
   lines.push(`Senin bıraktığın düzen: ${d.orderLeft}`);
   lines.push(
     `Gizlilik ${state.stats.giz} · Sadakat ${state.stats.sadakat} · Kamuoyu ${state.stats.kamuoyu} · Hukuk ${state.stats.hukuk}.`,
@@ -146,6 +172,76 @@ export function formatReplay(state: GameState): string {
     lines.push(`${f.id}: son ${f.lastAct || "—"} · bellek ${f.memory.join(",") || "—"}`);
   }
   return lines.join("\n");
+}
+
+export function causalNarrative(state: GameState, locale: Locale = "tr"): string[] {
+  const protectedN = Object.values(state.stance).filter((v) => v === "protect").length;
+  const spentN = Object.values(state.stance).filter((v) => v === "spend").length;
+  const denies = state.decisions.filter((d) => d.id === "inkar_yaz" || d.id === "sizinti_bastir" || d.id === "e6-bas" || d.id === "e10-inkar").length;
+  const opens = state.decisions.filter((d) => d.id === "rapor_yaz" || d.id === "soru_ac" || d.id === "bag_ifsa" || d.id === "e6-not").length;
+  const en = locale === "en";
+  const lines: string[] = [];
+  if (state.ending === "kontrollu_parcalanma" || state.ending === "inkar_ayakta") {
+    lines.push(
+      protectedN >= 1
+        ? en
+          ? "The network did not fully come apart. The main reason is that you protected critical ties late while limiting public pressure."
+          : "Ağ tamamen çözülmedi. Bunun temel nedeni, geç dönemde kritik bağları korurken kamuoyu baskısını sınırlaman oldu."
+        : en
+          ? "The network did not fully come apart. Denial language and field capacity were carried at the same time."
+          : "Ağ tamamen çözülmedi. İnkâr dili ve saha kapasitesi aynı anda taşındı.",
+    );
+    if (state.investigation.documents.length === 0 || state.investigation.suppressed.length) {
+      lines.push(
+        en
+          ? "Files that did not come into view kept the legal line from closing some connections."
+          : "Ancak açığa çıkmayan dosyalar, hukuk hattının bazı bağlantıları kapatmasına engel oldu.",
+      );
+    }
+  } else if (state.ending === "giz_coktu" || state.ending === "susurluk_patlama") {
+    lines.push(
+      opens >= 2
+        ? en
+          ? "Visibility was chosen: a report, an exposure or an opened surface carried secrecy into a public frame."
+          : "Görünürlük seçildi: rapor, ifşa veya yüzey açma, gizliliği kamu karesine taşıdı."
+        : en
+          ? "Secrecy could not carry the weight of the working structure. The leak was not pressed."
+          : "Gizlilik, fiilî yapının ağırlığını taşıyamadı. Sızıntı basılmadı.",
+    );
+  } else if (state.ending === "ersever_esigi") {
+    lines.push(
+      en
+        ? "The insider who talked arrived before the crash outside. Suppression came late."
+        : "Konuşan içerideki, dışarıdaki kazadan önce geldi. Bastırma geç kaldı.",
+    );
+  } else if (state.ending === "kismi_adalet") {
+    lines.push(
+      en
+        ? "Public and legal heat rose. Some ties were documented; the order-gap remained."
+        : "Kamu ve hukuk ısındı. Bazı bağlar belgelendi; emir boşluğu durdu.",
+    );
+  } else if (spentN >= 2) {
+    lines.push(
+      en
+        ? "Spent people wrote talk and resentment into memory. The network broke from inside."
+        : "Harcanan kişiler belleğe konuşma ve kin yazdı. Ağ kendi içinde kırıldı.",
+    );
+  }
+  if (denies >= 3 && state.stats.giz < 22) {
+    lines.push(
+      en
+        ? "Repeating denial did not hold the fog; repetition did not convince the public."
+        : "İnkâr tekrarı sis tutmadı; tekrar, kamuoyunu inandırmadı.",
+    );
+  }
+  if (!lines.length) {
+    lines.push(
+      en
+        ? "Partial interest-networks walked on what they themselves knew. There was no single hand."
+        : "Parçalı çıkar ağları kendi bildikleriyle yürüdü. Tek el yoktu.",
+    );
+  }
+  return lines;
 }
 
 export function pickEnding(state: GameState): EndingId | null {
