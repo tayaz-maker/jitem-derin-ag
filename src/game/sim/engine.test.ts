@@ -14,7 +14,7 @@ import {
 } from "../engine.ts";
 import { validateResearch, classifyClaim } from "../db/validate.ts";
 import { DB_COUNTS } from "../db/index.ts";
-import { familyEligible, FAMILIES, FAMILY_COUNT, VARIANT_COUNT, pickSideFamilies, viewEvent } from "./families.ts";
+import { familyEligible, FAMILIES, FAMILY_COUNT, VARIANT_COUNT, pickSideFamilies, pickVariant, viewEvent } from "./families.ts";
 import { initialFactions } from "./factions.ts";
 import { hasMemory } from "./memory.ts";
 import { tickInvestigation } from "./investigation.ts";
@@ -523,6 +523,78 @@ describe("researcher and lawyer loops", () => {
     let l = createGame("hukuk", 26);
     l = { ...l, turn: 6, investigation: { ...l.investigation, documents: ["doc-x"], chain: [{ claimId: "clm_kutlu_vs_official", documentId: "doc-x", turn: 5 }] } };
     assert.equal(familyEligible(famH, l, false), true);
+  });
+
+  it("lawyer chain consequence guarded variant is reachable from lawyer-native chain progress", () => {
+    const fam = FAMILIES.find((f) => f.id === "fam_chain_consequence")!;
+    let s = createGame("hukuk", 2601);
+    s = {
+      ...s,
+      turn: 6,
+      investigation: {
+        ...s.investigation,
+        documents: ["doc-a", "doc-b"],
+        chain: [
+          { claimId: "clm_kutlu_vs_official", documentId: "doc-a", turn: 5 },
+          { claimId: "clm_kutlu_vs_official", documentId: "doc-b", turn: 6 },
+        ],
+      },
+    };
+    assert.equal(familyEligible(fam, s, false), true);
+    const guarded = fam.variants.find((v) => v.id === "compared-file")!;
+    assert.equal(guarded.when?.(s), true);
+    let seen = false;
+    for (let seed = 1; seed <= 96; seed++) {
+      const candidate = { ...s, eventSeed: seed };
+      if (pickVariant(candidate, fam).id === "compared-file") {
+        seen = true;
+        break;
+      }
+    }
+    assert.equal(seen, true);
+  });
+
+  it("chain-only lawyer play cannot open kismi_adalet without enough public opinion", () => {
+    const s = createGame("hukuk", 2602);
+    const base = {
+      ...s,
+      turn: 10,
+      stats: { ...s.stats, hukuk: 60, kamuoyu: 31 },
+      investigation: {
+        ...s.investigation,
+        stage: "public" as const,
+        documents: ["doc-a", "doc-b"],
+        chain: [
+          { claimId: "clm_kutlu_vs_official", documentId: "doc-a", turn: 5 },
+          { claimId: "clm_kutlu_vs_official", documentId: "doc-b", turn: 6 },
+        ],
+      },
+    };
+    assert.notEqual(pickEnding(base), "kismi_adalet");
+    assert.equal(pickEnding({ ...base, stats: { ...base.stats, kamuoyu: 32 } }), "kismi_adalet");
+  });
+
+  it("delil_zincir is unavailable without an eligible held claim and does not create a generic fallback", () => {
+    let s = createGame("hukuk", 2603);
+    s = {
+      ...s,
+      phase: "actions",
+      actionsLeft: 4,
+      hand: Object.fromEntries(Object.entries(s.hand).map(([id, row]) => [id, { ...row, status: "UNKNOWN" as const }])),
+    };
+    assert.equal(canPlay(s, "delil_zincir"), false);
+    const before = JSON.stringify(s.investigation);
+    const next = executeAction(s, { id: "delil_zincir" });
+    assert.equal(JSON.stringify(next.investigation), before);
+    assert.equal(next.investigation.documents.some((d) => d.includes("clm_jitem_exists")), false);
+  });
+
+  it("researcher receives the Hanefi/Emniyet split as a turn-8 rumor for later comparison", () => {
+    let s = createGame("arastirmaci", 2604);
+    s = { ...s, turn: 8, phase: "event" };
+    s = applyEvent(s);
+    assert.equal(s.hand.clm_hanefi_emniyet_split?.status, "RUMOR");
+    assert.equal(canPlay({ ...s, phase: "actions", actionsLeft: 4 }, "kaynak_karsilastir"), true);
   });
 
   it("old save without comparisons still migrates", () => {
