@@ -286,7 +286,7 @@ export function pickEnding(state: GameState): EndingId | null {
   const spentN = Object.values(state.stance).filter((v) => v === "spend").length;
   if (inv === "public" || inv === "response") {
     if (state.stats.hukuk >= 55 && state.stats.kamuoyu >= 42) return "kismi_adalet";
-    if ((state.investigation.chain?.length ?? 0) >= 2 && state.stats.hukuk >= 48) return "kismi_adalet";
+    if ((state.investigation.chain?.length ?? 0) >= 2 && state.stats.hukuk >= 48 && state.stats.kamuoyu >= 32) return "kismi_adalet";
   }
   if (state.stats.etki < 16 && state.stats.kara >= 38 && state.stats.saha < 20) return "rakip_zafer";
   if (state.stats.saha < 14 && state.stats.etki >= 32 && state.stats.giz >= 22) return "kurumsal_tasfiye";

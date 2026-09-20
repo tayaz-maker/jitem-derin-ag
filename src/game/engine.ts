@@ -226,6 +226,9 @@ export function applyEvent(state: GameState): GameState {
   }
   if (ev.turn === 8) {
     next = setHand(next, entry("clm_eymur_emniyet_warn", next.hat === "arastirmaci" ? "PARTIAL" : "RUMOR", { source: "Eymür", confidence: 50 }));
+    if (next.hat === "arastirmaci") {
+      next = setHand(next, entry("clm_hanefi_emniyet_split", "RUMOR", { source: "Emniyet hattı", confidence: 36 }));
+    }
     next = setFactionKnowSafe(next, "media", "clm_eymur_emniyet_warn", "RUMOR");
   }
 
@@ -340,6 +343,7 @@ export function canPlay(state: GameState, id: ActionId) {
   if ((id === "kaynak_karsilastir" || id === "dogrula") && state.hat !== "arastirmaci") return false;
   if ((id === "delil_zincir" || id === "kanit_esigi") && state.hat !== "hukuk") return false;
   if (id === "dogrula" && !Object.values(state.hand).some((h) => h.status === "RUMOR" || h.status === "PARTIAL")) return false;
+  if (id === "delil_zincir" && !Object.values(state.hand).some((h) => h.status === "PARTIAL" || h.status === "TRUE")) return false;
   return true;
 }
 
@@ -720,7 +724,12 @@ export function executeAction(state: GameState, plan: PlannedAction): GameState 
         ALL_CLAIMS.find((c) => compared.includes(c.id) && held.some((h) => h.claimId === c.id)) ??
         ALL_CLAIMS.find((c) => (c.evidence === "BELGELİ" || c.evidence === "GÜÇLÜ") && held.some((h) => h.claimId === c.id)) ??
         ALL_CLAIMS.find((c) => held.some((h) => h.claimId === c.id));
-      const claimId = bound?.id ?? "clm_jitem_exists";
+      if (!bound) {
+        next.actionsLeft += apCost;
+        next = addLog(next, "Delil zincirine bağlanacak uygun iddia yok.", "sistem", "act.delil_zincir.none");
+        break;
+      }
+      const claimId = bound.id;
       const docId = `doc-${claimId}-t${next.turn}`;
       next = recordChainLink(next, claimId, docId);
       next = applyStat(next, "hukuk", 7);
@@ -729,9 +738,7 @@ export function executeAction(state: GameState, plan: PlannedAction): GameState 
       next = setFactionKnow(next, "hukuk", entry(claimId, "PARTIAL", { source: "delil halkası", confidence: 48 }));
       next = addLog(
         next,
-        bound
-          ? `Delil zincirine halka: ${bound.title}. Emir üretilmedi.`
-          : "Delil zincirine halka eklendi. Emir üretilmedi.",
+`Delil zincirine halka: ${bound.title}. Emir üretilmedi.`,
         "aksiyon",
         "act.delil_zincir",
       );
