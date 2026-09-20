@@ -3,7 +3,7 @@ import type { Locale } from "./types.ts";
 import { interpolate, lookup, parseNote } from "./format.ts";
 import { tr, actionsTr } from "./tr.ts";
 import { en, actionsEn } from "./en.ts";
-import { CHOICES_I18N, EVENTS_I18N, ENDINGS_I18N, CLAIM_WHY, pickLocale } from "./content.ts";
+import { CHOICES_I18N, EVENTS_I18N, ENDINGS_I18N, CLAIM_WHY, familyVariantCopy, pickLocale } from "./content.ts";
 
 export function dict(locale: Locale) {
   return locale === "en" ? en : tr;
@@ -65,9 +65,14 @@ export function logLine(locale: Locale, raw: string, key?: string, params?: Reco
     if (x !== key) return x;
   }
   const { path, vars } = parseNote(raw);
+  if (path === "family.variant" && vars) {
+    return familyVariantCopy(locale, vars.fallback, "note");
+  }
   const x = t(locale, path, vars);
   return x !== path ? x : raw;
 }
+
+export { familyVariantCopy };
 
 export function logEntryLine(locale: Locale, l: Pick<LogEntry, "text" | "key" | "params">): string {
   return logLine(locale, l.text, l.key, l.params);

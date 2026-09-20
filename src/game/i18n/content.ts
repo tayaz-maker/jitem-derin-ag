@@ -369,3 +369,23 @@ export function pickLocale<T extends Pair>(pair: T | undefined, locale: Locale, 
   if (!pair) return fallback;
   return pair[locale] || pair.tr || fallback;
 }
+
+/** Family variants are simulation branches, not authored historical records. */
+export function familyVariantCopy(
+  locale: Locale,
+  raw: string | undefined,
+  kind: "addendum" | "note",
+): string {
+  if (!raw) return "";
+  if (locale === "tr") return raw;
+  if (kind === "note") {
+    return "The network changed because this simulation branch fired. Historical anchors and evidence grades remain unchanged.";
+  }
+  if (raw.startsWith("TARİHSEL ÇIPA")) {
+    return "HISTORICAL ANCHOR: This branch rests on a documented event; disputed links remain open.";
+  }
+  if (raw.startsWith("KAYNAK İDDİASI")) {
+    return "SOURCE CLAIM: This branch follows a sourced claim, not a proven command chain.";
+  }
+  return "GAMEPLAY RECONSTRUCTION: This branch reflects the current network state; it does not create a historical finding.";
+}

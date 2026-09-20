@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 import { actionsEn, en } from "./en.ts";
 import { actionsTr, tr } from "./tr.ts";
 import { flattenKeys } from "./format.ts";
-import { actionCopy, choiceCopy, eventCopy, t, logLine } from "./copy.ts";
+import { actionCopy, choiceCopy, eventCopy, familyVariantCopy, t, logLine } from "./copy.ts";
 import { detectLocale } from "./locale.ts";
 import { createGame, executeAction, canPlay, apFor, resolveTurn } from "../engine.ts";
 import { parseSave, serialize } from "../sim/save.ts";
@@ -172,6 +172,15 @@ describe("ending causal is decision-based", () => {
 });
 
 describe("resolution notes are semantic keys", () => {
+  it("never exposes a Turkish family fallback in English", () => {
+    const raw = "OYUNSAL REKONSTRÜKSİYON: İdari masa doğuşu dosyadan görür.";
+    const rendered = familyVariantCopy("en", raw, "addendum");
+    assert.match(rendered, /GAMEPLAY RECONSTRUCTION/);
+    assert.equal(rendered.includes("OYUNSAL"), false);
+    const note = logLine("en", "family.variant|family=fam_formation|variant=idari|fallback=Türkçe%20not");
+    assert.equal(note.includes("Türkçe"), false);
+  });
+
   it("stores keys not translated sentences and EN render differs", () => {
     let s = createGame("saha", 1);
     s = { ...s, phase: "actions", actionsLeft: 5 };

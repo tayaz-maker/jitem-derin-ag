@@ -5,7 +5,7 @@ import { EVENTS } from "@/game/data";
 import { useGame } from "@/game/store";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { choiceCopy, eventCopy, t, useLocale, logLine } from "@/game/i18n";
+import { choiceCopy, eventCopy, familyVariantCopy, t, useLocale, logLine } from "@/game/i18n";
 
 function EventBody() {
   const state = useGame((s) => s.state)!;
@@ -48,7 +48,9 @@ function EventBody() {
       <p className="mt-1 font-mono text-[11px] text-muted">{ev.fileNo}</p>
       <p className="mt-3 text-sm leading-relaxed text-fg">{body}</p>
       {ev.addendum ? (
-        <p className="mt-3 border-l-2 border-warn/70 pl-3 text-sm leading-relaxed text-muted">{ev.addendum}</p>
+        <p className="mt-3 border-l-2 border-warn/70 pl-3 text-sm leading-relaxed text-muted">
+          {familyVariantCopy(locale, ev.addendum, "addendum")}
+        </p>
       ) : null}
       {showHidden ? (
         <div className="mt-3 border-l-2 border-olive/70 pl-3">
