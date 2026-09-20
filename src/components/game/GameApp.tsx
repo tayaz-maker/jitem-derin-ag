@@ -67,10 +67,30 @@ export function GameApp() {
       ) : null}
 
       <div className="relative min-h-0 flex-1">
-        <div className="grid h-full min-h-0 grid-rows-1 lg:grid-cols-[minmax(0,1fr)_minmax(300px,380px)]">
-          <div className={cn("min-h-0", mobilePane === "map" || eventOpen ? "block" : "hidden lg:block")}>
+        <div
+          className={cn(
+            "grid h-full min-h-0 grid-rows-1",
+            eventOpen
+              ? "lg:grid-cols-[minmax(320px,1fr)_minmax(380px,520px)_minmax(260px,320px)]"
+              : "lg:grid-cols-[minmax(0,1fr)_minmax(300px,380px)]",
+          )}
+        >
+          <div
+            className={cn(
+              "min-h-0",
+              mobilePane === "map" || eventOpen ? "block" : "hidden lg:block",
+            )}
+          >
             <NodeGraph />
           </div>
+          {eventOpen ? (
+            <section
+              aria-label={t(locale, "pane.olay")}
+              className="hidden min-h-0 overflow-y-auto overscroll-contain border-l border-border bg-surface lg:block"
+            >
+              <EventModal />
+            </section>
+          ) : null}
           <div
             className={cn(
               "min-h-0 overflow-y-auto",
@@ -86,7 +106,7 @@ export function GameApp() {
           </div>
           {mobilePane === "olay" && !eventOpen ? (
             <div className="min-h-0 overflow-y-auto lg:hidden">
-              <EventModal embedded />
+              <EventModal />
             </div>
           ) : null}
           {mobilePane === "rapor" ? (
@@ -97,10 +117,10 @@ export function GameApp() {
         </div>
 
         {eventOpen ? (
-          <div className="absolute inset-x-0 bottom-0 top-[16%] z-30 overflow-y-auto rounded-t-lg border-t border-border bg-surface shadow-[0_-8px_24px_rgba(0,0,0,0.35)] lg:inset-0 lg:rounded-none lg:border-0 lg:bg-bg/70 lg:shadow-none">
-            <div className="mx-auto max-h-full w-full max-w-xl overflow-y-auto lg:flex lg:h-full lg:items-center lg:p-6">
-              <div className="w-full bg-surface p-4 lg:max-h-[min(78dvh,640px)] lg:rounded-lg lg:border lg:border-border lg:p-6">
-                <EventModal embedded />
+          <div className="absolute inset-x-0 bottom-0 top-[16%] z-30 overflow-y-auto overscroll-contain rounded-t-lg border-t border-border bg-surface shadow-[0_-8px_24px_rgba(0,0,0,0.35)] lg:hidden">
+            <div className="mx-auto min-h-full w-full max-w-xl">
+              <div className="w-full bg-surface p-4">
+                <EventModal />
               </div>
             </div>
           </div>
@@ -117,7 +137,9 @@ export function GameApp() {
             onClick={() => setMobilePane(p.id)}
             className={cn(
               "min-h-12 px-1 text-[11px] font-medium",
-              mobilePane === p.id || (eventOpen && p.id === "olay") ? "bg-elevated text-paper" : "text-muted",
+              mobilePane === p.id || (eventOpen && p.id === "olay")
+                ? "bg-elevated text-paper"
+                : "text-muted",
             )}
           >
             {p.label}

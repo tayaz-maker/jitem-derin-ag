@@ -34,7 +34,16 @@ function EventBody() {
       <div className="mt-1 flex flex-wrap items-center gap-1.5">
         <h2 className="text-xl font-medium tracking-tight text-paper sm:text-2xl">{title}</h2>
         {ux.map((tag) => (
-          <Badge key={tag} tone={tag === "TARTIŞMALI" || tag === "ÇELİŞKİLİ" ? "tart" : tag === "BELGELİ" || tag === "TARİHSEL ÇIPA" ? "belgeli" : "guc"}>
+          <Badge
+            key={tag}
+            tone={
+              tag === "TARTIŞMALI" || tag === "ÇELİŞKİLİ"
+                ? "tart"
+                : tag === "BELGELİ" || tag === "TARİHSEL ÇIPA"
+                  ? "belgeli"
+                  : "guc"
+            }
+          >
             {tag === "TARİHSEL ÇIPA"
               ? t(locale, "layer.historicalFact")
               : tag === "KAYNAK İDDİASI"
@@ -58,7 +67,9 @@ function EventBody() {
           <p className="mt-1 text-sm leading-relaxed text-muted">{hidden}</p>
         </div>
       ) : (
-        <p className="mt-3 text-xs text-subtle">{t(locale, "event.hiddenClosed", { n: ev.hiddenBilgi })}</p>
+        <p className="mt-3 text-xs text-subtle">
+          {t(locale, "event.hiddenClosed", { n: ev.hiddenBilgi })}
+        </p>
       )}
       <p className="mt-4 text-[11px] font-medium text-olive">{t(locale, "event.pick")}</p>
       <div className="mt-2 grid gap-2">
@@ -72,67 +83,62 @@ function EventBody() {
               className="min-h-11 rounded-md border border-border bg-bg/50 px-3 py-3 text-left transition-colors duration-(--motion-quick) hover:border-olive/60 hover:bg-elevated"
             >
               <span className="block text-sm font-medium text-fg">{cc?.label ?? c.label}</span>
-              <span className="mt-0.5 block text-xs leading-snug text-muted">{cc?.hint ?? c.hint}</span>
+              <span className="mt-0.5 block text-xs leading-snug text-muted">
+                {cc?.hint ?? c.hint}
+              </span>
             </button>
           );
         })}
       </div>
-      <Button variant="ghost" className="mt-2 w-full text-subtle" onClick={() => chooseEvent(ev.choices[0]?.id ?? "")}>
+      <Button
+        variant="ghost"
+        className="mt-2 w-full text-subtle"
+        onClick={() => chooseEvent(ev.choices[0]?.id ?? "")}
+      >
         {t(locale, "event.unsure")}
       </Button>
     </article>
   );
 }
 
-export function EventModal({ embedded = false }: { embedded?: boolean }) {
+export function EventModal() {
   const state = useGame((s) => s.state);
   const nextTurn = useGame((s) => s.nextTurn);
   const locale = useLocale((s) => s.locale);
   if (!state) return null;
 
-  if (embedded) {
-    if (state.phase === "event") {
-      return (
-        <div className="p-4 pb-6">
-          <EventBody />
-        </div>
-      );
-    }
-    const ev = EVENTS.find((e) => e.turn === state.turn);
-    const loc = ev ? eventCopy(locale, ev.id) : null;
+  if (state.phase === "event") {
     return (
-      <article className="p-4">
-        <p className="text-[11px] font-medium text-olive">
-          {t(locale, "pane.olay")} · {ev?.year}
-        </p>
-        <h2 className="mt-1 text-xl font-medium text-paper">{loc?.title ?? ev?.title ?? "—"}</h2>
-        <p className="mt-3 text-sm leading-relaxed text-muted">{loc?.body ?? ev?.body}</p>
-        {state.phase === "resolution" ? (
-          <div className="mt-4 space-y-2">
-            <p className="text-[11px] font-medium text-olive">{t(locale, "res.what")}</p>
-            {state.lastResolution.map((n, i) => (
-              <p key={i} className="text-xs leading-relaxed text-muted">
-                {logLine(locale, n)}
-              </p>
-            ))}
-            <Button className="mt-2 w-full" onClick={nextTurn}>
-              {t(locale, "res.next")}
-            </Button>
-          </div>
-        ) : (
-          <p className="mt-4 text-xs text-subtle">{t(locale, "act.step")}</p>
-        )}
-      </article>
+      <div className="p-4 pb-6">
+        <EventBody />
+      </div>
     );
   }
 
-  if (state.phase !== "event") return null;
-
+  const ev = EVENTS.find((e) => e.turn === state.turn);
+  const loc = ev ? eventCopy(locale, ev.id) : null;
   return (
-    <div className="absolute inset-0 z-30 hidden items-end justify-center bg-bg/70 p-3 lg:flex lg:items-center lg:p-6">
-      <div className="max-h-[min(78dvh,640px)] w-full max-w-xl overflow-y-auto rounded-lg border border-border bg-surface p-5 sm:p-6">
-        <EventBody />
-      </div>
-    </div>
+    <article className="p-4">
+      <p className="text-[11px] font-medium text-olive">
+        {t(locale, "pane.olay")} · {ev?.year}
+      </p>
+      <h2 className="mt-1 text-xl font-medium text-paper">{loc?.title ?? ev?.title ?? "—"}</h2>
+      <p className="mt-3 text-sm leading-relaxed text-muted">{loc?.body ?? ev?.body}</p>
+      {state.phase === "resolution" ? (
+        <div className="mt-4 space-y-2">
+          <p className="text-[11px] font-medium text-olive">{t(locale, "res.what")}</p>
+          {state.lastResolution.map((n, i) => (
+            <p key={i} className="text-xs leading-relaxed text-muted">
+              {logLine(locale, n)}
+            </p>
+          ))}
+          <Button className="mt-2 w-full" onClick={nextTurn}>
+            {t(locale, "res.next")}
+          </Button>
+        </div>
+      ) : (
+        <p className="mt-4 text-xs text-subtle">{t(locale, "act.step")}</p>
+      )}
+    </article>
   );
 }
