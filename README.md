@@ -61,7 +61,7 @@ Kaynaksız iddia `test:game` içinde hata verir.
 | **İlişki grafı** | Sıkılaştır, gevşet, gözet, arabul, yalıt, ifşa, koru. BELGELİ kilit gevşemez. |
 | **Soruşturma** | uyku → söylenti → ön inceleme → soruşturma → delil → kamu → kurumsal yanıt. Durdurmak zorunda değilsin. |
 | **7 act** | 1986–1996. İlk 3 tur öğretici; sonra serbest. |
-| **Save / replay** | `jitem-derin-ag-v3`, şema 5, migrate + yedek. Replay meta (tohum, karar, olay) kayıtta. |
+| **Save / replay** | `jitem-derin-ag-v3`, şema 5, migrate + yedek. Bitişte replay indir + aynı tohum. |
 
 Mimari: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)  
 Kaynak disiplini: [docs/SOURCES.md](docs/SOURCES.md)
@@ -79,7 +79,6 @@ Eski prototip anahtarı `derin-ag-save-v1` yalnızca okunur ve migrate edilir. B
 
 ## Bilinçli eksikler
 
-- Replay dosyasını dışa aktarma ekranı yok (veri save’de duruyor).
 - Araştırmacı / hukuk başlangıç hatları (tip hazır, içerik yok).
 - Katalog kasıtlı ince; 80 düğümlük geniş harita yok.
 - `giz_coktu` saha stilinde sık; idari/gizlilik ayakta kalıyor.

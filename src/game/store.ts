@@ -18,7 +18,7 @@ interface Store {
   explainStat: string | null;
   mobilePane: MobilePane;
   hydrate: () => void;
-  start: (hat: Hat) => void;
+  start: (hat: Hat, seed?: number) => void;
   load: () => boolean;
   clearSave: () => void;
   persist: () => void;
@@ -81,8 +81,8 @@ export const useGame = create<Store>((set, get) => ({
     if (s) writeSave(s);
   },
 
-  start: (hat) => {
-    const state = createGame(hat);
+  start: (hat, seed) => {
+    const state = createGame(hat, seed);
     writeSave(state);
     set({ state, screen: "play", explainStat: null, mobilePane: "olay" });
   },

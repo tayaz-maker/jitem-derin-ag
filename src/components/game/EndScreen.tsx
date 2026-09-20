@@ -1,6 +1,17 @@
 import { endingOf } from "@/game/engine";
+import { formatReplay } from "@/game/sim/recap";
 import { useGame } from "@/game/store";
 import { Button } from "@/components/ui/button";
+
+function downloadReplay(text: string, seed: number) {
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `derin-ag-${seed}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export function EndScreen() {
   const state = useGame((s) => s.state);
@@ -11,6 +22,7 @@ export function EndScreen() {
   const end = endingOf(state.ending);
   const d = state.dossier;
   const road = state.ending === "susurluk_patlama" || state.flags.susurluk;
+  const replay = formatReplay(state);
 
   const blocks: { title: string; body: string }[] = d
     ? [
@@ -36,6 +48,7 @@ export function EndScreen() {
         <p className="font-mono text-xs text-stamp">{end.verdict}</p>
         <h1 className="text-4xl font-medium tracking-tight text-paper">{end.title}</h1>
         <p className="text-sm leading-relaxed text-muted">{end.body}</p>
+        <p className="font-mono text-[11px] text-subtle">tohum {state.worldSeed} · {state.hat} hattı</p>
         {blocks.length ? (
           <dl className="max-h-[40dvh] space-y-2 overflow-y-auto rounded-md border border-border bg-surface/80 p-3 text-xs leading-relaxed">
             {blocks.map((b) => (
@@ -65,7 +78,13 @@ export function EndScreen() {
         </p>
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => start(state.hat)}>Aynı hat, yeni tohum</Button>
-          <Button variant="secondary" onClick={clearSave}>
+          <Button variant="secondary" onClick={() => start(state.hat, state.worldSeed)}>
+            Aynı tohum
+          </Button>
+          <Button variant="outline" onClick={() => downloadReplay(replay, state.worldSeed)}>
+            Replay indir
+          </Button>
+          <Button variant="ghost" onClick={clearSave}>
             Masa kapat
           </Button>
           <Button variant="ghost" onClick={() => setScreen("dosya")}>

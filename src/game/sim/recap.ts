@@ -1,5 +1,6 @@
 import { ALL_CLAIMS } from "../db/catalog.ts";
 import { EDGES, NODES } from "../data.ts";
+import { SAVE_KEY, SCHEMA_VERSION } from "../types.ts";
 import type { Decision, Dossier, EndingId, GameState } from "../types.ts";
 import { STAGE_LABEL } from "./investigation.ts";
 
@@ -83,6 +84,34 @@ export function buildRecap(state: GameState): string[] {
     `Gizlilik ${state.stats.giz} · Sadakat ${state.stats.sadakat} · Kamuoyu ${state.stats.kamuoyu} · Hukuk ${state.stats.hukuk}.`,
   );
   return lines;
+}
+
+export function formatReplay(state: GameState): string {
+  const d = state.dossier ?? buildDossier(state);
+  const lines: string[] = [
+    "DERİN AĞ — SENİN 1986–1996 HİKÂYEN",
+    `${SAVE_KEY} · schema ${SCHEMA_VERSION}`,
+    `tohum ${state.worldSeed} · hat ${state.hat} · tur ${state.turn} · sonuç ${state.ending ?? "—"}`,
+    "",
+    ...buildRecap({ ...state, dossier: d }),
+    "",
+    "KARARLAR",
+  ];
+  for (const dec of state.decisions) {
+    lines.push(`t${dec.turn} ${dec.kind} ${dec.id}${dec.target ? ` @${dec.target}` : ""} — ${dec.summary}`);
+  }
+  if (!state.decisions.length) lines.push("(kayıt yok)");
+  lines.push("", "OLAYLAR");
+  const frames = state.replayMeta.events.length ? state.replayMeta.events : state.replay;
+  for (const f of frames) {
+    if (!f.familyId && !f.note) continue;
+    lines.push(`t${f.turn} ${f.familyId ?? "—"}/${f.variantId ?? "—"} ${f.note}`);
+  }
+  lines.push("", "FACTION");
+  for (const f of Object.values(state.factions)) {
+    lines.push(`${f.id}: ${f.currentObjective} · son ${f.lastAct || "—"} · bellek ${f.memory.slice(-3).join(",") || "—"}`);
+  }
+  return lines.join("\n");
 }
 
 export function pickEnding(state: GameState): EndingId | null {

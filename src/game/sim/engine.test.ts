@@ -18,6 +18,7 @@ import { tickInvestigation } from "./investigation.ts";
 import { pickEnding } from "./recap.ts";
 import { parseSave, serialize, migrate } from "./save.ts";
 import { autoCampaign, runBalance } from "./balance.ts";
+import { formatReplay } from "./recap.ts";
 
 describe("campaign engine", () => {
   it("starts with research-backed visible nodes", () => {
@@ -198,6 +199,17 @@ describe("deterministic seed", () => {
     const b = createGame("saha", 12345);
     assert.equal(eventViewFor(a)?.variantId, eventViewFor(b)?.variantId);
     assert.equal(a.eventSeed, b.eventSeed);
+  });
+});
+
+describe("replay export", () => {
+  it("includes namespace, seed and schema", () => {
+    const s = autoCampaign("gizlilik", 2026);
+    const t = formatReplay(s);
+    assert.match(t, /jitem-derin-ag-v3/);
+    assert.match(t, /schema 5/);
+    assert.match(t, /tohum 2026/);
+    assert.match(t, /SENİN 1986–1996 HİKÂYEN/);
   });
 });
 
