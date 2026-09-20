@@ -1,0 +1,267 @@
+JİTEM OYUNU — GROK MAXIMUM DEVELOPMENT MASTER PROMPT
+
+Bu talimat, mevcut “Derin Ağ” prototipini sıfırdan yeniden yazmak için değil, mevcut çalışma üzerinden profesyonel, derin, oynanabilir ve GitHub’a taşınabilir bir tek oyunculu strateji/araştırma oyununa dönüştürmek için hazırlanmıştır.
+
+ÖNEMLİ ÇALIŞMA KURALI
+
+Mevcut prototipi koru ve onun üzerine inşa et. Projeyi sıfırlama, mevcut çalışan ekranları ve mekanikleri gereksiz yere silme. Önce mevcut kodu, veri modelini, ekranları, kayıt sistemini, olay motorunu, ilişki grafiğini ve mobil davranışı incele. Sonra geliştirmeyi küçük ve doğrulanabilir katmanlar halinde yap.
+
+Bu proje şu an bağımsız bir çalışma alanında geliştirilecektir. TarıkLab’a hemen entegre etme. Dosya ve kod mimarisini daha sonra TarıkLab’a alınabilecek şekilde temiz, modüler ve taşınabilir tut. Çalışma sonunda entegrasyon için gerekli dosyaları, bağımlılıkları, rota bilgisini, asset listesini ve kurulum notlarını ayrıca hazırla.
+
+OYUNUN KİMLİĞİ
+
+Çalışma adı: JİTEM OYUNU
+Prototip adı: Derin Ağ
+Tür: Tek oyunculu tarihsel-politik strateji, istihbarat/araştırma yönetimi, ilişki ağı ve olay motoru.
+Zaman aralığı: Ana kampanya 1986–1996. Gerekiyorsa ön bölüm, ara senaryo ve alternatif kampanya modülleri tasarlanabilir.
+Oyuncu: Tek bir kişi değildir. Oyuncu; saha, idare, istihbarat, koruma, bilgi ve inkâr arasında karar veren görünmeyen bir karar masasını yönetir.
+Ana tema: Güç, bilgi, gizlilik, devlet içi rekabet, kişisel sadakat, kurumsal çıkar, belge ve kamuoyu.
+
+Oyunun amacı gerçek olayları basitçe yeniden canlandırmak veya tek bir komplo anlatısını doğrulamak değildir. Kaynaklarda yer alan olay, tanıklık, iddia ve çelişkileri objektif biçimde oyunlaştır. Belgeli olanı belgeli, güçlü iddiayı güçlü, tartışmalı olanı tartışmalı, kaynağın sustuğu yeri boşluk olarak göster. Oyuncuya tek bir “doğru komplo” dayatma.
+
+KAYNAK VE VERİTABANI DİSİPLİNİ
+
+Projede bulunan kaynakları sistematik biçimde kullan. Özellikle Mehmet Eymür, Soner Yalçın, Uğur Mumcu, Arif Doğan, Talat Turhan, Necdet Pekmezci ve ilgili diğer kaynaklarda geçen kişi, kurum, olay, tarih, ilişki, tanıklık, belge ve çelişkileri ayrı veri kayıtları olarak modelle.
+
+Her veri kaydında mümkünse şu alanlar olsun:
+
+- id
+- başlık
+- kategori: kişi, kurum, olay, belge, tanıklık, ilişki, mekân, medya, siyasi bağ, ekonomik bağ
+- tarih veya tarih aralığı
+- kaynak adı
+- sayfa/bölüm bilgisi varsa sayfa/bölüm
+- kanıt seviyesi: BELGELİ, GÜÇLÜ, TARTIŞMALI, BOŞLUK
+- kaynak özeti
+- karşıt görüş veya çelişen anlatım
+- oyunda görünürlük zamanı
+- bağlı kişi/kurum/olaylar
+- oyuncuya gösterilecek tarafsız açıklama
+- geliştirici notu
+
+Kaynaklarda bulunmayan ayrıntıları tarihsel gerçek gibi ekleme. Kurgu eklemek gerekiyorsa bunu “oyunsal rekonstrüksiyon”, “kaynaklar arası boşluğu dolduran kurgu” veya “alternatif sonuç” olarak işaretle. Gerçek kişilerle ilgili suç isnatlarını kesin hüküm gibi sunma.
+
+ANA OYUN DÖNGÜSÜ
+
+Her tur şu akışla ilerlesin:
+
+1. Dönem olayı ve yeni bilgi açılır.
+2. Oyuncu olayın resmî anlatımını, saha anlatımını ve dosya/kanıt durumunu görür.
+3. Oyuncu bir karar verir.
+4. Oyuncu sınırlı eylem puanlarıyla ağ üzerinde işlem yapar.
+5. Diğer kurumlar ve rakip hatlar kendi çıkarları doğrultusunda hareket eder.
+6. Gizli sonuçlar, ilişki değişimleri, yeni belgeler ve yeni tehditler hesaplanır.
+7. Tur raporu hazırlanır ve bir sonraki döneme geçilir.
+
+Her tur oyuncu mutlaka şu üç temel sorudan en az biriyle karşılaşmalı:
+
+- Bu bağı güçlendireyim mi, gevşeteyim mi?
+- Bu kişiyi koruyayım mı, kullanayım mı, harcayayım mı?
+- Gerçeği açığa çıkarayım mı, düzeni ve gizliliği koruyayım mı?
+
+Kararlar yalnızca puan değiştirmesin. Yeni olaylar, karakter davranışları, taraf değişimleri, belgeler, soruşturmalar, medya haberleri, ihanetler, yeni yollar ve alternatif sonlar açsın.
+
+KAYNAKLAR VE OYUN MEKANİKLERİ
+
+Mevcut “Kara” kaynağını daha anlaşılır bir sisteme dönüştür. Kullanıcı arayüzünde ana adı “Örtülü Kaynak” veya “Lojistik” olabilir. İç açıklamada bunun para, araç, koruma, sahte kimlik, operasyon maliyeti ve insan kaynağı anlamına geldiği belirtilsin.
+
+Önerilen ana kaynaklar:
+
+- GİZLİLİK: Ağın görünmezliği. Sıfıra yaklaşırsa ifşa, soruşturma ve çözülme riski artar.
+- BİLGİ: Dosya, tanık, takip, istihbarat ve belge kapasitesi.
+- SAHA: Operasyonel insan gücü ve fiilî hareket kapasitesi.
+- KORUMA: Bürokratik, siyasi ve kurumsal kalkan.
+- ÖRTÜLÜ KAYNAK: Para, araç, lojistik, sahte kimlik ve operasyon bütçesi.
+- SADAKAT: Kişilerin ve alt grupların oyuncuya bağlılığı.
+- KAMUOYU: Basın, meclis, halk ve muhalefetin olaya ilgisi.
+- HUKUKİ RİSK: Delillerin resmî soruşturmaya dönüşme seviyesi.
+
+Kaynaklar birbirini dengelemeli. Örneğin bilgi yükselirken gizlilik düşebilir; saha büyürken sadakat azalabilir; koruma güçlenirken kamuoyu baskısı artabilir.
+
+İLİŞKİ AĞINI GERÇEK STRATEJİK ALANA DÖNÜŞTÜR
+
+Mevcut ilişki haritasını yalnızca görsel grafik olarak bırakma. Haritadaki her düğüm ve bağlantı stratejik sonuç üretsin.
+
+Her kişi/kurum için:
+
+- görünür rol
+- gizli motivasyon
+- sadakat
+- korku
+- açgözlülük veya maddi ihtiyaç
+- ideolojik bağlılık
+- kurumsal bağlılık
+- kişisel düşmanlık
+- bilgi seviyesi
+- konuşma ihtimali
+- baskı altında davranış
+- oyuncuyla ilişki geçmişi
+- hayatta kalma önceliği
+
+Her ilişki için:
+
+- ilişkinin türü
+- kanıt seviyesi
+- karşılıklı çıkar
+- güven seviyesi
+- kopma koşulu
+- ifşa riski
+- oyuncunun güçlendirme/gevşetme seçenekleri
+- ilişkinin hangi olaylarda kilitlendiği
+
+Oyuncu bir bağı güçlendirdiğinde yalnızca çizgi kalınlaşmasın. İki karakter birbirine daha fazla güvenebilir, daha büyük kaynak açabilir, ortak operasyon teklif edebilir veya birbirlerinin zayıflıklarını saklayabilir. Bağı gevşettiğinde de yalnızca puan düşmesin; kişi bağımsız hareket edebilsin, rakip hatta yaklaşabilsin veya oyuncuya kin besleyebilsin.
+
+TARAFLAR VE RAKİPLER
+
+En az şu tarafları bağımsız davranan sistemler olarak oluştur:
+
+- JİTEM/saha hattı
+- MİT içindeki farklı kurumsal hatlar
+- Emniyet ve özel tim hattı
+- askerî komuta ve güvenlik bürokrasisi
+- siyasi koruma hattı
+- yerel güçler, aşiretler ve bölgesel aracılar
+- yeraltı/kaçakçılık ağı
+- gazeteciler ve medya
+- savcılar, mahkemeler ve meclis soruşturması
+- kamuoyu ve insan hakları çevreleri
+- dış istihbarat veya uluslararası baskı unsurları
+
+Bu taraflar ortak bir yapay zekâ gibi hareket etmesin. Her tarafın kendi hedefi, korkusu, bütçesi, bilgi eksikliği ve hata payı olsun. Oyuncu hiçbir tarafı tamamen kontrol edemesin.
+
+Örneğin MİT oyuncuyu doğrudan düşman görmeyebilir; fakat kendi kurumsal bilgisini korumak isteyebilir. Emniyet hattı operasyonel işbirliği sunabilir; fakat siyasi bedeli yüksek olabilir. Medya tarafı bazen haber peşine düşer, bazen yanlış bilgiye kapılır, bazen oyuncunun sızıntısını büyütür.
+
+SENARYO VE KAMPANYA YAPISI
+
+Ana kampanyayı mantıklı ve başı-sonu tutarlı bir zaman akışıyla düzenle. Tarihsel omurga korunabilir; ancak oyuncunun kararlarına göre olayların görünme biçimi, aktörlerin davranışları, soruşturmaların büyüklüğü ve sonuçların ağırlığı değişsin.
+
+Önerilen kampanya bölümleri:
+
+- Bölüm 1: Kuruluş ve saha kapasitesi
+- Bölüm 2: İtirafçı/istihbarat ağının genişlemesi
+- Bölüm 3: Kurumlar arası rekabet ve ilk büyük kırılmalar
+- Bölüm 4: Medya, raporlar ve içeriden konuşanlar
+- Bölüm 5: 1993 kırılması ve ağın parçalanması
+- Bölüm 6: 1993–1996 yeraltı–emniyet kesişimi
+- Bölüm 7: Susurluk’a giden son dönem
+- Bölüm 8: Kaza, kamuoyu, meclis ve çözülme
+
+Oyuncu bu bölümleri aynı şekilde oynamak zorunda kalmasın. Bazı olaylar önlenemeyen tarihsel çıpa olabilir; ancak çıpanın çevresindeki aktörler, deliller, kamuoyu tepkisi ve oyuncunun sorumluluğu değişebilsin.
+
+ALTERNATİF SONLAR
+
+Mevcut eşik tabanlı sonları koru fakat daha anlamlı ve koşullu hale getir. En az şu sonuçlar olsun:
+
+- İnkâr ayakta kalır; ağ görünmezliğini korur.
+- Kontrollü parçalanma; yapı dağılır ama bazı hatlar kurtulur.
+- İçeriden ifşa; tanıklar ve belgeler kamuya ulaşır.
+- Kurumsal tasfiye; oyuncu ağı dağıtır fakat kendi korumasını kaybeder.
+- Saha felaketi; kontrolden çıkan operasyon zincirleme kriz üretir.
+- Rakip hattın zaferi; oyuncunun ağı başka bir yapı tarafından emilir.
+- Kısmi adalet; bazı sorumlular ortaya çıkar, bazıları korunur.
+- Tam çöküş; bütün bağlantılar, kaynaklar ve koruma mekanizmaları çözülür.
+- Alternatif tarih; belirli bir kırılma önlenir veya farklı biçimde gerçekleşir.
+
+Son ekranında yalnızca “kazandın/kaybettin” yazma. Oyuncunun hangi kararlarının hangi sonucu doğurduğunu, hangi ilişkileri güçlendirdiğini, kimi koruduğunu, hangi kanıtı bastırdığını ve hangi bedeli ödediğini göster.
+
+TEKRAR OYNANABİLİRLİK
+
+- En az iki başlangıç hattını koru: saha ve idari.
+- Daha sonra araştırmacı/gazeteci, hukuk ve dış baskı gibi yeni oyun tarzlarına açık bir mimari kur.
+- Olay koşullarını değişken yap.
+- Aynı karakterin her oyunda aynı tepkiyi vermesini engelle.
+- Gizli hedefler, görevler ve kişisel sadakatler ekle.
+- Kolay, standart, zor ve “arşiv” modları için temel hazırla.
+- Oyuncunun karar geçmişini ve oyun sonunda oluşan alternatif tarih özetini kaydet.
+- Aynı save anahtarını başka oyunlarla çakıştırma. Bu oyunun save alanı tamamen izole olsun.
+
+DOSYA VE KOD MİMARİSİ
+
+GitHub’a aktarılacağı için temiz ve modüler çalış:
+
+- Oyun verilerini bileşenlerden ayır.
+- Kişiler, kurumlar, olaylar, ilişkiler, sonlar ve görevler ayrı veri dosyalarında tutulabilsin.
+- Oyun motoru, UI ve içerik katmanı birbirine gereksiz şekilde bağlanmasın.
+- Sabit metinleri bileşen içine gömme; veri dosyalarına taşı.
+- TypeScript tiplerini genişlet ve tutarlı tut.
+- Save sürümleme ve migration mantığını koru.
+- Asset yollarını göreli ve taşınabilir yap.
+- TarıkLab’a özel import, global state veya route bağımlılığını minimumda tut.
+- Oyunun tek başına çalışması için açık bir giriş noktası bırak.
+- README, kurulum, build, test, deploy ve TarıkLab entegrasyon notları oluştur.
+- Büyük ve gereksiz bağımlılık ekleme.
+- Mevcut çalışan sistemi bozacak kapsamlı refactor yapmadan önce testleri çalıştır.
+
+UI/UX VE MOBİL
+
+Mevcut karanlık arşiv/istihbarat atmosferini koru; fakat oynanabilirliği yükselt.
+
+- Mobilde harita, olay kartı ve eylem panelini sekmeli veya açılır panelli tasarla.
+- Haritadaki düğümlerin dokunma alanlarını büyüt.
+- Bağlantı seçimini mobilde kolaylaştır.
+- Her düğümde kısa özet, kanıt seviyesi ve risk göstergesi göster.
+- Uzun dosya metinlerini katlanabilir bölümlere ayır.
+- Renkleri yalnızca renge bağlı bırakma; ikon, etiket ve desen kullan.
+- Oyuncu hangi seçimin neyi etkilediğini önceden anlayabilsin; fakat tüm gizli sonucu önceden görmesin.
+- Tur sonu raporu sade, güçlü ve okunabilir olsun.
+- Eylem kartlarında maliyet, risk, koşul ve muhtemel sonuç ayrı gösterilsin.
+- Masaüstü geniş ekranı, mobil sıkışıklığı pahasına tasarlama.
+
+OBJEKTİFLİK VE İÇERİK GÜVENLİĞİ
+
+Oyun girişinde ve ilgili dosya ekranlarında şu yaklaşımı kullan:
+
+“Bu oyun, farklı kaynaklarda yer alan belge, tanıklık, iddia ve tartışmaları tarihsel-politik bir strateji deneyimine dönüştürür. Kanıt seviyeleri oyunun veri modelinde ayrı tutulur. Tartışmalı anlatılar kesin hüküm olarak sunulmaz.”
+
+Gerçek kişi ve kurumları kullanırken “kaynaklara göre”, “iddia”, “tanıklık”, “belgeli olay” ve “oyunsal rekonstrüksiyon” etiketlerini görünür tut. Şiddet veya suç eylemlerini öğretici bir operasyon rehberine dönüştürme; mekanikleri soyut stratejik kararlar düzeyinde tut.
+
+GELİŞTİRME SÜRECİ
+
+Öncelik sırası:
+
+1. Mevcut prototipi analiz et ve çalışan sistemi koru.
+2. Veri modelini genişlet.
+3. Olay/karar motorunu dallanabilir hale getir.
+4. İlişki ağını gerçek stratejik sisteme dönüştür.
+5. Bağımsız taraf davranışlarını ekle.
+6. Kampanya, görev ve alternatif sonları çoğalt.
+7. Mobil ve masaüstü kullanılabilirliğini düzelt.
+8. Save, test, hata yönetimi ve taşınabilirlik kontrollerini yap.
+9. README ve TarıkLab entegrasyon paketini hazırla.
+
+Her aşamadan sonra typecheck, lint, test ve production build çalıştır. Bozulan bir şeyi sessizce geçme; açıkça düzelt veya README’de not düş.
+
+SON TESLİMDE İSTEDİKLERİM
+
+- Geliştirilmiş çalışan oyun prototipi.
+- Kaynak tabanlı genişletilmiş veri yapısı.
+- Yeni olaylar, karakterler, kurumlar, ilişkiler ve görevler.
+- Dallanabilir seçim ve sonuç sistemi.
+- Daha fazla alternatif son.
+- Mobil ve masaüstü uyumlu arayüz.
+- Test ve build sonucu.
+- Değiştirilen dosya listesi.
+- Kalan eksikler ve sonraki geliştirme önerileri.
+- GitHub’a aktarım için temiz dosya yapısı.
+- TarıkLab’a alma rehberi.
+
+TARIKLAB’A AKTARIM REHBERİ DE HAZIRLA
+
+En sonda geliştirici olmayan bir kişinin uygulayabileceği kadar basit, kısa ve adım adım bir rehber yaz:
+
+1. Hangi klasörler ve dosyalar taşınacak?
+2. Hangi bağımlılıklar gerekli?
+3. Oyunun giriş route’u hangisi?
+4. TarıkLab içinde hangi dosyalar değişecek?
+5. Asset yolları nasıl korunacak?
+6. Save anahtarı nasıl izole edilecek?
+7. GitHub’a hangi komutlarla aktarılacak?
+8. Lokal build ve test nasıl çalıştırılacak?
+9. Vercel/TarıkLab deploy sonrası hangi URL ve ekranlar kontrol edilecek?
+10. Entegrasyon sırasında hangi dosyalara dokunulmamalı?
+
+Bu rehberi kısa tut; ancak dosya adlarını ve işlem sırasını somut yaz. Projeyi TarıkLab’a aktarırken mevcut oyunların route, save, onboarding ve asset sistemleriyle çakışma yaşanmaması için özellikle uyarı ekle.
+
+SON TALİMAT
+
+Çılgın ve yaratıcı fikirler üretmek serbest; fakat her fikir oyun döngüsüne, kaynak sistemine, ilişki ağına veya senaryo dallanmasına bağlansın. Sırf içerik kalabalığı oluşturmak için gereksiz ekran ve mekanik ekleme. Hedef; karanlık atmosferli, objektif kaynak yaklaşımına sahip, tekrar oynanabilir, stratejik kararları gerçek sonuç doğuran, profesyonel ve daha sonra TarıkLab’a güvenli biçimde taşınabilecek büyük bir tek oyunculu web oyunu altyapısı oluşturmaktır.

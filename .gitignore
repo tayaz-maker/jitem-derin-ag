@@ -1,0 +1,41 @@
+# dependencies
+node_modules/
+.node_modules.lock
+
+# build / deploy output
+.vercel/
+.output/
+.nitro/
+.tanstack/
+dist/
+build/
+coverage/
+
+# caches
+.cache/
+.vite/
+*.tsbuildinfo
+
+# logs / temp
+*.log
+npm-debug.log*
+tmp/
+scratch/
+
+# local env / secrets — never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# sandbox / QA artifacts (not part of the game)
+.grok/
+artifacts/
+screenshots/
