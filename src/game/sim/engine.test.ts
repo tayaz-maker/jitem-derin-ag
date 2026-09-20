@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import {
   applyEvent,
@@ -14,7 +15,15 @@ import {
 } from "../engine.ts";
 import { validateResearch, classifyClaim } from "../db/validate.ts";
 import { DB_COUNTS } from "../db/index.ts";
-import { familyEligible, FAMILIES, FAMILY_COUNT, VARIANT_COUNT, pickSideFamilies, pickVariant, viewEvent } from "./families.ts";
+import {
+  familyEligible,
+  FAMILIES,
+  FAMILY_COUNT,
+  VARIANT_COUNT,
+  pickSideFamilies,
+  pickVariant,
+  viewEvent,
+} from "./families.ts";
 import { initialFactions } from "./factions.ts";
 import { hasMemory } from "./memory.ts";
 import { tickInvestigation } from "./investigation.ts";
@@ -87,7 +96,11 @@ describe("campaign engine", () => {
 describe("source-required validation", () => {
   it("blocks sourceless records", () => {
     const errors = validateResearch().filter((i) => i.level === "error");
-    assert.equal(errors.filter((e) => e.message.includes("kaynaksız") || e.message.includes("sourceIds boş")).length, 0);
+    assert.equal(
+      errors.filter((e) => e.message.includes("kaynaksız") || e.message.includes("sourceIds boş"))
+        .length,
+      0,
+    );
   });
 });
 
@@ -131,7 +144,10 @@ describe("faction knowledge isolation", () => {
   it("player hand is not media knowledge", () => {
     const s = createGame("saha", 2);
     assert.ok(s.hand.clm_jitem_exists);
-    assert.notEqual(s.factions.media.knowledgeBase.clm_jitem_exists?.status, s.hand.clm_jitem_exists.status === "PARTIAL" ? "TRUE" : "TRUE");
+    assert.notEqual(
+      s.factions.media.knowledgeBase.clm_jitem_exists?.status,
+      s.hand.clm_jitem_exists.status === "PARTIAL" ? "TRUE" : "TRUE",
+    );
     assert.equal(s.factions.media.knowledgeBase.clm_jitem_exists?.status, "UNKNOWN");
   });
 });
@@ -139,7 +155,14 @@ describe("faction knowledge isolation", () => {
 describe("actor memory", () => {
   it("protect writes memory and changes talk/help later", () => {
     let s = createGame("saha", 4);
-    s = { ...s, turn: 2, phase: "actions", actionsLeft: 2, selectedNodeId: "aygan", revealed: { ...s.revealed, aygan: true } };
+    s = {
+      ...s,
+      turn: 2,
+      phase: "actions",
+      actionsLeft: 2,
+      selectedNodeId: "aygan",
+      revealed: { ...s.revealed, aygan: true },
+    };
     s = executeAction(s, { id: "kisi_koru", nodeId: "aygan" });
     assert.equal(hasMemory(s, "aygan", "protected"), true);
   });
@@ -160,7 +183,10 @@ describe("investigation transitions", () => {
   it("dormant moves to rumor when giz is thin", () => {
     const s = createGame("saha", 6);
     const notes: string[] = [];
-    const next = tickInvestigation({ ...s, stats: { ...s.stats, giz: 20 }, flags: { ...s.flags, investigationOpen: true } }, notes);
+    const next = tickInvestigation(
+      { ...s, stats: { ...s.stats, giz: 20 }, flags: { ...s.flags, investigationOpen: true } },
+      notes,
+    );
     assert.notEqual(next.investigation.stage, "dormant");
   });
 });
@@ -296,7 +322,11 @@ describe("side family selection", () => {
           emniyet: { ...s.factions.emniyet, hostility: 26 },
         },
       };
-      results.add(pickSideFamilies(s, 2).map((f) => f.id).join(","));
+      results.add(
+        pickSideFamilies(s, 2)
+          .map((f) => f.id)
+          .join(","),
+      );
     }
     assert.ok(results.size >= 2, [...results].join(" | "));
   });
@@ -307,7 +337,12 @@ describe("historical variant consequence", () => {
     let found = false;
     for (let seed = 1; seed <= 80; seed++) {
       let s = createGame("saha", seed);
-      s = { ...s, turn: 6, phase: "event", actorMemory: { ...s.actorMemory, ersever: ["protected"] } };
+      s = {
+        ...s,
+        turn: 6,
+        phase: "event",
+        actorMemory: { ...s.actorMemory, ersever: ["protected"] },
+      };
       const v = eventViewFor(s);
       if (v?.variantId !== "protected-soft") continue;
       const before = s.stats.giz;
@@ -336,7 +371,15 @@ describe("investigation tags are one-shot", () => {
     assert.equal(a.tags.includes("inv-direct"), false);
     const stage1 = a.investigation.stage;
     const b = tickInvestigation(a, []);
-    const order = ["dormant", "rumor", "inquiry", "investigation", "evidence", "public", "response"];
+    const order = [
+      "dormant",
+      "rumor",
+      "inquiry",
+      "investigation",
+      "evidence",
+      "public",
+      "response",
+    ];
     assert.ok(order.indexOf(b.investigation.stage) - order.indexOf(stage1) <= 1);
   });
 });
@@ -353,7 +396,13 @@ describe("edge protect and investigation limit", () => {
 
   it("soru_sinir writes inv-limit", () => {
     let s = createGame("saha", 8);
-    s = { ...s, turn: 6, phase: "actions", actionsLeft: 2, investigation: { ...s.investigation, stage: "inquiry" } };
+    s = {
+      ...s,
+      turn: 6,
+      phase: "actions",
+      actionsLeft: 2,
+      investigation: { ...s.investigation, stage: "inquiry" },
+    };
     s = executeAction(s, { id: "soru_sinir" });
     assert.ok(s.tags.includes("inv-limit"));
   });
@@ -405,6 +454,41 @@ describe("embedded shell", () => {
     assert.equal(detectShellMode({ search: "" }, { __DERIN_AG_EMBEDDED: true }), "embedded");
     assert.equal(detectShellMode({ search: "" }, { parent: {} }), "embedded");
   });
+
+  it("keeps long embedded start content on a shrinkable scroll owner", () => {
+    const source = readFileSync(
+      new URL("../../components/game/StartScreen.tsx", import.meta.url),
+      "utf8",
+    );
+    assert.match(source, /min-h-0[^"]*overflow-y-auto[^"]*overscroll-contain/);
+
+    const langSource = readFileSync(
+      new URL("../../components/game/LangSwitch.tsx", import.meta.url),
+      "utf8",
+    );
+    assert.match(langSource, /if \(!mounted \|\| detectShellMode\(\) === "embedded"\) return null/);
+  });
+
+  it("keeps desktop events contextual and reserves the modal sheet for mobile", () => {
+    const source = readFileSync(
+      new URL("../../components/game/GameApp.tsx", import.meta.url),
+      "utf8",
+    );
+    assert.match(
+      source,
+      /lg:grid-cols-\[minmax\(320px,1fr\)_minmax\(380px,520px\)_minmax\(260px,320px\)\]/,
+    );
+    assert.match(source, /aria-label=\{t\(locale, "pane\.olay"\)\}/);
+    assert.match(source, /lg:hidden/);
+    assert.doesNotMatch(source, /lg:bg-bg\/70/);
+
+    const eventSource = readFileSync(
+      new URL("../../components/game/EventModal.tsx", import.meta.url),
+      "utf8",
+    );
+    assert.doesNotMatch(eventSource, /absolute inset-0/);
+    assert.doesNotMatch(eventSource, /bg-bg\/70/);
+  });
 });
 
 describe("intel fog", () => {
@@ -413,7 +497,12 @@ describe("intel fog", () => {
     const signals = factionSignals(s);
     assert.ok(signals.some((x) => x.faction === "jitem"));
     assert.equal(
-      signals.some((x) => x.headline.includes(s.factions.mit.currentObjective) && x.grade === "KNOWN" && x.faction !== "jitem"),
+      signals.some(
+        (x) =>
+          x.headline.includes(s.factions.mit.currentObjective) &&
+          x.grade === "KNOWN" &&
+          x.faction !== "jitem",
+      ),
       false,
     );
   });
@@ -481,7 +570,10 @@ describe("researcher and lawyer loops", () => {
     s = { ...s, phase: "actions", actionsLeft: 4 };
     s = executeAction(s, { id: "delil_zincir" });
     assert.ok(s.investigation.documents.length >= 1);
-    assert.equal(s.investigation.documents.some((d) => d.startsWith("zincir-t")), false);
+    assert.equal(
+      s.investigation.documents.some((d) => d.startsWith("zincir-t")),
+      false,
+    );
     assert.ok((s.investigation.chain ?? []).length >= 1);
     const link = s.investigation.chain![0];
     assert.ok(ALL_CLAIMS.some((c) => c.id === link.claimId));
@@ -504,7 +596,11 @@ describe("researcher and lawyer loops", () => {
   });
 
   it("new sourced claims hook compare/chain/ending systems", () => {
-    for (const id of ["clm_aygan_dogan_split", "clm_kutlu_vs_official", "clm_hanefi_emniyet_split"]) {
+    for (const id of [
+      "clm_aygan_dogan_split",
+      "clm_kutlu_vs_official",
+      "clm_hanefi_emniyet_split",
+    ]) {
       const c = ALL_CLAIMS.find((x) => x.id === id);
       assert.ok(c, id);
       assert.ok(c!.sourceIds.length >= 2);
@@ -518,10 +614,27 @@ describe("researcher and lawyer loops", () => {
     const famR = FAMILIES.find((f) => f.id === "fam_source_clash")!;
     const famH = FAMILIES.find((f) => f.id === "fam_chain_consequence")!;
     let s = createGame("arastirmaci", 25);
-    s = { ...s, turn: 4, investigation: { ...s.investigation, comparisons: [{ claimId: "clm_aygan_dogan_split", sourceIds: ["src_aygan", "src_dogan"], turn: 3 }] } };
+    s = {
+      ...s,
+      turn: 4,
+      investigation: {
+        ...s.investigation,
+        comparisons: [
+          { claimId: "clm_aygan_dogan_split", sourceIds: ["src_aygan", "src_dogan"], turn: 3 },
+        ],
+      },
+    };
     assert.equal(familyEligible(famR, s, false), true);
     let l = createGame("hukuk", 26);
-    l = { ...l, turn: 6, investigation: { ...l.investigation, documents: ["doc-x"], chain: [{ claimId: "clm_kutlu_vs_official", documentId: "doc-x", turn: 5 }] } };
+    l = {
+      ...l,
+      turn: 6,
+      investigation: {
+        ...l.investigation,
+        documents: ["doc-x"],
+        chain: [{ claimId: "clm_kutlu_vs_official", documentId: "doc-x", turn: 5 }],
+      },
+    };
     assert.equal(familyEligible(famH, l, false), true);
   });
 
@@ -580,13 +693,18 @@ describe("researcher and lawyer loops", () => {
       ...s,
       phase: "actions",
       actionsLeft: 4,
-      hand: Object.fromEntries(Object.entries(s.hand).map(([id, row]) => [id, { ...row, status: "UNKNOWN" as const }])),
+      hand: Object.fromEntries(
+        Object.entries(s.hand).map(([id, row]) => [id, { ...row, status: "UNKNOWN" as const }]),
+      ),
     };
     assert.equal(canPlay(s, "delil_zincir"), false);
     const before = JSON.stringify(s.investigation);
     const next = executeAction(s, { id: "delil_zincir" });
     assert.equal(JSON.stringify(next.investigation), before);
-    assert.equal(next.investigation.documents.some((d) => d.includes("clm_jitem_exists")), false);
+    assert.equal(
+      next.investigation.documents.some((d) => d.includes("clm_jitem_exists")),
+      false,
+    );
   });
 
   it("researcher receives the Hanefi/Emniyet split as a turn-8 rumor for later comparison", () => {
