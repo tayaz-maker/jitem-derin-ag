@@ -594,7 +594,7 @@ export const FAMILIES: EventFamily[] = [
       {
         id: "compared-file",
         weight: 2,
-        when: (s) => (s.investigation.comparisons?.length ?? 0) >= 1,
+        when: (s) => (s.investigation.chain?.length ?? 0) >= 2,
         addendum: "OYUNSAL REKONSTRÜKSİYON: Karşılaştırılmış kayıt zincire girdi. Standart yükseldi.",
         consequence: {
           note: "Karşılaştırılmış kayıt zincire girdi. Spekülasyon öne alınmadı.",
