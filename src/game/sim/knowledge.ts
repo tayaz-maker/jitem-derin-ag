@@ -1,6 +1,7 @@
 import { ALL_CLAIMS, RESEARCH_BY_PLAY } from "../db/catalog.ts";
-import type { Faction, GameState, KnowledgeEntry, KnowledgeStatus } from "../types.ts";
+import type { Faction, GameState, Hat, KnowledgeEntry, KnowledgeStatus, Locale } from "../types.ts";
 import { rollAi } from "./rng.ts";
+import { t } from "../i18n/copy.ts";
 
 export function entry(
   claimId: string,
@@ -67,28 +68,47 @@ export function initialTruth(): Record<string, KnowledgeStatus> {
     clm_bitlis_jitem: "UNKNOWN",
     clm_dogan_founder: "PARTIAL",
     clm_yesil_kayip: "PARTIAL",
+    clm_ersever_tapes: "TRUE",
+    clm_abas_watch_withdrawn: "UNKNOWN",
+    clm_kocadag_catli_precrash: "PARTIAL",
+    clm_eymur_emniyet_warn: "TRUE",
+    clm_tbmm_commission: "TRUE",
   };
 }
 
-export function initialHand(hat: "saha" | "idari"): Record<string, KnowledgeEntry> {
-  const jitem = entry("clm_jitem_exists", "PARTIAL", { source: "saha", confidence: hat === "saha" ? 70 : 55 });
+export function initialHand(hat: Hat): Record<string, KnowledgeEntry> {
+  const jitem = entry("clm_jitem_exists", hat === "arastirmaci" ? "RUMOR" : "PARTIAL", {
+    source: hat === "saha" ? "saha" : hat === "arastirmaci" ? "kaynak" : "masa",
+    confidence: hat === "saha" ? 70 : hat === "arastirmaci" ? 40 : 55,
+  });
   const denial = entry("clm_official_denial", "TRUE", { source: "resmi dil", confidence: 90 });
   const founder = entry("clm_dogan_founder", hat === "idari" ? "PARTIAL" : "RUMOR", {
     source: hat === "idari" ? "idari masa" : "saha fısıltı",
     confidence: hat === "idari" ? 60 : 35,
   });
-  return { clm_jitem_exists: jitem, clm_official_denial: denial, clm_dogan_founder: founder };
+  const out: Record<string, KnowledgeEntry> = {
+    clm_jitem_exists: jitem,
+    clm_official_denial: denial,
+    clm_dogan_founder: founder,
+  };
+  if (hat === "arastirmaci") {
+    out.clm_informant_layer = entry("clm_informant_layer", "RUMOR", { source: "kaynak karşılaştırması", confidence: 32 });
+    out.clm_eymur_abas_split = entry("clm_eymur_abas_split", "RUMOR", { source: "açık yazı", confidence: 38 });
+    out.clm_jitem_founding_date = entry("clm_jitem_founding_date", "PARTIAL", { source: "belge boşluğu", confidence: 55 });
+  }
+  if (hat === "hukuk") {
+    out.clm_jitem_exists = entry("clm_jitem_exists", "UNKNOWN", { source: "dosya", confidence: 15 });
+    out.clm_tbmm_commission = entry("clm_tbmm_commission", "RUMOR", { source: "meclis karesi", confidence: 30 });
+    out.clm_jitem_founding_date = entry("clm_jitem_founding_date", "UNKNOWN", { source: "standart", confidence: 10 });
+  }
+  return out;
 }
 
-export function knowledgeLabel(s: KnowledgeStatus) {
-  if (s === "TRUE") return "ELİNDE · doğru sanıyor";
-  if (s === "FALSE") return "ELİNDE · yanlış inanış";
-  if (s === "PARTIAL") return "ELİNDE · kısmi";
-  if (s === "RUMOR") return "ELİNDE · söylenti";
-  return "BİLİNMİYOR";
+export function knowledgeLabel(s: KnowledgeStatus, locale: Locale = "tr") {
+  return t(locale, `know.${s}`);
 }
 
-export function playerViewOf(state: GameState, nodeId: string) {
+export function playerViewOf(state: GameState, nodeId: string, locale: Locale = "tr") {
   const rec = RESEARCH_BY_PLAY[nodeId];
   const about = rec?.id;
   const related = ALL_CLAIMS.filter(
@@ -99,23 +119,23 @@ export function playerViewOf(state: GameState, nodeId: string) {
     .filter((h): h is KnowledgeEntry => Boolean(h && h.status !== "UNKNOWN"));
   if (!held.length) {
     const direct = state.hand[nodeId];
-    if (direct && direct.status !== "UNKNOWN") return knowledgeLabel(direct.status);
-    return "ELİNDE · bu isim hakkında dosyan ince.";
+    if (direct && direct.status !== "UNKNOWN") return knowledgeLabel(direct.status, locale);
+    return t(locale, "know.thin");
   }
-  return held.map((h) => `${h.claimId.replace("clm_", "")}: ${knowledgeLabel(h.status)}`).join(" · ");
+  return held.map((h) => `${h.claimId.replace("clm_", "")}: ${knowledgeLabel(h.status, locale)}`).join(" · ");
 }
 
-export function theySeePlayer(state: GameState, actorId: string) {
+export function theySeePlayer(state: GameState, actorId: string, locale: Locale = "tr") {
   const tags = state.actorMemory[actorId] ?? [];
-  if (!tags.length) return "Seni henüz dosyalamadı.";
-  if (tags.includes("spent")) return "Seni yakmış biri olarak görüyor.";
-  if (tags.includes("abandoned")) return "Seni yalnız bırakan masa olarak görüyor.";
-  if (tags.includes("protected") && tags.includes("promise-kept")) return "Seni sözünü tutan koruyucu olarak görüyor.";
-  if (tags.includes("protected")) return "Seni koruyan hat olarak görüyor.";
-  if (tags.includes("used")) return "Seni kullanan masa olarak görüyor.";
-  if (tags.includes("leaked")) return "Bilgisinin sızdığını düşünüyor.";
-  if (tags.includes("backed-rival")) return "Rakibini tuttuğunu düşünüyor.";
-  return "Seni henüz net koymadı.";
+  if (!tags.length) return t(locale, "see.none");
+  if (tags.includes("spent")) return t(locale, "see.spent");
+  if (tags.includes("abandoned")) return t(locale, "see.abandoned");
+  if (tags.includes("protected") && tags.includes("promise-kept")) return t(locale, "see.kept");
+  if (tags.includes("protected")) return t(locale, "see.protected");
+  if (tags.includes("used")) return t(locale, "see.used");
+  if (tags.includes("leaked")) return t(locale, "see.leaked");
+  if (tags.includes("backed-rival")) return t(locale, "see.rival");
+  return t(locale, "see.vague");
 }
 
 /** Allied factions may inherit a rumor. Never copies the player hand. One leak note per tick. */
@@ -144,7 +164,7 @@ export function tickKnowledge(state: GameState, notes: string[]): GameState {
             propagationRisk: Math.max(10, k.propagationRisk - 10),
           }),
         );
-        notes.push(`${ally} hattı ${mind.id} söylentisini kaptı. Teyit yok — yanlış da olabilir.`);
+        notes.push(`note.know.leak|ally=${ally}|from=${mind.id}`);
         leaked += 1;
         break;
       }

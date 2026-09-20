@@ -99,11 +99,11 @@ function actFaction(state: GameState, id: Faction, notes: string[], roll: number
     if (next.stats.saha < 36 && next.turn <= 7 && !next.flags.erseverDead) {
       next = applyStat(next, "saha", 5);
       next = applyStat(next, "giz", -3);
-      notes.push("JİTEM hattı kapasite açığını kendi başına kapatıyor. Masa emretmedi.");
+      notes.push("note.jitem.freelance");
       next = setMind(next, "jitem", rememberFac({ ...next.factions.jitem, resources: mind.resources - 4 }, "freelance-capacity", obj));
     } else if (hasMemory(next, "ersever", "spent") && next.turn <= 7 && roll < 0.42) {
       next = applyStat(next, "giz", -4);
-      notes.push("JİTEM: harcanan saha hattı kin taşıyor. Freelance sızıntı.");
+      notes.push("note.jitem.resentment");
       next = setMind(next, "jitem", rememberFac(next.factions.jitem, "spent-resentment", obj));
     } else if (hungry && roll > 0.7) {
       next = applyStat(next, "kara", 2);
@@ -120,18 +120,14 @@ function actFaction(state: GameState, id: Faction, notes: string[], roll: number
       const mitKnowsJitem = knowsJitem === "TRUE" || mind.known.includes("jitem");
       next = applyStat(next, "bilgi", mitKnowsJitem ? 5 : 3);
       next = applyStat(next, "giz", -4);
-      notes.push(
-        mitKnowsJitem
-          ? "MİT içi hat: yazılı uyarı. Eymür tipi. JİTEM’in emri değil."
-          : "MİT içi hat: eksik bilgiyle uyarı yazdı. Asimetri — yanlış da olabilir.",
-      );
+      notes.push(mitKnowsJitem ? "note.mit.memo" : "note.mit.memoFog");
       next = setFactionKnow(next, "mit", entry("clm_jitem_exists", mitKnowsJitem ? "TRUE" : "RUMOR", { source: "memo", confidence: mitKnowsJitem ? 70 : 40 }));
       next = setMind(next, "mit", rememberFac({ ...next.factions.mit, hostility: next.factions.mit.hostility + 4 }, "memo", obj));
     } else if (next.flags.mitCooledUntil >= next.turn) {
-      notes.push("MİT hattı bu tur soğuk. Uyarı gecikti — bilmedikleri duruyor.");
+      notes.push("note.mit.cool");
       next = setMind(next, "mit", rememberFac(next.factions.mit, "cooled", obj));
     } else if (statusOf(mind, "clm_abas_jitem") === "RUMOR" && next.turn >= 6 && roll > 0.62) {
-      notes.push("MİT yanlış bağa (Abas–JİTEM) dayanarak mesafe koyuyor. Dünya gerçeği bunu kilitlemez.");
+      notes.push("note.mit.falseBind");
       next = applyStat(next, "etki", -2);
       next = setMind(next, "mit", rememberFac({ ...next.factions.mit, hostility: mind.hostility + 2 }, "false-bind", obj));
     }
@@ -149,11 +145,11 @@ function actFaction(state: GameState, id: Faction, notes: string[], roll: number
       next = { ...next, edgeStr };
       next = applyStat(next, "giz", -5);
       next = applyStat(next, "kara", 4);
-      notes.push("Emniyet–yeraltı kesişimi ısınıyor. Çatlı hattı yükseliyor. JİTEM uzantısı değil.");
+      notes.push("note.emniyet.rise");
       next = setFactionKnow(next, "emniyet", entry("catli", "TRUE", { source: "kendi hat", confidence: 70 }));
       next = setMind(next, "emniyet", rememberFac({ ...next.factions.emniyet, resources: mind.resources + 3 }, "warm", obj));
     } else if (next.turn >= 8 && next.flags.emniyetCooledUntil >= next.turn) {
-      notes.push("Emniyet hattı soğutuldu. Kesişim yavaşladı; kaza takvimi durmaz.");
+      notes.push("note.emniyet.cool");
       next = setMind(next, "emniyet", rememberFac(mind, "cooled", obj));
     }
     return next;
@@ -163,15 +159,15 @@ function actFaction(state: GameState, id: Faction, notes: string[], roll: number
     const obj = knowsJitem === "TRUE" ? "yaz ve ısıt" : "söylenti tara";
     if (giz < 35 && knowsJitem === "UNKNOWN") {
       next = setFactionKnow(next, "media", entry("clm_jitem_exists", "RUMOR", { confidence: 25 }));
-      notes.push("Basın JİTEM’i henüz doğrulamıyor; söylenti. Masa biliyor, kamu tam değil.");
+      notes.push("note.press.rumor");
       next = setMind(next, "media", rememberFac(next.factions.media, "rumor-jitem", obj));
     } else if (knowsJitem === "RUMOR" && giz < 45 && roll > 0.45) {
       next = applyStat(next, "kamuoyu", 3);
-      notes.push("Basın söylentiyle yazdı. Teyit yok — yanlış da olabilir.");
+      notes.push("note.press.false");
       next = setMind(next, "media", rememberFac(next.factions.media, "print-rumor", obj));
     } else if (wrong && roll > 0.6) {
       next = applyStat(next, "kamuoyu", 2);
-      notes.push("Basın yanlış veya söylenti bilgiye dayanarak yazdı. Teyit yok.");
+      notes.push("note.press.wrong");
       next = setMind(next, "media", rememberFac(next.factions.media, "print-wrong", obj));
     } else if (knowsJitem === "PARTIAL" || knowsJitem === "TRUE") {
       next = applyStat(next, "kamuoyu", 2);
@@ -188,7 +184,7 @@ function actFaction(state: GameState, id: Faction, notes: string[], roll: number
       next = setMind(next, "hukuk", rememberFac({ ...next.factions.hukuk, hostility: mind.hostility + 1 }, "file-heat", obj));
     } else if (next.stats.kamuoyu >= 36 && roll > 0.55) {
       next = applyStat(next, "hukuk", 1);
-      notes.push("Hukuk kamu ısısından dosya kokusu aldı. Henüz soruşturma değil.");
+      notes.push("note.hukuk.scent");
       next = setMind(next, "hukuk", rememberFac(next.factions.hukuk, "sniff", obj));
     }
     return next;
@@ -198,11 +194,11 @@ function actFaction(state: GameState, id: Faction, notes: string[], roll: number
     const obj = hasMemory(next, "agar", "protected") ? "kalkanı tut" : next.stats.kamuoyu >= 42 ? "mesafe" : "inkâr dili";
     if (hasMemory(next, "agar", "protected") && next.turn >= 8) {
       next = applyStat(next, "etki", 2);
-      notes.push("Siyaset: korunan kalkan duruyor. Karşılık sınırlı.");
+      notes.push("note.siyaset.shield");
       next = setMind(next, "siyaset", rememberFac(next.factions.siyaset, "shield", obj));
     } else if (next.stats.kamuoyu >= 48 && roll > 0.4) {
       next = applyStat(next, "etki", -3);
-      notes.push("Siyaset kamu ısısından çekiliyor. Emir yok; örtü incelir.");
+      notes.push("note.siyaset.distance");
       next = setMind(next, "siyaset", rememberFac({ ...next.factions.siyaset, confidence: mind.confidence - 6 }, "distance", obj));
     }
     return next;
@@ -213,7 +209,7 @@ function actFaction(state: GameState, id: Faction, notes: string[], roll: number
     if (exposed && roll > 0.5) {
       next = applyStat(next, "giz", 2);
       next = applyStat(next, "saha", -1);
-      notes.push("Askerî bürokrasi saha detayından uzak durdu. Resmi dil kalın.");
+      notes.push("note.askeri.distance");
       next = setMind(next, "askeri", rememberFac(next.factions.askeri, "distance", obj));
     } else {
       next = setMind(next, "askeri", { ...mind, currentObjective: obj });
@@ -225,7 +221,7 @@ function actFaction(state: GameState, id: Faction, notes: string[], roll: number
     const obj = hasMemory(next, "catli", "spent") ? "kaç / sızdır" : "fayda al";
     if (hasMemory(next, "catli", "spent") && next.turn >= 8 && roll < 0.5) {
       next = applyStat(next, "giz", -4);
-      notes.push("Yeraltı: harcanan hat sızdırıyor. Fayda bitti.");
+      notes.push("note.yeralti.leak");
       next = setMind(next, "yeralti", rememberFac(next.factions.yeralti, "leak", obj));
     } else if (next.revealed.catli && !scared) {
       next = setMind(next, "yeralti", rememberFac({ ...mind, resources: mind.resources + (angry ? 0 : 2) }, "ride", obj));
@@ -240,7 +236,7 @@ export function tickAnchors(state: GameState, notes: string[]): GameState {
   let next = state;
   if (next.flags.abasDead && next.turn === 5) {
     next = applyStat(next, "etki", -4);
-    notes.push("Abas hattı kırıldı. MİT mesafe koyuyor. JİTEM’e zorla bağlama — TARTIŞMALI.");
+    notes.push("note.anchor.abas");
     next = setFactionKnow(next, "mit", entry("clm_abas_jitem", "RUMOR", { source: "şok", confidence: 30, propagationRisk: 50 }));
     next = setMind(next, "mit", {
       ...next.factions.mit,
@@ -258,11 +254,7 @@ export function tickAnchors(state: GameState, notes: string[]): GameState {
     next = applyStat(next, "giz", -(base + extra + spent));
     next = applyStat(next, "bilgi", 16);
     next = applyStat(next, "kamuoyu", next.flags.leakSuppressed ? 6 : 12);
-    notes.push(
-      next.flags.leakSuppressed
-        ? "Ersever konuştu. Kaset var. Bastırma GİZ kaybını kesti; yok etmedi."
-        : "Ersever konuştu. İçeriden kırılma. BİLGİ patladı, GİZ yandı.",
-    );
+    notes.push(next.flags.leakSuppressed ? "note.anchor.tapesHeld" : "note.anchor.tapesOpen");
     next = setFactionKnow(next, "media", entry("clm_jitem_exists", "PARTIAL", { source: "kaset", confidence: 55 }));
     next = setFactionKnow(next, "mit", entry("clm_jitem_exists", "TRUE", { source: "kaset", confidence: 75 }));
     next = setHand(next, entry("clm_jitem_exists", "TRUE", { source: "kaset", confidence: 80 }));
@@ -271,7 +263,7 @@ export function tickAnchors(state: GameState, notes: string[]): GameState {
   if (next.turn === 10 && next.flags.susurluk) {
     next = applyStat(next, "kamuoyu", 18);
     next = applyStat(next, "hukuk", 14);
-    notes.push("3 Kasım. BELGELİ kilit. Görünürlük şoku. TBMM ve kamuoyu aynı kareye bakıyor.");
+    notes.push("note.anchor.susurluk");
     next = setFactionKnow(next, "hukuk", entry("clm_susurluk_car", "TRUE", { source: "kaza", confidence: 95 }));
     next = setFactionKnow(next, "media", entry("clm_susurluk_car", "TRUE", { source: "kaza", confidence: 95 }));
     next = setMind(next, "hukuk", rememberFac(next.factions.hukuk, "commission", "komisyon"));
@@ -298,7 +290,7 @@ export function tickFactions(state: GameState, notes: string[]): GameState {
     if (media.knowledgeBase.clm_jitem_exists?.status !== "TRUE" && next.stats.giz < 40) {
       if (!media.knowledgeBase.catli || media.knowledgeBase.catli.status === "UNKNOWN") {
         next = setFactionKnow(next, "media", entry("catli", "RUMOR", { source: "söylenti", confidence: 28 }));
-        notes.push("Basın Çatlı’yı söylenti olarak duydu. BELGELİ kilit henüz yok.");
+        notes.push("note.press.catli");
       }
     }
   }

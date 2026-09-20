@@ -1,6 +1,7 @@
-import type { GameState, MemoryTag } from "../types.ts";
+import type { GameState, Locale, MemoryTag } from "../types.ts";
 import { rollAi } from "./rng.ts";
 import { applyStat } from "./stats.ts";
+import { t } from "../i18n/copy.ts";
 
 export function remember(state: GameState, actorId: string, tag: MemoryTag): GameState {
   const cur = state.actorMemory[actorId] ?? [];
@@ -39,20 +40,10 @@ export function helpChance(state: GameState, actorId: string) {
   return Math.max(0.05, Math.min(0.9, p));
 }
 
-export function memoryLine(state: GameState, actorId: string) {
+export function memoryLine(state: GameState, actorId: string, locale: Locale = "tr") {
   const tags = state.actorMemory[actorId] ?? [];
-  if (!tags.length) return "Seni henüz dosyalamadı.";
-  const tr: Record<MemoryTag, string> = {
-    protected: "beni korudu",
-    used: "beni kullandı",
-    spent: "beni harcadı",
-    abandoned: "beni yalnız bıraktı",
-    leaked: "bilgimi sızdırdı",
-    "backed-rival": "rakibimi destekledi",
-    "promise-kept": "sözünü tuttu",
-    "promise-broken": "sözünü tutmadı",
-  };
-  return `Hatırladığı: ${tags.map((t) => tr[t]).join("; ")}.`;
+  if (!tags.length) return t(locale, "see.none");
+  return `${t(locale, "map.memory")}: ${tags.map((tag) => t(locale, `mem.${tag}`)).join("; ")}.`;
 }
 
 /** Spent/abandoned actors may leak heat once; protected ones may quietly help once. */
@@ -71,12 +62,12 @@ export function tickMemory(state: GameState, notes: string[]): GameState {
       next = applyStat(next, "giz", -3);
       next = applyStat(next, "kamuoyu", 2);
       next = { ...next, tags: [...next.tags, `talked:${id}`] };
-      notes.push(`${id} hattı konuşma eşiğine geldi. Tanıklık değil; ısı. Bellek tutuyor.`);
+      notes.push(`note.mem.talk|id=${id}`);
     } else if (help >= 0.55 && r > 0.72) {
       next = applyStat(next, "giz", 2);
       next = applyStat(next, "sadakat", 1);
       next = { ...next, tags: [...next.tags, `helped:${id}`] };
-      notes.push(`${id} hattı sessiz yardım etti. Korunan bellek döndü.`);
+      notes.push(`note.mem.help|id=${id}`);
     }
   }
   return next;

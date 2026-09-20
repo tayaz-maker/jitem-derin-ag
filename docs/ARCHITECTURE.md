@@ -1,4 +1,4 @@
-# Mimari — Derin Ağ Phase 2
+# Mimari — Derin Ağ Phase 2 + 3
 
 Üç çekirdek **yeniden yazılmaz**; genişletilir.
 
@@ -11,16 +11,31 @@ Tur döngüsü `src/game/engine.ts` içinde ince sargı: olay → duruş → iş
 ```
 src/game/
   db/            araştırma kayıtları + hydrate + validate
-  sim/           rng, family, faction, memory, edges, investigation, save, recap
+  sim/           rng, family, faction, memory, edges, investigation, save, recap, hats
+  i18n/          TR/EN sözlük + interactive copy + locale store
   data.ts        grafik yerleşim, iş tanımları, 10 tur omurga
   engine.ts      tur döngüsü
-  store.ts       zustand + localStorage
-  types.ts       şema, SAVE_KEY, ActionId
+  store.ts       zustand + localStorage (dil yok)
+  types.ts       şema, SAVE_KEY, ActionId, Hat, Locale
 ```
 
-UI: `src/components/game/`. Mobil beş sekme alt nav. Olay duruşu masaüstünde overlay, mobilde Olay sekmesi. HUD tek sıra. Embedded: `src/game/embed.ts`.
+UI: `src/components/game/`. Mobil beş sekme alt nav. Olay duruşu masaüstünde overlay, mobilde Olay sekmesi. HUD tek sıra. Embedded: `src/game/embed.ts`. Dil: `src/game/i18n/`.
 
 Auth ve Postgres **kapalı**. `src/lib/auth` ve `src/lib/db` iskele durur; oyun onları kullanmaz.
+
+## i18n + interactive language
+
+Merkez: `src/game/i18n/`. `tr.ts` / `en.ts` chrome; `content.ts` olay/seçim/bitiş; `interactive.ts` bilgi-dereceli copy.
+
+Beş vuruş: bu nedir / neden önemli / yaparsam ne olabilir / neden bu sonuç / sırada ne.
+
+Oyuncu elindeki `KNOWN | SUSPECTED | RUMOR | UNKNOWN` dışındaki dünya gerçeği copy’de sızmaz.
+
+Dil `GameState` içinde değildir. `jitem-derin-ag-locale` ayrı anahtar. Replay semantik ID.
+
+## Hats
+
+`saha | idari | arastirmaci | hukuk`. Araştırmacı: kaynak karşılaştır / doğrula. Hukuk: delil zinciri / kanıt eşiği. Saha operasyonu bu iki hatta kapalı. Vertical slice — tam ayrı campaign değil.
 
 ## Research DB
 

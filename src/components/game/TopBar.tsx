@@ -1,20 +1,21 @@
 import { FileText, RotateCcw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { eventFor, apFor } from "@/game/engine";
-import { STAT_META } from "@/game/data";
 import { actLabel } from "@/game/sim/acts";
 import { applyShellMode, detectShellMode, type ShellMode } from "@/game/embed";
 import { useGame } from "@/game/store";
 import type { StatKey } from "@/game/types";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { t, useLocale } from "@/game/i18n";
+import { LangSwitch } from "./LangSwitch";
 
 const HUD_STATS: StatKey[] = ["giz", "saha", "etki", "hukuk"];
 
-function phaseShort(phase: string, left: number, max: number, turn: number) {
-  if (phase === "event") return `T${turn} · duruş`;
-  if (phase === "actions") return `T${turn} · ${left}/${max} kap`;
-  if (phase === "resolution") return `T${turn} · özet`;
+function phaseShort(locale: "tr" | "en", phase: string, left: number, max: number, turn: number) {
+  if (phase === "event") return `T${turn} · ${t(locale, "hud.phaseEvent")}`;
+  if (phase === "actions") return `T${turn} · ${left}/${max} ${t(locale, "hud.phaseAct")}`;
+  if (phase === "resolution") return `T${turn} · ${t(locale, "hud.phaseRes")}`;
   return `T${turn}`;
 }
 
@@ -24,6 +25,7 @@ export function TopBar() {
   const clearSave = useGame((s) => s.clearSave);
   const explainStat = useGame((s) => s.explainStat);
   const setExplainStat = useGame((s) => s.setExplainStat);
+  const locale = useLocale((s) => s.locale);
   const [shell, setShell] = useState<ShellMode>("standalone");
   const [open, setOpen] = useState(false);
 
@@ -40,15 +42,15 @@ export function TopBar() {
     <header className="hud-pad shrink-0 border-b border-border bg-surface/95">
       <div className="flex h-11 min-w-0 items-center gap-2 px-2 sm:h-12 sm:px-3">
         {embedded ? null : (
-          <p className="hidden shrink-0 font-mono text-[10px] tracking-widest text-olive sm:block">DERİN AĞ</p>
+          <p className="hidden shrink-0 font-mono text-[10px] tracking-widest text-olive sm:block">{t(locale, "hud.wordmark")}</p>
         )}
         <div className="min-w-0 flex-1">
           <p className="truncate text-xs font-medium text-fg sm:text-sm">
             {ev ? `${ev.year}` : "1986"}
-            <span className="text-subtle"> · {phaseShort(state.phase, state.actionsLeft, max, state.turn)}</span>
+            <span className="text-subtle"> · {phaseShort(locale, state.phase, state.actionsLeft, max, state.turn)}</span>
           </p>
           <p className="hidden truncate text-[10px] text-olive sm:block">
-            {state.hat === "saha" ? "Saha" : "İdari"} · {actLabel(state)}
+            {t(locale, `hat.${state.hat}.title`)} · {actLabel(state, locale)}
           </p>
         </div>
         <div className="flex min-w-0 items-center gap-1">
@@ -71,26 +73,26 @@ export function TopBar() {
               "min-h-9 rounded-sm border px-1.5 font-mono text-[10px] tabular",
               open ? "border-olive/60 bg-elevated text-paper" : "border-border bg-bg/60 text-muted",
             )}
-            aria-label="Kapasite ve menü"
+            aria-label={t(locale, "hud.capacity")}
           >
             {state.phase === "actions" ? `${state.actionsLeft}` : "·"}
           </button>
         </div>
         <div className="flex items-center">
-          <Button variant="ghost" size="icon" className="size-9" onClick={() => setScreen("dosya")} aria-label="Dosya">
+          {embedded ? null : <LangSwitch />}
+          <Button variant="ghost" size="icon" className="size-9" onClick={() => setScreen("dosya")} aria-label={t(locale, "hud.file")}>
             <FileText />
           </Button>
           {embedded ? null : (
-            <Button variant="ghost" size="icon" className="size-9" onClick={clearSave} aria-label="Başa dön">
+            <Button variant="ghost" size="icon" className="size-9" onClick={clearSave} aria-label={t(locale, "hud.reset")}>
               <RotateCcw />
             </Button>
           )}
         </div>
       </div>
-      {explainStat && explainStat in STAT_META ? (
+      {explainStat ? (
         <p className="border-t border-border px-3 py-1.5 text-[11px] leading-relaxed text-muted">
-          <span className="text-paper">{STAT_META[explainStat as StatKey].label}.</span>{" "}
-          {STAT_META[explainStat as StatKey].hint}
+          <span className="text-paper">{t(locale, `stat.${explainStat}.label`)}.</span> {t(locale, `stat.${explainStat}.hint`)}
         </p>
       ) : null}
       {open ? (
@@ -104,9 +106,7 @@ export function TopBar() {
               onToggle={() => setExplainStat(explainStat === k ? null : k)}
             />
           ))}
-          <p className="col-span-4 text-[10px] text-subtle">
-            Kapasite {state.actionsLeft}/{max}. Ağır iş 2–3, bakış 1. Saha daha çok iş, daha çok ısı.
-          </p>
+          <p className="col-span-4 text-[10px] text-subtle">{t(locale, "hud.capHint", { left: state.actionsLeft, max })}</p>
         </div>
       ) : null}
     </header>
@@ -124,7 +124,7 @@ function StatChip({
   open: boolean;
   onToggle: () => void;
 }) {
-  const meta = STAT_META[k];
+  const locale = useLocale((s) => s.locale);
   const danger =
     (k === "giz" && v < 25) ||
     (k === "saha" && v < 20) ||
@@ -141,7 +141,7 @@ function StatChip({
       )}
     >
       <div className="flex items-baseline justify-between gap-0.5">
-        <span className="truncate text-[9px] font-medium text-muted">{meta.short}</span>
+        <span className="truncate text-[9px] font-medium text-muted">{t(locale, `stat.${k}.short`)}</span>
         <span className={`tabular font-mono text-[11px] font-medium ${danger ? "text-stamp" : "text-paper"}`}>{v}</span>
       </div>
       <div className="mt-0.5 h-0.5 overflow-hidden rounded-full bg-elevated">

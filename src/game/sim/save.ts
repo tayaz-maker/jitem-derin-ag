@@ -3,10 +3,7 @@ import { seedEdgeLive } from "./edges.ts";
 import { initialHand, initialTruth } from "./knowledge.ts";
 import type { GameState, Hat } from "../types.ts";
 import { SAVE_VERSION, SCHEMA_VERSION } from "../types.ts";
-
-function apFallback(hat: Hat) {
-  return hat === "saha" ? 5 : 4;
-}
+import { apFor, parseHat } from "./hats.ts";
 
 const FLAG_DEFAULTS: GameState["flags"] = {
   commandShifted: false,
@@ -41,7 +38,7 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 
 export function migrate(raw: GameState | Record<string, unknown>): GameState {
   const state = (raw ?? {}) as Partial<GameState>;
-  const hat: Hat = state.hat === "idari" ? "idari" : "saha";
+  const hat: Hat = parseHat(state.hat);
   const stats = { ...STAT_DEFAULTS, ...(isRecord(state.stats) ? state.stats : {}) };
   for (const k of Object.keys(STAT_DEFAULTS) as (keyof typeof STAT_DEFAULTS)[]) {
     if (typeof stats[k] !== "number" || Number.isNaN(stats[k])) stats[k] = STAT_DEFAULTS[k];
@@ -87,7 +84,7 @@ export function migrate(raw: GameState | Record<string, unknown>): GameState {
           major: (state.replayMeta as GameState["replayMeta"]).major ?? [],
         }
       : { seed: worldSeed, hat, decisions: state.decisions ?? [], events: [], factions: [], major: [] },
-    actionsLeft: typeof state.actionsLeft === "number" ? state.actionsLeft : apFallback(hat),
+    actionsLeft: typeof state.actionsLeft === "number" ? state.actionsLeft : apFor(hat),
     flags: { ...FLAG_DEFAULTS, ...(isRecord(state.flags) ? state.flags : {}) },
     selectedNodeId: state.selectedNodeId ?? "jitem",
     selectedEdgeId: state.selectedEdgeId ?? null,

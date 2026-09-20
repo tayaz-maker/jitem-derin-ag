@@ -13,6 +13,7 @@ import { entry, setFactionKnow, setHand } from "./knowledge.ts";
 import { hasMemory } from "./memory.ts";
 import { mulberry32, pickWeighted } from "./rng.ts";
 import { applyMany } from "./stats.ts";
+import { encodeNote } from "../i18n/format.ts";
 
 export interface EventView extends EventDef {
   variantId: string;
@@ -580,8 +581,13 @@ export function applyConsequence(state: GameState, c: VariantConsequence | undef
 export function applyFamilyFire(state: GameState, family: EventFamily, notes: string[]): GameState {
   const picked = pickVariant(state, family);
   const note = picked.consequence?.note ?? picked.addendum ?? `${family.id} · ${picked.id}`;
-  if (!picked.consequence?.note) notes.push(note);
-  let next = applyConsequence(state, picked.consequence, notes);
+  const semanticNote = encodeNote("family.variant", {
+    family: family.id,
+    variant: picked.id,
+    fallback: note,
+  });
+  let next = applyConsequence(state, picked.consequence, []);
+  notes.push(semanticNote);
   const tags = next.tags.filter((t) => t !== `follow:${family.id}`).concat(`side:${family.id}`);
   if (family.exclusivity) tags.push(`ex:${family.exclusivity}`);
   if (picked.extraTags) tags.push(...picked.extraTags);
@@ -595,7 +601,7 @@ export function applyFamilyFire(state: GameState, family: EventFamily, notes: st
     ...next,
     replay: [
       ...next.replay,
-      { turn: next.turn, familyId: family.id, variantId: picked.id, factionActs: [], note },
+      { turn: next.turn, familyId: family.id, variantId: picked.id, factionActs: [], note: semanticNote },
     ],
   };
   return next;

@@ -326,13 +326,6 @@ export function resolveOgCardAsset(site = {}, cwd = process.cwd()) {
   return ogCardPublicPath(cwd) || (detectCustomOgCard(cwd, site) ? String(site.image ?? "").trim() || "/og.jpg" : "");
 }
 
-/** Stamp `card=custom` when public/og.jpg or public/og.png is on disk. */
-function applyCustomCardFromFs(site, cwd) {
-  const disk = ogCardPublicPath(cwd);
-  if (!disk) return site;
-  return { ...site, card: "custom", image: disk };
-}
-
 export function grokOgHeadTags({
   host = "",
   appName = DEFAULT_APP_NAME,
@@ -401,15 +394,10 @@ function insertBeforeHeadClose(html, snippet) {
 }
 
 export function normalizeHeadContext(ctx = {}) {
-  const cwd = ctx.cwd ?? process.cwd();
-  // Middleware passes a baked `site`. Still consult the workspace so a
-  // public/og.jpg generated after that snapshot (or missed by a wrong cwd)
-  // wins over the og.grok.me placeholder. Vercel has no public/ to read, so
-  // a correct bake is unchanged.
-  const site = applyCustomCardFromFs(
-    ctx.site !== undefined ? ctx.site : snapshotOgIdentity(cwd).site,
-    cwd,
-  );
+  // Vite/Nitro pass the baked site explicitly. Generic calls remain generic;
+  // they must not accidentally inherit another app's cwd identity or card.
+  const cwd = ctx.cwd ?? (Object.keys(ctx).length === 0 ? process.cwd() : "/__grok_no_fs__");
+  const site = ctx.site ?? {};
   const appName = resolveOgTitle(site, ctx.appName ?? DEFAULT_APP_NAME, ctx.host ?? "");
   return {
     appName,

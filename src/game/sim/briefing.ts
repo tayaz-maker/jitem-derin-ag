@@ -1,7 +1,7 @@
 import { EVENTS, EDGES, NODES } from "../data.ts";
-import type { GameState } from "../types.ts";
+import type { GameState, Locale } from "../types.ts";
 import { actLabel } from "./acts.ts";
-import { STAGE_LABEL } from "./investigation.ts";
+import { eventCopy, t } from "../i18n/copy.ts";
 
 export interface ReturnBriefing {
   hat: GameState["hat"];
@@ -15,7 +15,7 @@ export interface ReturnBriefing {
   nextProblem: string;
 }
 
-export function briefingFrom(state: GameState): ReturnBriefing {
+export function briefingFrom(state: GameState, locale: Locale = "tr"): ReturnBriefing {
   const ev = EVENTS.find((e) => e.turn === state.turn);
   const lastLog = [...state.logs].reverse().find((l) => l.kind === "olay" || l.kind === "npc");
   const hot = Object.entries(state.edgeLive)
@@ -27,24 +27,24 @@ export function briefingFrom(state: GameState): ReturnBriefing {
     .slice(0, 2)
     .map(([id]) => NODES.find((n) => n.id === id)?.name ?? id);
 
-  let nextProblem = "Duruşu seç, sonra kapasiteni harca.";
-  if (state.phase === "actions") nextProblem = "Bu tur kapasite kaldı. Ağ / kişi / gerçek.";
-  if (state.phase === "resolution") nextProblem = "Karşı hatlar hareket etti. Sonraki döneme geç.";
+  let nextProblem = t(locale, "brief.nextEvent");
+  if (state.phase === "actions") nextProblem = t(locale, "brief.nextAct");
+  if (state.phase === "resolution") nextProblem = t(locale, "brief.nextRes");
   if (state.investigation.stage !== "dormant" && state.investigation.stage !== "rumor") {
-    nextProblem = `Soruşturma: ${STAGE_LABEL[state.investigation.stage]}. Yönlendir, sınırla veya yüzeyi aç — durdurmak zorunda değilsin.`;
+    nextProblem = t(locale, "brief.nextInv");
   }
-  if (state.stats.giz < 18) nextProblem = "Gizlilik kritik. Kampanya bitmedi; soruşturma ısınır.";
-  if (state.turn >= 9) nextProblem = "Son dönem. 3 Kasım takvimi durmaz.";
+  if (state.stats.giz < 18) nextProblem = t(locale, "brief.nextGiz");
+  if (state.turn >= 9) nextProblem = t(locale, "brief.nextLate");
 
   return {
     hat: state.hat,
     turn: state.turn,
     phase: state.phase,
-    act: actLabel(state),
+    act: actLabel(state, locale),
     year: ev?.year ?? lastLog?.year ?? "—",
-    lastEvent: ev?.title ?? lastLog?.text ?? "Kayıt ince",
-    investigation: `${STAGE_LABEL[state.investigation.stage]} · ısı ${state.investigation.heat}`,
-    criticalTies: hot.length ? hot : heatedPeople.length ? heatedPeople : ["Henüz ısınan bağ yok"],
+    lastEvent: (ev ? eventCopy(locale, ev.id)?.title : null) ?? ev?.title ?? lastLog?.text ?? "—",
+    investigation: `${t(locale, `inv.${state.investigation.stage}`)} · ${t(locale, "inv.heat")} ${state.investigation.heat}`,
+    criticalTies: hot.length ? hot : heatedPeople.length ? heatedPeople : [t(locale, "brief.noTie")],
     nextProblem,
   };
 }

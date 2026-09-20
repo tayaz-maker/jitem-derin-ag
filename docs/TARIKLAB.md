@@ -28,7 +28,7 @@ Aktif etme (ilk eşleşen):
 | Konu | Standalone | Embedded |
 |---|---|---|
 | Global back | Küçük “başa dön” (oyun reset) | **Gizlenir** — outer shell’in back’i |
-| Dil TR/EN | Yok (oyun TR) | **Eklenmez** — outer sahip |
+| Dil TR/EN | Kompakt TR/EN anahtar (`jitem-derin-ag-locale`, save’den ayrı) | **İç anahtar gizlenir.** Outer `window.__DERIN_AG_LOCALE`, `?lang=`, `postMessage({type:'derin-ag-locale', locale})` veya `CustomEvent('derin-ag-locale')` ile yönetir. Parent değişince oyun reaktif render eder. Duplicate TR/EN yok. |
 | Site header / wordmark | Küçük “DERİN AĞ” (sm+) | **Gizlenir** |
 | Gameplay HUD | Kompakt: yıl, tur, 4 stat, kapasite | **Aynı HUD kalır** |
 | Yükseklik | `.game-shell { height: 100dvh }` | `.game-shell { height: 100% }` — **100vh varsayımı yok** |
@@ -46,6 +46,21 @@ Iframe örneği:
 ```
 
 Parent `height: 100%` zincirini kendi shell’inde kurar. Oyun `100vh` ile outer’ı ezmez.
+
+## Dil sözleşmesi (zorunlu)
+
+- Oyun dili **save state’e yazılmaz**. Kampanya RNG, event seçimi ve checksum dilden bağımsızdır.
+- Replay semantik ID taşır (`dosya_oku`, `e6-bas`); çevrilmiş cümle değil.
+- Standalone: HUD’da kompakt TR/EN. Tercih `localStorage['jitem-derin-ag-locale']`.
+- Embedded: iç dil anahtarı **gösterilmez**.
+- Parent tercih:
+
+```js
+window.__DERIN_AG_LOCALE = "en";
+iframe.contentWindow.postMessage({ type: "derin-ag-locale", locale: "en" }, "*");
+```
+
+veya `/?embed=1&lang=en`. Parent değişince oyun `useLocale` üzerinden yeniden render olur.
 
 Header yüksekliği (hedef): mobil HUD ~44px + safe-area; alt nav ~48px + safe-area. Outer lab header **ayrı** — oyun kendi global nav’ını koymaz.
 

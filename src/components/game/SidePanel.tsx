@@ -1,4 +1,4 @@
-import { ACTION_GROUPS, ACTIONS, EDGES, EVIDENCE_META, NODES } from "@/game/data";
+import { ACTION_GROUPS, ACTIONS, EDGES, NODES } from "@/game/data";
 import {
   apFor,
   canPlay,
@@ -9,13 +9,12 @@ import {
 } from "@/game/engine";
 import { evidenceTone } from "@/game/evidence";
 import { actOf, actLabel, mechanicUnlocked } from "@/game/sim/acts";
-import { LAYER_LABEL, sourceUxFor } from "@/game/sim/authority";
-import { edgePreview, liveLine } from "@/game/sim/edges";
+import { sourceUxFor } from "@/game/sim/authority";
+import { liveLine } from "@/game/sim/edges";
 import { investigationView } from "@/game/sim/investigation";
-import { playerViewOf, theySeePlayer } from "@/game/sim/knowledge";
+import { theySeePlayer } from "@/game/sim/knowledge";
 import { memoryLine } from "@/game/sim/memory";
 import { visibleObjectives } from "@/game/sim/objectives";
-import { nodeWhy, edgeWhy } from "@/game/sim/inspect";
 import { SOURCE_BY_ID } from "@/game/db";
 import { useGame } from "@/game/store";
 import type { ActionGroup, ActionId, Faction } from "@/game/types";
@@ -23,9 +22,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { copyForAction, t, useLocale, nodeInteractive, edgeInteractive, logLine } from "@/game/i18n";
+import { hatBlocks } from "@/game/sim/hats";
+import { ExplainCard } from "./ExplainCard";
+import { ClaimDrawer } from "./ClaimDrawer";
 
 export function SidePanel({ forceTab }: { forceTab?: "is" | "dosya" }) {
   const state = useGame((s) => s.state);
+  const locale = useLocale((s) => s.locale);
   const [tab, setTab] = useState<"is" | "dosya">("is");
   if (!state) return null;
   const activeTab = forceTab ?? (state.phase === "actions" ? tab : "dosya");
@@ -33,13 +37,13 @@ export function SidePanel({ forceTab }: { forceTab?: "is" | "dosya" }) {
 
   return (
     <aside className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto border-t border-border bg-surface p-3 sm:border-l sm:border-t-0 sm:p-4">
-      <p className="font-mono text-[10px] text-olive">{actLabel(state)}</p>
+      <p className="font-mono text-[10px] text-olive">{actLabel(state, locale)}</p>
       {state.phase === "actions" && !forceTab ? (
         <div className="flex gap-1 rounded-sm border border-border bg-bg/40 p-0.5">
           {(
             [
-              ["is", "İşler"],
-              ["dosya", "Seçili"],
+              ["is", t(locale, "act.tabWork")],
+              ["dosya", t(locale, "act.tabSel")],
             ] as const
           ).map(([id, label]) => (
             <button
@@ -64,42 +68,41 @@ export function SidePanel({ forceTab }: { forceTab?: "is" | "dosya" }) {
       {mechanicUnlocked(state, "investigation") || inv.stage !== "dormant" ? (
         <div className="rounded-sm border border-border bg-bg/30 p-2">
           <p className="text-[11px] font-medium text-olive">
-            Soruşturma · {inv.label} · ısı {inv.heat}
+            {t(locale, "inv.title")} · {t(locale, `inv.${inv.stage}`)} · {t(locale, "inv.heat")} {inv.heat}
           </p>
-          <p className="mt-1 text-[11px] leading-snug text-muted">{inv.why}</p>
+          <p className="mt-1 text-[11px] leading-snug text-muted">{t(locale, inv.why)}</p>
           {inv.raising.length ? (
-            <p className="mt-1 text-[10px] text-stamp">Yükselten: {inv.raising.join(" · ")}</p>
+            <p className="mt-1 text-[10px] text-stamp">
+              {t(locale, "inv.raise")}: {inv.raising.map((k) => t(locale, k)).join(" · ")}
+            </p>
           ) : null}
           {inv.lowering.length ? (
-            <p className="text-[10px] text-olive">Azaltan: {inv.lowering.join(" · ")}</p>
+            <p className="text-[10px] text-olive">
+              {t(locale, "inv.lower")}: {inv.lowering.map((k) => t(locale, k)).join(" · ")}
+            </p>
           ) : null}
           {inv.options.length ? (
             <ul className="mt-1 space-y-0.5">
               {inv.options.slice(0, 3).map((o) => (
                 <li key={o} className="text-[10px] text-subtle">
-                  {o}
+                  {t(locale, o)}
                 </li>
               ))}
             </ul>
           ) : null}
         </div>
       ) : (
-        <p className="text-[11px] text-subtle">Soruşturma henüz aktif değil — giz incelirse uyanır.</p>
+        <p className="text-[11px] text-subtle">{t(locale, "inv.sleeping")}</p>
       )}
 
       <div className="mt-auto space-y-1 border-t border-border pt-3">
         <p className="text-xs text-subtle">
-          Kanıt: kâğıt = belgelı, zeytin = güçlü, amber = tartışmalı. Görünen{" "}
-          {NODES.filter((n) => isNodeVisible(state, n.id)).length}/{NODES.length} ·{" "}
-          {EDGES.filter((e) => isEdgeVisible(state, e.id)).length} bağ
+          {t(locale, "footer.evidence", {
+            n: NODES.filter((n) => isNodeVisible(state, n.id)).length,
+            total: NODES.length,
+            e: EDGES.filter((e) => isEdgeVisible(state, e.id)).length,
+          })}
         </p>
-        <div className="flex flex-wrap gap-1">
-          {(Object.keys(EVIDENCE_META) as Array<keyof typeof EVIDENCE_META>).map((k) => (
-            <Badge key={k} tone={evidenceTone(k)} title={EVIDENCE_META[k].hint}>
-              {k}
-            </Badge>
-          ))}
-        </div>
       </div>
     </aside>
   );
@@ -109,56 +112,76 @@ export function PersonPane() {
   const state = useGame((s) => s.state);
   const play = useGame((s) => s.play);
   const armAction = useGame((s) => s.armAction);
+  const claimId = useGame((s) => s.claimId);
+  const setClaimId = useGame((s) => s.setClaimId);
+  const locale = useLocale((s) => s.locale);
   if (!state) return null;
   const node = state.selectedNodeId ? nodeById(state.selectedNodeId) : null;
   const visible = node ? isNodeVisible(state, node.id) : false;
   const edge = state.selectedEdgeId ? EDGES.find((e) => e.id === state.selectedEdgeId) : null;
   const live = edge ? state.edgeLive[edge.id] : null;
   const src = node?.sourceIds[0] ? SOURCE_BY_ID[node.sourceIds[0]] : undefined;
-  const ux = node
-    ? sourceUxFor({
-        layer: "sourceClaim",
-        evidence: node.evidence,
-        contradiction: node.sourceClaim,
-      })
-    : [];
+  const ux = node ? sourceUxFor({ layer: "sourceClaim", evidence: node.evidence, contradiction: node.sourceClaim }) : [];
+  const ni = node ? nodeInteractive(state, node.id, locale) : null;
+  const ei = edge ? edgeInteractive(state, edge.id, locale) : null;
 
   if (edge && live && (!node || state.selectedEdgeId)) {
     return (
       <div className="p-3 lg:p-0">
-        <p className="scan font-mono text-[10px] text-olive">Bağ</p>
+        <p className="scan font-mono text-[10px] text-olive">{t(locale, "map.edge")}</p>
         <h2 className="mt-1 text-lg font-medium text-fg">{edge.label}</h2>
         <div className="mt-1 flex flex-wrap gap-1">
-          <Badge tone={evidenceTone(edge.evidence)}>{edge.evidence}</Badge>
-          <Badge>{LAYER_LABEL[edge.layer] ?? edge.layer}</Badge>
+          <Badge tone={evidenceTone(edge.evidence)}>{t(locale, `evidence.${edge.evidence}.label`)}</Badge>
         </div>
-        <p className="mt-2 text-xs font-medium text-paper">{edgeWhy(state, edge.id)}</p>
-        <p className="mt-2 text-xs text-muted">{liveLine(live)}</p>
-        <p className="mt-2 text-xs text-subtle">Kaynak: {edge.source}</p>
+        <dl className="mt-3 space-y-1.5 text-xs leading-relaxed text-muted">
+          <div>
+            <dt className="text-paper">{t(locale, "map.edgeWhat")}</dt>
+            <dd>{ei?.what ?? edge.label}</dd>
+          </div>
+          <div>
+            <dt className="text-paper">{t(locale, "map.edgeWhy")}</dt>
+            <dd>{ei?.why ?? edge.source}</dd>
+          </div>
+          <div>
+            <dt className="text-paper">{t(locale, "map.edgeTrust")}</dt>
+            <dd>{ei?.trust ?? liveLine(live, locale)}</dd>
+          </div>
+          <div>
+            <dt className="text-paper">{t(locale, "map.edgeGain")}</dt>
+            <dd>{ei?.gain}</dd>
+          </div>
+          <div>
+            <dt className="text-paper">{t(locale, "map.edgeRisk")}</dt>
+            <dd>{ei?.risk}</dd>
+          </div>
+        </dl>
         {state.phase === "actions" ? (
           <div className="mt-3 grid grid-cols-2 gap-1.5">
             {(
               [
-                ["bag_guclendir", "strengthen", "Sıkılaştır"],
-                ["bag_gevset", "weaken", "Gevşet"],
-                ["bag_gozet", "observe", "Gözet"],
-                ["bag_arabul", "mediate", "Arabul"],
-                ["bag_yalitim", "isolate", "Yalıt"],
-                ["bag_ifsa", "expose", "İfşa"],
-                ["bag_koru", "protect", "Koru"],
-              ] as const
-            ).map(([id, kind, label]) => (
-              <button
-                key={id}
-                type="button"
-                disabled={!canPlay(state, id)}
-                onClick={() => play({ id, edgeId: edge.id })}
-                className="min-h-11 rounded-sm border border-border bg-bg/40 px-2 py-2 text-left text-xs disabled:opacity-40"
-              >
-                <span className="block font-medium text-fg">{label}</span>
-                <span className="text-[10px] text-muted">{edgePreview(kind)}</span>
-              </button>
-            ))}
+                "bag_guclendir",
+                "bag_gevset",
+                "bag_gozet",
+                "bag_arabul",
+                "bag_yalitim",
+                "bag_ifsa",
+                "bag_koru",
+              ] as ActionId[]
+            ).map((id) => {
+              const copy = copyForAction(id, locale, state);
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  disabled={!canPlay(state, id)}
+                  onClick={() => play({ id, edgeId: edge.id })}
+                  className="min-h-11 rounded-sm border border-border bg-bg/40 px-2 py-2 text-left text-xs disabled:opacity-40"
+                >
+                  <span className="block font-medium text-fg">{copy.verb ?? copy.label}</span>
+                  <span className="text-[10px] text-muted">{copy.expectedEffect}</span>
+                </button>
+              );
+            })}
           </div>
         ) : null}
       </div>
@@ -167,100 +190,111 @@ export function PersonPane() {
 
   return (
     <div className="p-3 lg:p-0">
-      <p className="scan font-mono text-[10px] text-olive">Haritadan seçilen</p>
+      <p className="scan font-mono text-[10px] text-olive">{t(locale, "map.selected")}</p>
       {visible && node ? (
         <>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <h2 className="text-lg font-medium text-fg">{node.name}</h2>
-            <Badge tone={evidenceTone(node.evidence)}>{node.evidence}</Badge>
-            <Badge>{node.kind === "kisi" ? "kişi" : node.kind === "kurum" ? "kurum" : "koridor"}</Badge>
-            {state.dead[node.id] ? <Badge tone="stamp">KAPALI</Badge> : null}
+            <Badge tone={evidenceTone(node.evidence)}>{t(locale, `evidence.${node.evidence}.label`)}</Badge>
+            <Badge>
+              {node.kind === "kisi" ? t(locale, "map.person") : node.kind === "kurum" ? t(locale, "map.org") : t(locale, "map.corridor")}
+            </Badge>
+            {state.dead[node.id] ? <Badge tone="stamp">{t(locale, "map.closed")}</Badge> : null}
           </div>
-          <p className="mt-2 text-xs leading-snug text-paper">{nodeWhy(state, node.id)}</p>
-          <div className="mt-1 flex flex-wrap gap-1">
-            {ux.slice(0, 3).map((t) => (
-              <Badge key={t}>{t}</Badge>
-            ))}
-          </div>
-          <p className="mt-2 text-sm leading-relaxed text-muted">{node.role}</p>
           <dl className="mt-3 space-y-1.5 text-xs leading-relaxed text-muted">
             <div>
-              <dt className="text-paper">Kanıt</dt>
+              <dt className="text-paper">{t(locale, "map.who")}</dt>
+              <dd>{ni?.who ?? node.name}</dd>
+            </div>
+            <div>
+              <dt className="text-paper">{t(locale, "map.why")}</dt>
+              <dd>{ni?.why ?? node.role}</dd>
+            </div>
+            <div>
+              <dt className="text-paper">{t(locale, "map.youKnow")}</dt>
+              <dd>{ni?.youKnow}</dd>
+            </div>
+            <div>
+              <dt className="text-paper">{t(locale, "map.theySee")}</dt>
+              <dd>{ni?.theySee ?? theySeePlayer(state, node.id, locale)}</dd>
+            </div>
+            <div>
+              <dt className="text-paper">{t(locale, "map.memory")}</dt>
+              <dd>{memoryLine(state, node.id, locale)}</dd>
+            </div>
+            <div>
+              <dt className="text-paper">{t(locale, "map.evidence")}</dt>
               <dd>
-                {node.evidence} · {src ? `${src.title}${src.location ? ` · ${src.location}` : ""}` : node.source}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-paper">Elindeki bilgi</dt>
-              <dd>{playerViewOf(state, node.id)}</dd>
-            </div>
-            <div>
-              <dt className="text-paper">Seni nasıl görüyor</dt>
-              <dd>{theySeePlayer(state, node.id)}</dd>
-            </div>
-            <div>
-              <dt className="text-paper">Bellek</dt>
-              <dd>{memoryLine(state, node.id)}</dd>
-            </div>
-            <div>
-              <dt className="text-paper">Faction / risk</dt>
-              <dd>
-                {node.faction ?? "—"} · ısı {state.nodeHeat[node.id] ?? 0}
+                {t(locale, `evidence.${node.evidence}.label`)} · {src ? `${src.title}${src.location ? ` · ${src.location}` : ""}` : node.source}
               </dd>
             </div>
           </dl>
+          <div className="mt-2 flex flex-wrap gap-1">
+            {ux.slice(0, 3).map((tag) => (
+              <Badge key={tag}>{tag}</Badge>
+            ))}
+            {node.sourceIds[0] ? (
+              <button
+                type="button"
+                className="rounded-sm border border-border px-1.5 py-0.5 text-[10px] text-olive"
+                onClick={() => setClaimId(node.researchId.startsWith("clm_") ? node.researchId : null)}
+              >
+                {t(locale, "claim.title")}
+              </button>
+            ) : null}
+          </div>
+          {node.sourceIds.length ? (
+            <button
+              type="button"
+              className="mt-2 w-full rounded-sm border border-border bg-bg/40 px-2 py-2 text-left text-[11px] text-olive"
+              onClick={() => {
+                const related = Object.keys(state.hand).find((id) => id.startsWith("clm_"));
+                setClaimId(related ?? "clm_jitem_exists");
+              }}
+            >
+              {t(locale, "claim.title")}
+            </button>
+          ) : null}
+          {claimId ? <div className="mt-2"><ClaimDrawer claimId={claimId} onClose={() => setClaimId(null)} /></div> : null}
           <details className="mt-3 rounded-sm border border-border bg-bg/40 p-2">
-            <summary className="cursor-pointer text-xs text-olive">Kanıt katmanları</summary>
+            <summary className="cursor-pointer text-xs text-olive">{t(locale, "map.layers")}</summary>
             <dl className="mt-2 space-y-2 text-xs leading-relaxed text-muted">
               <div>
-                <dt className="text-paper">Tarihsel çıpa</dt>
+                <dt className="text-paper">{t(locale, "map.hist")}</dt>
                 <dd>{node.historicalFact}</dd>
               </div>
               <div>
-                <dt className="text-paper">Kaynak iddiası</dt>
+                <dt className="text-paper">{t(locale, "map.claim")}</dt>
                 <dd>{node.sourceClaim}</dd>
               </div>
               <div>
-                <dt className="text-paper">Oyunsal rekonstrüksiyon</dt>
+                <dt className="text-paper">{t(locale, "map.recon")}</dt>
                 <dd>{node.gameReconstruction}</dd>
-              </div>
-              <div>
-                <dt className="text-paper">
-                  Motivasyon ·{" "}
-                  {node.motivationKind === "unknown" ? "UNKNOWN" : node.motivationKind === "sourced" ? "kaynaklı" : "GAMEPLAY_ASSUMPTION"}
-                </dt>
-                <dd>{node.motivation}</dd>
               </div>
             </dl>
           </details>
           {state.phase === "actions" && node.kind === "kisi" ? (
             <div className="mt-3 grid grid-cols-2 gap-1.5">
-              {(
-                [
-                  ["kisi_koru", "Koru", "2 kap · sadakat artar"],
-                  ["kisi_kullan", "Kullan", "2 kap · fayda, sadakat incelir"],
-                  ["kisi_harca", "Harca", "3 kap · bilgi için yak"],
-                  ["kisi_mesafe", "Mesafe", "1 kap · iz küçülür"],
-                ] as const
-              ).map(([id, label, hint]) => (
-                <button
-                  key={id}
-                  type="button"
-                  disabled={!canPlay(state, id)}
-                  onClick={() => (canPlay(state, id) ? play({ id, nodeId: node.id }) : armAction(id))}
-                  className="min-h-11 rounded-sm border border-border bg-bg/40 px-2 py-2 text-left text-xs disabled:opacity-40"
-                >
-                  <span className="block font-medium text-fg">{label}</span>
-                  <span className="text-[10px] text-muted">{hint}</span>
-                </button>
-              ))}
+              {(["kisi_koru", "kisi_kullan", "kisi_harca", "kisi_mesafe"] as ActionId[]).map((id) => {
+                const copy = copyForAction(id, locale, state);
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    disabled={!canPlay(state, id) || hatBlocks(state.hat, id)}
+                    onClick={() => (canPlay(state, id) ? play({ id, nodeId: node.id }) : armAction(id))}
+                    className="min-h-11 rounded-sm border border-border bg-bg/40 px-2 py-2 text-left text-xs disabled:opacity-40"
+                  >
+                    <span className="block font-medium text-fg">{copy.verb ?? copy.label}</span>
+                    <span className="text-[10px] text-muted">{copy.expectedEffect}</span>
+                  </button>
+                );
+              })}
             </div>
           ) : null}
         </>
       ) : (
-        <p className="mt-2 text-sm text-muted">
-          Haritada bir isme veya çizgiye dokun. Sisli isimler dönem ve bilgiyle açılır. “Neden dokunayım” seçilince görünür.
-        </p>
+        <p className="mt-2 text-sm text-muted">{t(locale, "map.pick")}</p>
       )}
     </div>
   );
@@ -271,16 +305,31 @@ function ActionBlock() {
   const armAction = useGame((s) => s.armAction);
   const play = useGame((s) => s.play);
   const resolve = useGame((s) => s.resolve);
+  const feedback = useGame((s) => s.feedback);
+  const locale = useLocale((s) => s.locale);
   const defaultGroup: ActionGroup =
-    state.turn === 1 ? "ag" : state.turn === 2 ? "kisi" : state.turn === 3 ? "bilgi" : state.hat === "idari" ? "koruma" : "saha";
+    state.turn === 1
+      ? "ag"
+      : state.turn === 2
+        ? "kisi"
+        : state.turn === 3
+          ? "bilgi"
+          : state.hat === "idari" || state.hat === "hukuk"
+            ? "koruma"
+            : state.hat === "arastirmaci"
+              ? "bilgi"
+              : "saha";
   const [group, setGroup] = useState<ActionGroup>(defaultGroup);
+  const [focus, setFocus] = useState<ActionId | null>(null);
   const max = apFor(state.hat);
   const spent = max - state.actionsLeft;
   const act = actOf(state.turn);
+  const hintKey = onboardingHint(state);
 
   const onAction = (id: ActionId) => {
     const def = ACTIONS.find((a) => a.id === id);
     if (!def || !canPlay(state, id)) return;
+    setFocus(id);
     if (def.needs === "none") {
       play({ id });
       return;
@@ -288,23 +337,21 @@ function ActionBlock() {
     armAction(state.pendingAction === id ? null : id);
   };
 
+  const focused = focus ?? state.pendingAction;
+  const focusedCopy = focused ? copyForAction(focused, locale, state) : null;
+
   return (
     <div className="space-y-3">
       <div className="flex items-baseline justify-between gap-2">
-        <p className="text-sm font-medium text-paper">Adım 2 · Kapasite</p>
-        <p className="tabular text-xs text-muted">
-          {state.actionsLeft}/{max} kaldı
-        </p>
+        <p className="text-sm font-medium text-paper">{t(locale, "act.step")}</p>
+        <p className="tabular text-xs text-muted">{t(locale, "act.left", { n: state.actionsLeft, max })}</p>
       </div>
       <div className="h-1 overflow-hidden rounded-full bg-elevated">
         <div className="h-full bg-olive" style={{ width: `${Math.round((state.actionsLeft / max) * 100)}%` }} />
       </div>
-      <p className="text-xs leading-relaxed text-subtle">
-        {onboardingHint(state) ??
-          (state.hat === "saha"
-            ? "Saha: yüksek kapasite, daha çok ısı. Ağır iş 3, bakış 1."
-            : "İdari: daha az kapasite, koruma ve dosya daha verimli.")}
-      </p>
+      <p className="text-xs leading-relaxed text-subtle">{hintKey ? t(locale, hintKey) : t(locale, `hat.${state.hat}.body`)}</p>
+      {feedback ? <ExplainCard copy={feedback} mode="after" /> : null}
+      {focusedCopy && !feedback ? <ExplainCard copy={focusedCopy} mode="before" /> : null}
       {visibleObjectives(state).filter((o) => o.status === "open" && !o.secret).length ? (
         <ul className="space-y-1 rounded-sm border border-border bg-bg/30 p-2">
           {visibleObjectives(state)
@@ -312,8 +359,7 @@ function ActionBlock() {
             .slice(0, 3)
             .map((o) => (
               <li key={o.id} className="text-[11px] text-muted">
-                {o.secret ? "Gizli iş · " : ""}
-                {o.title}
+                {t(locale, `obj.${o.id}`)}
               </li>
             ))}
         </ul>
@@ -335,42 +381,37 @@ function ActionBlock() {
                 locked && "opacity-50",
               )}
             >
-              {g.label}
+              {t(locale, `group.${g.id}.label`)}
             </button>
           );
         })}
       </div>
-      <p className="text-[11px] text-subtle">
-        {ACTION_GROUPS.find((g) => g.id === group)?.hint}
-        {group === "kisi" && !mechanicUnlocked(state, "person") ? " · henüz aktif değil (tur 2)" : ""}
-        {group === "bilgi" && !mechanicUnlocked(state, "knowledge") && state.turn < 3 ? " · henüz aktif değil (tur 3)" : ""}
-      </p>
+      <p className="text-[11px] text-subtle">{t(locale, `group.${group}.hint`)}</p>
 
       <div className="grid grid-cols-2 gap-1.5">
-        {ACTIONS.filter((a) => a.group === group).map((a) => {
+        {ACTIONS.filter((a) => a.group === group && !hatBlocks(state.hat, a.id)).map((a) => {
           const locked = Boolean(a.unlockAct && act < a.unlockAct);
           const armed = state.pendingAction === a.id;
           const ok = canPlay(state, a.id);
+          const copy = copyForAction(a.id, locale, state);
           return (
             <button
               key={a.id}
               type="button"
               disabled={(!ok && !armed) || locked}
               onClick={() => onAction(a.id)}
+              onFocus={() => setFocus(a.id)}
               className={cn(
                 "min-h-11 rounded-sm border px-2 py-2 text-left transition-colors duration-(--motion-quick)",
-                armed ? "border-olive bg-olive/15" : "border-border bg-bg/40 hover:border-olive/40",
+                armed || focus === a.id ? "border-olive bg-olive/15" : "border-border bg-bg/40 hover:border-olive/40",
                 ((!ok && !armed) || locked) && "opacity-40",
               )}
             >
               <span className="flex items-baseline justify-between gap-1">
-                <span className="text-sm font-medium text-fg">{a.name}</span>
+                <span className="text-sm font-medium text-fg">{copy.verb ?? copy.label}</span>
                 <span className="font-mono text-[10px] text-olive">{a.ap}</span>
               </span>
-              <span className="mt-0.5 block text-[11px] leading-snug text-muted">
-                {locked ? `Henüz aktif değil · ACT ${a.unlockAct}` : a.blurb}
-              </span>
-              <span className="mt-1 block text-[11px] text-olive">{locked ? "" : a.cost}</span>
+              <span className="mt-0.5 block text-[11px] leading-snug text-muted">{copy.expectedEffect}</span>
             </button>
           );
         })}
@@ -378,7 +419,7 @@ function ActionBlock() {
 
       {state.pendingAction === "rakip_sogut" ? (
         <div className="rounded-sm border border-olive/40 bg-olive/10 p-2">
-          <p className="mb-2 text-xs text-paper">Kimi soğutacaksın?</p>
+          <p className="mb-2 text-xs text-paper">{t(locale, "act.armed")}</p>
           <div className="flex gap-2">
             {(["mit", "emniyet"] as Faction[]).map((f) => (
               <Button key={f} size="sm" variant="secondary" onClick={() => play({ id: "rakip_sogut", faction: f })}>
@@ -392,27 +433,14 @@ function ActionBlock() {
       ["bag_guclendir", "bag_gevset", "bag_gozet", "bag_yalitim", "bag_ifsa", "bag_arabul", "bag_koru"].includes(
         state.pendingAction,
       ) ? (
-        <p className="rounded-sm border border-olive/40 bg-olive/10 px-2 py-2 text-xs text-paper">
-          Haritada iki isim arasındaki çizgiye dokun.
-        </p>
+        <p className="rounded-sm border border-olive/40 bg-olive/10 px-2 py-2 text-xs text-paper">{t(locale, "act.armed")}</p>
       ) : null}
       {state.pendingAction && ["kisi_koru", "kisi_kullan", "kisi_harca", "kisi_mesafe"].includes(state.pendingAction) ? (
-        <p className="rounded-sm border border-olive/40 bg-olive/10 px-2 py-2 text-xs text-paper">
-          Haritadan bir isme dokun. Suikast yok.
-        </p>
+        <p className="rounded-sm border border-olive/40 bg-olive/10 px-2 py-2 text-xs text-paper">{t(locale, "act.armed")}</p>
       ) : null}
 
-      <Button
-        variant={state.actionsLeft === 0 ? "default" : "outline"}
-        className="w-full"
-        onClick={resolve}
-        disabled={spent < 1}
-      >
-        {spent < 1
-          ? "Önce kapasite harca"
-          : state.actionsLeft > 0
-            ? "Kalan kapasiteyi bırak, turu kapat"
-            : "Turu kapat — diğer hatlar hareket eder"}
+      <Button variant={state.actionsLeft === 0 ? "default" : "outline"} className="w-full" onClick={resolve} disabled={spent < 1}>
+        {t(locale, "act.resolve")}
       </Button>
     </div>
   );
@@ -421,18 +449,21 @@ function ActionBlock() {
 function ResolutionBlock() {
   const state = useGame((s) => s.state)!;
   const nextTurn = useGame((s) => s.nextTurn);
+  const locale = useLocale((s) => s.locale);
   return (
     <div className="space-y-2 rounded-md border border-border bg-bg/50 p-3">
-      <p className="text-sm font-medium text-paper">Adım 3 · Ne oldu</p>
+      <p className="text-sm font-medium text-paper">{t(locale, "res.step")}</p>
+      <p className="text-[11px] text-olive">{t(locale, "res.what")}</p>
       <ul className="space-y-1.5">
         {state.lastResolution.map((n, i) => (
           <li key={i} className="text-xs leading-relaxed text-muted">
-            {n}
+            {logLine(locale, n)}
           </li>
         ))}
       </ul>
+      <p className="text-[11px] text-subtle">{t(locale, "res.whyYou")}</p>
       <Button className="w-full" onClick={nextTurn}>
-        Sonraki döneme geç
+        {t(locale, "res.next")}
       </Button>
     </div>
   );

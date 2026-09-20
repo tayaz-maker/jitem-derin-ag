@@ -1,4 +1,5 @@
-import type { CampaignAct, GameState } from "../types.ts";
+import type { CampaignAct, GameState, Locale } from "../types.ts";
+import { t } from "../i18n/copy.ts";
 
 export const ACT_META: Record<
   CampaignAct,
@@ -23,17 +24,18 @@ export function actOf(turn: number): CampaignAct {
   return 7;
 }
 
-export function actLabel(state: GameState) {
+export function actLabel(state: GameState, locale: Locale = "tr") {
   const a = actOf(state.turn);
-  return `ACT ${["I", "II", "III", "IV", "V", "VI", "VII"][a - 1]} · ${ACT_META[a].name}`;
+  const roman = ["I", "II", "III", "IV", "V", "VI", "VII"][a - 1];
+  return t(locale, "brief.act", { n: roman, name: t(locale, `actName.${a}`) });
 }
 
 export function mechanicUnlocked(state: GameState, kind: "edge" | "person" | "knowledge" | "investigation" | "emniyet") {
   const a = actOf(state.turn);
   if (kind === "edge") return a >= 1;
   if (kind === "person") return a >= 2 || state.turn >= 2;
-  if (kind === "knowledge") return a >= 3;
-  if (kind === "investigation") return a >= 4 || state.investigation.stage !== "dormant";
+  if (kind === "knowledge") return a >= 3 || state.hat === "arastirmaci";
+  if (kind === "investigation") return a >= 4 || state.investigation.stage !== "dormant" || state.hat === "hukuk";
   if (kind === "emniyet") return a >= 5 || Boolean(state.revealed.emniyet);
   return true;
 }

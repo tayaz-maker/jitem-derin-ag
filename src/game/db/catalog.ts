@@ -764,6 +764,7 @@ export const ALL_RESEARCH: ResearchRecord[] = RAW_RESEARCH.map(hydrateResearch);
 export const ALL_CLAIMS: ClaimRecord[] = RAW_CLAIMS.map(hydrateClaim);
 export const ALL_RELATIONS: RelationRecord[] = RAW_RELATIONS.map(hydrateRelation);
 export const HISTORY = RAW_HISTORY.map(hydrateHistory);
+export const CLAIM_BY_ID = Object.fromEntries(ALL_CLAIMS.map((c) => [c.id, c]));
 export const RESEARCH_BY_PLAY = Object.fromEntries(
   ALL_RESEARCH.filter((r) => r.playId).map((r) => [r.playId as string, r]),
 );

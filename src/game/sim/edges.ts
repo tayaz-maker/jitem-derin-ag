@@ -1,5 +1,6 @@
 import { EDGES } from "../data.ts";
-import type { EdgeLive, GameState } from "../types.ts";
+import type { EdgeLive, GameState, Locale } from "../types.ts";
+import { t } from "../i18n/copy.ts";
 
 export function seedEdgeLive(): Record<string, EdgeLive> {
   const out: Record<string, EdgeLive> = {};
@@ -48,6 +49,6 @@ export function edgePreview(kind: EdgeMove) {
   }
 }
 
-export function liveLine(e: EdgeLive) {
-  return `güven ${e.trust} · bağımlılık ${e.dependency} · sır ${e.secrecy} · gerilim ${e.tension}`;
+export function liveLine(e: EdgeLive, locale: Locale = "tr") {
+  return t(locale, "map.live", { trust: e.trust, dep: e.dependency, secrecy: e.secrecy, tension: e.tension });
 }

@@ -3,6 +3,7 @@ import { useGame } from "@/game/store";
 import { onboardingHint } from "@/game/engine";
 import { applyShellMode } from "@/game/embed";
 import type { MobilePane } from "@/game/types";
+import { bindParentLocale, t, useLocale } from "@/game/i18n";
 import { Dosya } from "./Dosya";
 import { EndScreen } from "./EndScreen";
 import { EventLog, ReportPane } from "./EventLog";
@@ -13,14 +14,6 @@ import { StartScreen } from "./StartScreen";
 import { TopBar } from "./TopBar";
 import { cn } from "@/lib/utils";
 
-const PANES: { id: MobilePane; label: string }[] = [
-  { id: "map", label: "Harita" },
-  { id: "olay", label: "Olay" },
-  { id: "kisi", label: "Kişi" },
-  { id: "isler", label: "İşler" },
-  { id: "rapor", label: "Rapor" },
-];
-
 export function GameApp() {
   const hydrate = useGame((s) => s.hydrate);
   const persist = useGame((s) => s.persist);
@@ -29,11 +22,15 @@ export function GameApp() {
   const state = useGame((s) => s.state);
   const mobilePane = useGame((s) => s.mobilePane);
   const setMobilePane = useGame((s) => s.setMobilePane);
+  const locale = useLocale((s) => s.locale);
+  const hydrateLocale = useLocale((s) => s.hydrate);
 
   useEffect(() => {
     applyShellMode();
+    hydrateLocale();
     hydrate();
-  }, [hydrate]);
+    return bindParentLocale();
+  }, [hydrate, hydrateLocale]);
 
   useEffect(() => {
     const onHide = () => persist();
@@ -49,8 +46,16 @@ export function GameApp() {
   if (screen === "start" || !state || !hydrated) return <StartScreen />;
   if (state.phase === "ended") return <EndScreen />;
 
-  const hint = onboardingHint(state);
+  const hintKey = onboardingHint(state);
+  const hint = hintKey ? t(locale, hintKey) : null;
   const eventOpen = state.phase === "event";
+  const PANES: { id: MobilePane; label: string }[] = [
+    { id: "map", label: t(locale, "pane.map") },
+    { id: "olay", label: t(locale, "pane.olay") },
+    { id: "kisi", label: t(locale, "pane.kisi") },
+    { id: "isler", label: t(locale, "pane.isler") },
+    { id: "rapor", label: t(locale, "pane.rapor") },
+  ];
 
   return (
     <div className="game-shell flex min-h-0 flex-col bg-bg text-fg">
