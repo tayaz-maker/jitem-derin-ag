@@ -350,6 +350,8 @@ export const tr = {
     step2: "Ağır iş 2–3, bakış 1. Saha 5; diğer hatlar 4. İki buton değil; risk seç.",
     step3t: "3. Tur",
     step3: "Kapat. Diğer hatlar kendi bildikleriyle hareket eder.",
+    contentNote: "Belge, tanıklık ve iddia ayrı tutulur. Tartışmalı anlatım kesin hüküm değildir; oyunsal rekonstrüksiyon ayrıca etiketlenir.",
+    experimental: "DENEYSEL HAT",
     open: "Kampanyayı aç →",
   },
   hud: {

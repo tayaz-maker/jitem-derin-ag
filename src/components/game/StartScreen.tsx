@@ -41,6 +41,10 @@ export function StartScreen() {
           <p className="max-w-xl text-sm leading-relaxed text-muted sm:text-base">{t(locale, "meta.pitch")}</p>
         </header>
 
+        <p className="rounded-md border border-border bg-bg/70 px-3 py-2 text-xs leading-relaxed text-muted">
+          {t(locale, "start.contentNote")}
+        </p>
+
         {brief ? (
           <section className="rounded-md border border-olive/40 bg-surface/90 p-4">
             <p className="scan font-mono text-[10px] text-olive">{t(locale, "start.stayed")}</p>
@@ -95,6 +99,7 @@ export function StartScreen() {
               kicker={t(locale, `hat.${hat}.kicker`)}
               title={t(locale, `hat.${hat}.title`)}
               body={t(locale, `hat.${hat}.body`)}
+              badge={hat === "arastirmaci" || hat === "hukuk" ? t(locale, "start.experimental") : undefined}
               onClick={() => start(hat)}
               openLabel={t(locale, "start.open")}
             />
@@ -115,12 +120,14 @@ function HatCard({
   kicker,
   title,
   body,
+  badge,
   onClick,
   openLabel,
 }: {
   kicker: string;
   title: string;
   body: string;
+  badge?: string;
   onClick: () => void;
   openLabel: string;
 }) {
@@ -131,6 +138,7 @@ function HatCard({
       className="group rounded-md border border-border bg-surface/80 p-4 text-left transition-colors duration-(--motion-fast) hover:border-olive/60 hover:bg-elevated"
     >
       <p className="text-[11px] font-medium text-olive">{kicker}</p>
+      {badge ? <p className="mt-1 text-[10px] font-medium tracking-wide text-warn">{badge}</p> : null}
       <p className="mt-1 text-lg font-medium text-fg">{title}</p>
       <p className="mt-2 text-sm leading-relaxed text-muted">{body}</p>
       <p className="mt-4 text-xs text-paper group-hover:text-olive">{openLabel}</p>

@@ -351,6 +351,8 @@ export const en: DeepStringify<typeof tr> = {
     step2: "Heavy work costs 2–3, a glance costs 1. Field has 5; other lines have 4. Not two buttons — pick a risk.",
     step3t: "3. The turn",
     step3: "Close it. The other lines move on what they themselves know.",
+    contentNote: "Documents, testimony and claims stay separate. Disputed narratives are not findings; gameplay reconstruction is labeled on its own.",
+    experimental: "EXPERIMENTAL LINE",
     open: "Open the campaign →",
   },
   hud: {
