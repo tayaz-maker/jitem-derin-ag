@@ -124,7 +124,7 @@ describe("researcher and hukuk hats", () => {
 
 describe("new claim chains bind to systems", () => {
   it("adds sourced claims hooked to event/faction/investigation/ending", () => {
-    const ids = ["clm_ersever_tapes", "clm_abas_watch_withdrawn", "clm_kocadag_catli_precrash", "clm_eymur_emniyet_warn", "clm_tbmm_commission"];
+    const ids = ["clm_ersever_tapes", "clm_abas_watch_withdrawn", "clm_kocadag_catli_precrash", "clm_eymur_emniyet_warn", "clm_tbmm_commission", "clm_aygan_dogan_split", "clm_kutlu_vs_official", "clm_hanefi_emniyet_split"];
     for (const id of ids) {
       const c = ALL_CLAIMS.find((x) => x.id === id);
       assert.ok(c, id);

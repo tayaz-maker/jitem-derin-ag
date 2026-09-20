@@ -541,6 +541,69 @@ export const FAMILIES: EventFamily[] = [
       { id: "rumor", weight: 2, addendum: "OYUNSAL REKONSTRÜKSİYON: MİT yanlış bağa (Abas–JİTEM) dayanarak soğuyor. Dünya gerçeği kilitlemez.", consequence: { note: "Yanlış bağ. MİT soğudu. Bu, JİTEM emri değildir.", effects: { etki: -3 }, factionKnow: [{ fac: "mit", claimId: "clm_abas_jitem", status: "RUMOR", confidence: 40 }] } },
     ],
   },
+  {
+    id: "fam_source_clash",
+    act: 4,
+    turnWindow: [3, 7],
+    exclusivity: "src-clash",
+    cooldown: 2,
+    triggers: (s) => s.hat === "arastirmaci" && (s.investigation.comparisons?.length ?? 0) >= 1,
+    playerHistory: (s) => (s.investigation.comparisons?.length ?? 0) >= 1,
+    variants: [
+      {
+        id: "media-notice",
+        weight: 2,
+        addendum: "OYUNSAL REKONSTRÜKSİYON: Karşılaştırma sızdı. Basın iki kaynağı gördü; tek doğru yazmadı.",
+        consequence: {
+          note: "Karşılaştırma sızdı. Basın çelişkiyi duydu; kilitlemedi.",
+          effects: { kamuoyu: 4, giz: -3, bilgi: 2 },
+          factionKnow: [{ fac: "media", claimId: "clm_aygan_dogan_split", status: "PARTIAL", confidence: 42 }],
+        },
+      },
+      {
+        id: "denial-push",
+        weight: 2,
+        when: (s) => s.stats.etki >= 36,
+        addendum: "OYUNSAL REKONSTRÜKSİYON: Resmi dil karşı anlatıyı ‘yok’ diye iter. Belge boşluğu durur.",
+        consequence: {
+          note: "Resmi dil karşı anlatıyı itti. İnkâr BELGELİ; saha tanıklığı ayrı durur.",
+          effects: { giz: 3, kamuoyu: 2, hukuk: 1 },
+          hand: [{ claimId: "clm_official_denial", status: "TRUE", confidence: 80, source: "resmi dil" }],
+        },
+      },
+    ],
+  },
+  {
+    id: "fam_chain_consequence",
+    act: 5,
+    turnWindow: [5, 9],
+    exclusivity: "chain-heat",
+    triggers: (s) => s.hat === "hukuk" && ((s.investigation.chain?.length ?? 0) >= 1 || s.investigation.documents.length >= 1),
+    playerHistory: (s) => (s.investigation.chain?.length ?? 0) >= 1 || s.tags.includes("chain-link"),
+    variants: [
+      {
+        id: "prosecutor-scent",
+        weight: 2,
+        addendum: "OYUNSAL REKONSTRÜKSİYON: Halka savcı masasına düştü. Yön var; emir yok.",
+        consequence: {
+          note: "Halka savcı masasına düştü. Soruşturma ısındı; emir üretilmedi.",
+          effects: { hukuk: 4, giz: -2 },
+          factionKnow: [{ fac: "hukuk", claimId: "clm_kutlu_vs_official", status: "PARTIAL", confidence: 50 }],
+        },
+      },
+      {
+        id: "compared-file",
+        weight: 2,
+        when: (s) => (s.investigation.chain?.length ?? 0) >= 2,
+        addendum: "OYUNSAL REKONSTRÜKSİYON: Karşılaştırılmış kayıt zincire girdi. Standart yükseldi.",
+        consequence: {
+          note: "Karşılaştırılmış kayıt zincire girdi. Spekülasyon öne alınmadı.",
+          effects: { hukuk: 5, bilgi: 2, giz: -3 },
+          tags: ["inv-direct"],
+        },
+      },
+    ],
+  },
 ];
 
 export function pickVariant(state: GameState, family: EventFamily): FamilyVariant {

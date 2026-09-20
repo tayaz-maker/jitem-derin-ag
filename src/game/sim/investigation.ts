@@ -148,3 +148,21 @@ export function addDocument(state: GameState, id: string, suppressed = false): G
     : state.investigation.suppressed;
   return { ...state, investigation: { ...state.investigation, documents, suppressed: suppressedList } };
 }
+
+export function recordComparison(state: GameState, claimId: string, sourceIds: string[]): GameState {
+  const comparisons = [...(state.investigation.comparisons ?? [])];
+  if (comparisons.some((c) => c.claimId === claimId)) return state;
+  comparisons.push({ claimId, sourceIds, turn: state.turn });
+  const tags = state.tags.includes("src-compared") ? state.tags : [...state.tags, "src-compared"];
+  return { ...state, tags, investigation: { ...state.investigation, comparisons, heat: state.investigation.heat + 2 } };
+}
+
+export function recordChainLink(state: GameState, claimId: string, documentId: string): GameState {
+  let next = addDocument(state, documentId, false);
+  const chain = [...(next.investigation.chain ?? [])];
+  if (!chain.some((c) => c.documentId === documentId)) {
+    chain.push({ claimId, documentId, turn: next.turn });
+  }
+  const tags = next.tags.includes("chain-link") ? next.tags : [...next.tags, "chain-link"];
+  return { ...next, tags, investigation: { ...next.investigation, chain } };
+}
