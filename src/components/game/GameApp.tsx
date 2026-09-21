@@ -71,8 +71,8 @@ export function GameApp() {
           className={cn(
             "grid h-full min-h-0 grid-rows-1",
             eventOpen
-              ? "lg:grid-cols-[minmax(320px,1fr)_minmax(380px,520px)_minmax(260px,320px)]"
-              : "lg:grid-cols-[minmax(0,1fr)_minmax(300px,380px)]",
+              ? "lg:grid-cols-[minmax(360px,1.05fr)_minmax(420px,1.2fr)_minmax(300px,360px)]"
+              : "lg:grid-cols-[minmax(0,1.65fr)_minmax(380px,460px)]",
           )}
         >
           <div
