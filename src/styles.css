@@ -101,6 +101,26 @@ html[data-shell="embedded"] .game-shell {
   max-height: 100%;
 }
 
+/*
+  Entry/continue is a document-like screen, not the fixed gameplay workspace.
+  Give it exactly one vertical scroll owner: the start shell itself. The embedded
+  document root stays locked for gameplay, while this child owns wheel/touch
+  scrolling. Avoid nested flex scrollers here; they repeatedly trapped the lower
+  start controls inside the iframe.
+*/
+.start-screen-shell {
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+html[data-shell="embedded"] .start-screen-shell {
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+}
+
 .hud-pad {
   padding-top: env(safe-area-inset-top, 0px);
 }
