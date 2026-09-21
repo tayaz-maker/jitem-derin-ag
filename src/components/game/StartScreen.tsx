@@ -8,6 +8,8 @@ import type { Hat } from "@/game/types";
 import { bindParentLocale, t, useLocale } from "@/game/i18n";
 import { LangSwitch } from "./LangSwitch";
 
+const officeImage = `${import.meta.env.BASE_URL}images/office.jpg`;
+
 export function StartScreen() {
   const start = useGame((s) => s.start);
   const load = useGame((s) => s.load);
@@ -29,7 +31,7 @@ export function StartScreen() {
   return (
     <div className="game-shell relative flex min-h-0 flex-col overflow-hidden bg-bg text-fg">
       <img
-        src="/images/office.jpg"
+        src={officeImage}
         alt=""
         className="absolute inset-0 size-full object-cover opacity-40"
       />
