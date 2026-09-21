@@ -29,16 +29,16 @@ export function StartScreen() {
   const brief = hydrated && saved && saved.phase !== "ended" ? briefingFrom(saved, locale) : null;
 
   return (
-    <div className="game-shell relative flex min-h-0 flex-col overflow-x-hidden bg-bg text-fg">
+    <div className="start-screen-shell game-shell relative flex min-h-0 flex-col overflow-x-hidden overflow-y-auto overscroll-contain touch-pan-y bg-bg text-fg">
       <img
         src={officeImage}
         alt=""
-        className="absolute inset-0 size-full object-cover opacity-40"
+        className="fixed inset-0 size-full object-cover opacity-40"
       />
-      <div className="absolute inset-0 bg-linear-to-b from-bg/70 via-bg/80 to-bg" />
+      <div className="fixed inset-0 bg-linear-to-b from-bg/70 via-bg/80 to-bg" />
 
-      <div className="relative z-10 mx-auto h-full min-h-0 w-full max-w-4xl flex-1 touch-pan-y overflow-y-auto overscroll-contain px-5 py-6 [scrollbar-gutter:stable] sm:py-8">
-        <div className="flex min-h-full flex-col gap-5 pb-[max(2.5rem,env(safe-area-inset-bottom))]">
+      <div className="relative z-10 mx-auto w-full max-w-4xl px-5 py-6 [scrollbar-gutter:stable] sm:py-8">
+        <div className="flex flex-col gap-5 pb-[max(2.5rem,env(safe-area-inset-bottom))]">
           <header className="space-y-2">
             <div className="flex items-center justify-between gap-2">
               <p className="scan font-mono text-[11px] text-olive">{t(locale, "meta.kicker")}</p>
