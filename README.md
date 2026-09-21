@@ -6,7 +6,9 @@ Bu oyun, kaynaklardaki belge, tanıklık, iddia ve boşlukları oyunlaştırır.
 
 Kaydetme anahtarı: `jitem-derin-ag-v3` · şema: `schemaVersion: 5`.
 
-Şu an **bağımsız** bir oyun reposudur. `tayaz-maker/tariklab` içine henüz alınmadı. Entegrasyon rehberi: [docs/TARIKLAB.md](docs/TARIKLAB.md).
+Bu repo JITEM'in **upstream/source canonical** kaynağıdır. Canlı ürün ve deployment
+`tayaz-maker/tariklab` içindedir; TarikLab yalnız derlenmiş isolated runtime'ı tutar.
+Entegrasyon rehberi: [docs/TARIKLAB.md](docs/TARIKLAB.md).
 
 ## Ne oynanır
 
@@ -38,7 +40,7 @@ npm run build
 npm run preview      # 127.0.0.1:8081
 ```
 
-Embedded (TarıkLab iframe ileride): `/?embed=1` — iç site header / duplicate back yok. Ayrıntı: [docs/TARIKLAB.md](docs/TARIKLAB.md).
+Embedded TarikLab iframe: `/?embed=1` — iç site header / duplicate back yok. Ayrıntı: [docs/TARIKLAB.md](docs/TARIKLAB.md).
 
 ## Test / typecheck / build
 
