@@ -460,7 +460,9 @@ describe("embedded shell", () => {
       new URL("../../components/game/StartScreen.tsx", import.meta.url),
       "utf8",
     );
-    assert.match(source, /min-h-0[^"]*overflow-y-auto[^"]*overscroll-contain/);
+    assert.match(source, /h-full[^"]*min-h-0[^"]*touch-pan-y[^"]*overflow-y-auto[^"]*overscroll-contain/);
+    assert.match(source, /min-h-full[^"]*pb-\[max\(2\.5rem,env\(safe-area-inset-bottom\)\)\]/);
+    assert.doesNotMatch(source, /my-auto/);
 
     const langSource = readFileSync(
       new URL("../../components/game/LangSwitch.tsx", import.meta.url),

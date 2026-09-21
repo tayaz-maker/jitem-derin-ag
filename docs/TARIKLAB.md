@@ -1,6 +1,24 @@
-# TarıkLab’a alma — henüz yapılmadı
+# TarıkLab integration contract
 
-Bu repo **standalone**. `tayaz-maker/tariklab` içine **şimdilik commit atılmaz**.
+> **Current ownership:** `tayaz-maker/jitem-derin-ag` is JITEM's upstream/source
+> canonical. `tayaz-maker/tariklab` is the product/deployment canonical. The
+> production route is `https://www.tariklab.com/oyna/jitem-derin-ag`.
+>
+> TarikLab stores only the built isolated runtime in
+> `public/games/jitem-derin-ag/`. Never hand-edit its compiled
+> `assets/runtime.js` and never create a third editable source copy.
+
+## Build and sync procedure
+
+1. Change and test source in this upstream repository.
+2. Merge the upstream PR and record the exact resulting `main` SHA.
+3. Build the integration runtime from that SHA with base
+   `/games/jitem-derin-ag/`.
+4. Sync the generated runtime/assets to TarikLab.
+5. Only then update TarikLab `SOURCE.json` with that exact SHA and run its
+   integration/provenance test and product build.
+
+The rest of this file records the embedded/save contract.
 
 Amaç: Derin Ağ’ı lab’e alırken mevcut oyunların route, save ve asset’leriyle **çakıştırmamak**. TC SIM’deki `100vh` + outer shell + duplicate back hatasını **tekrarlamamak**.
 
@@ -64,9 +82,9 @@ veya `/?embed=1&lang=en`. Parent değişince oyun `useLocale` üzerinden yeniden
 
 Header yüksekliği (hedef): mobil HUD ~44px + safe-area; alt nav ~48px + safe-area. Outer lab header **ayrı** — oyun kendi global nav’ını koymaz.
 
-## 1. Taşınacaklar
+## Historical source inventory (do not copy into TarikLab)
 
-Kopyala (lab içinde yeni klasör, overwrite yok):
+These are source references only; TarikLab receives the generated integration output, not these folders:
 
 ```
 src/game/                  →  (aynen)
@@ -86,7 +104,7 @@ docs/                      →  docs/derin-ag/ veya oyun klasörü
 - `startup.sh` (Grok Build iskelesi)
 - Bu repodaki kök `src/routes/index.tsx` (lab’in index’ini ezme)
 
-## 2. Giriş route
+## Production route and asset base
 
 Bu repo: `src/routes/index.tsx` → `<GameApp />`.
 
@@ -132,7 +150,7 @@ Typecheck sonrası oyun testleri:
 node --experimental-strip-types --test src/game/db/validate.test.ts src/game/sim/engine.test.ts
 ```
 
-## 6. Lab’de değişecek dosyalar (gelecek PR)
+## Product scope
 
 1. Yeni route dosyası (yukarı) + `?embed=1` varsayılanı iframe için
 2. Lab nav linki
@@ -161,7 +179,7 @@ Tek PR, tek oyun. Diğer simülasyonlara dokunma.
 - `historicalFact` ile `gameReconstruction` karıştırarak kayıt yazmak
 - Bu standalone repoyu lab’e force-push / subtree karıştırmak — subtree veya kopya klasör
 
-## 9. Önerilen alma yöntemi (ileride)
+## Retired migration notes
 
 ```bash
 # tariklab içinde, bu repoyu kopya olarak al — history zorunlu değil
