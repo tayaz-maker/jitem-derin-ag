@@ -1,3 +1,10 @@
+import {
+  decisionOptions,
+  targetClaims,
+  planMethods,
+  type PlanMethod,
+  type DecisionTarget,
+} from "@/game/sim/planning";
 import { ACTIONS, EDGES, NODES } from "@/game/data";
 import {
   apFor,
@@ -10,7 +17,7 @@ import {
 import { evidenceTone } from "@/game/evidence";
 import { actLabel, mechanicUnlocked } from "@/game/sim/acts";
 import { sourceUxFor } from "@/game/sim/authority";
-import { liveLine } from "@/game/sim/edges";
+import { edgeSignal, liveLine } from "@/game/sim/edges";
 import { investigationView } from "@/game/sim/investigation";
 import { theySeePlayer } from "@/game/sim/knowledge";
 import { memoryLine } from "@/game/sim/memory";
@@ -22,7 +29,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { copyForAction, t, useLocale, nodeInteractive, edgeInteractive, logLine } from "@/game/i18n";
+import {
+  copyForAction,
+  t,
+  useLocale,
+  nodeInteractive,
+  edgeInteractive,
+  logLine,
+} from "@/game/i18n";
 import { hatBlocks } from "@/game/sim/hats";
 import { ClaimDrawer } from "./ClaimDrawer";
 
@@ -78,7 +92,8 @@ export function SidePanel({ forceTab }: { forceTab?: "is" | "dosya" }) {
       {mechanicUnlocked(state, "investigation") || inv.stage !== "dormant" ? (
         <div className="rounded-sm border border-border bg-bg/30 p-2">
           <p className="text-[11px] font-medium text-olive">
-            {t(locale, "inv.title")} · {t(locale, `inv.${inv.stage}`)} · {t(locale, "inv.heat")} {inv.heat}
+            {t(locale, "inv.title")} · {t(locale, `inv.${inv.stage}`)} · {t(locale, "inv.heat")}{" "}
+            {inv.heat}
           </p>
           <p className="mt-1 text-[11px] leading-snug text-muted">{t(locale, inv.why)}</p>
           {inv.raising.length ? (
@@ -110,7 +125,14 @@ export function SidePanel({ forceTab }: { forceTab?: "is" | "dosya" }) {
           {t(locale, "footer.evidence", {
             n: NODES.filter((n) => isNodeVisible(state, n.id)).length,
             total: NODES.length,
-            e: EDGES.filter((e) => isEdgeVisible(state, e.id)).length,
+            e: EDGES.filter((e) => isEdgeVisible(state, e.id)).filter(
+              (e) =>
+                !["hukuk", "arastirmaci"].includes(state.hat) ||
+                targetClaims(state, { kind: "edge", id: e.id, label: e.label }).some(
+                  (c) =>
+                    state.hat !== "hukuk" || ["PARTIAL", "TRUE"].includes(state.hand[c.id].status),
+                ),
+            ).length,
           })}
         </p>
       </div>
@@ -130,7 +152,13 @@ export function PersonPane() {
   const edge = state.selectedEdgeId ? EDGES.find((e) => e.id === state.selectedEdgeId) : null;
   const live = edge ? state.edgeLive[edge.id] : null;
   const src = node?.sourceIds[0] ? SOURCE_BY_ID[node.sourceIds[0]] : undefined;
-  const ux = node ? sourceUxFor({ layer: "sourceClaim", evidence: node.evidence, contradiction: node.sourceClaim }) : [];
+  const ux = node
+    ? sourceUxFor({
+        layer: "sourceClaim",
+        evidence: node.evidence,
+        contradiction: node.sourceClaim,
+      })
+    : [];
   const ni = node ? nodeInteractive(state, node.id, locale) : null;
   const ei = edge ? edgeInteractive(state, edge.id, locale) : null;
 
@@ -140,7 +168,9 @@ export function PersonPane() {
         <p className="scan font-mono text-[10px] text-olive">{t(locale, "map.edge")}</p>
         <h2 className="mt-1 text-lg font-medium text-fg">{edge.label}</h2>
         <div className="mt-1 flex flex-wrap gap-1">
-          <Badge tone={evidenceTone(edge.evidence)}>{t(locale, `evidence.${edge.evidence}.label`)}</Badge>
+          <Badge tone={evidenceTone(edge.evidence)}>
+            {t(locale, `evidence.${edge.evidence}.label`)}
+          </Badge>
         </div>
         <dl className="mt-3 space-y-1.5 text-xs leading-relaxed text-muted">
           <div>
@@ -165,7 +195,12 @@ export function PersonPane() {
           </div>
         </dl>
         {feedback ? <OutcomeCard copy={feedback} /> : null}
-        {state.phase === "actions" ? <ContextualDecisions state={state} target={{ kind: "edge", id: edge.id, label: edge.label }} /> : null}
+        {state.phase === "actions" ? (
+          <ContextualDecisions
+            state={state}
+            target={{ kind: "edge", id: edge.id, label: edge.label }}
+          />
+        ) : null}
       </div>
     );
   }
@@ -177,9 +212,15 @@ export function PersonPane() {
         <>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <h2 className="text-lg font-medium text-fg">{node.name}</h2>
-            <Badge tone={evidenceTone(node.evidence)}>{t(locale, `evidence.${node.evidence}.label`)}</Badge>
+            <Badge tone={evidenceTone(node.evidence)}>
+              {t(locale, `evidence.${node.evidence}.label`)}
+            </Badge>
             <Badge>
-              {node.kind === "kisi" ? t(locale, "map.person") : node.kind === "kurum" ? t(locale, "map.org") : t(locale, "map.corridor")}
+              {node.kind === "kisi"
+                ? t(locale, "map.person")
+                : node.kind === "kurum"
+                  ? t(locale, "map.org")
+                  : t(locale, "map.corridor")}
             </Badge>
             {state.dead[node.id] ? <Badge tone="stamp">{t(locale, "map.closed")}</Badge> : null}
           </div>
@@ -213,7 +254,8 @@ export function PersonPane() {
             <div>
               <dt className="text-paper">{t(locale, "map.evidence")}</dt>
               <dd>
-                {t(locale, `evidence.${node.evidence}.label`)} · {src ? `${src.title}${src.location ? ` · ${src.location}` : ""}` : node.source}
+                {t(locale, `evidence.${node.evidence}.label`)} ·{" "}
+                {src ? `${src.title}${src.location ? ` · ${src.location}` : ""}` : node.source}
               </dd>
             </div>
           </dl>
@@ -225,7 +267,9 @@ export function PersonPane() {
               <button
                 type="button"
                 className="rounded-sm border border-border px-1.5 py-0.5 text-[10px] text-olive"
-                onClick={() => setClaimId(node.researchId.startsWith("clm_") ? node.researchId : null)}
+                onClick={() =>
+                  setClaimId(node.researchId.startsWith("clm_") ? node.researchId : null)
+                }
               >
                 {t(locale, "claim.title")}
               </button>
@@ -243,9 +287,15 @@ export function PersonPane() {
               {t(locale, "claim.title")}
             </button>
           ) : null}
-          {claimId ? <div className="mt-2"><ClaimDrawer claimId={claimId} onClose={() => setClaimId(null)} /></div> : null}
+          {claimId ? (
+            <div className="mt-2">
+              <ClaimDrawer claimId={claimId} onClose={() => setClaimId(null)} />
+            </div>
+          ) : null}
           <details className="mt-3 rounded-sm border border-border bg-bg/40 p-2">
-            <summary className="cursor-pointer text-xs text-olive">{t(locale, "map.layers")}</summary>
+            <summary className="cursor-pointer text-xs text-olive">
+              {t(locale, "map.layers")}
+            </summary>
             <dl className="mt-2 space-y-2 text-xs leading-relaxed text-muted">
               <div>
                 <dt className="text-paper">{t(locale, "map.hist")}</dt>
@@ -261,8 +311,27 @@ export function PersonPane() {
               </div>
             </dl>
           </details>
+          <div className="agenda-fronts mt-3">
+            {EDGES.filter(
+              (e) => (e.from === node.id || e.to === node.id) && isEdgeVisible(state, e.id),
+            )
+              .slice(0, 3)
+              .map((e) => (
+                <button key={e.id} type="button" onClick={() => useGame.getState().pickEdge(e.id)}>
+                  {e.label}{" "}
+                  <small>
+                    {locale === "tr" ? "Bağı incele ve karar ver" : "Inspect connection and decide"}
+                  </small>
+                </button>
+              ))}
+          </div>
           {feedback ? <OutcomeCard copy={feedback} /> : null}
-          {state.phase === "actions" ? <ContextualDecisions state={state} target={{ kind: "node", id: node.id, label: node.name }} /> : null}
+          {state.phase === "actions" ? (
+            <ContextualDecisions
+              state={state}
+              target={{ kind: "node", id: node.id, label: node.name }}
+            />
+          ) : null}
         </>
       ) : (
         <p className="mt-2 text-sm text-muted">{t(locale, "map.pick")}</p>
@@ -284,12 +353,19 @@ function ActionBlock() {
     <div className="space-y-3">
       <div className="flex items-baseline justify-between gap-2">
         <p className="text-sm font-medium text-paper">{t(locale, "decision.agenda")}</p>
-        <p className="tabular text-xs text-muted">{t(locale, "act.left", { n: state.actionsLeft, max })}</p>
+        <p className="tabular text-xs text-muted">
+          {t(locale, "act.left", { n: state.actionsLeft, max })}
+        </p>
       </div>
       <div className="h-1 overflow-hidden rounded-full bg-elevated">
-        <div className="h-full bg-olive" style={{ width: `${Math.round((state.actionsLeft / max) * 100)}%` }} />
+        <div
+          className="h-full bg-olive"
+          style={{ width: `${Math.round((state.actionsLeft / max) * 100)}%` }}
+        />
       </div>
-      <p className="text-xs leading-relaxed text-subtle">{hintKey ? t(locale, hintKey) : t(locale, `hat.${state.hat}.body`)}</p>
+      <p className="text-xs leading-relaxed text-subtle">
+        {hintKey ? t(locale, hintKey) : t(locale, `hat.${state.hat}.body`)}
+      </p>
       {feedback ? <OutcomeCard copy={feedback} /> : null}
       {visibleObjectives(state).filter((o) => o.status === "open" && !o.secret).length ? (
         <ul className="space-y-1 rounded-sm border border-border bg-bg/30 p-2">
@@ -304,66 +380,163 @@ function ActionBlock() {
         </ul>
       ) : null}
 
+      <div className="agenda-fronts">
+        {EDGES.filter((e) => isEdgeVisible(state, e.id))
+          .filter(
+            (e) =>
+              !["hukuk", "arastirmaci"].includes(state.hat) ||
+              targetClaims(state, { kind: "edge", id: e.id, label: e.label }).some(
+                (c) =>
+                  state.hat !== "hukuk" || ["PARTIAL", "TRUE"].includes(state.hand[c.id].status),
+              ),
+          )
+          .sort(
+            (a, b) => (state.edgeLive[b.id]?.tension ?? 0) - (state.edgeLive[a.id]?.tension ?? 0),
+          )
+          .slice(0, 3)
+          .map((e) => (
+            <button type="button" key={e.id} onClick={() => useGame.getState().pickEdge(e.id)}>
+              <span>{e.label}</span>
+              <small>
+                {
+                  {
+                    stable: locale === "tr" ? "Temas fırsatı" : "Contact opportunity",
+                    pressure: locale === "tr" ? "Baskı hattı" : "Pressure front",
+                    fragile: locale === "tr" ? "Kırılgan bağlantı" : "Fragile connection",
+                    hot: locale === "tr" ? "İz bırakıyor" : "Exposed connection",
+                    sealed: locale === "tr" ? "Korunan koridor" : "Protected corridor",
+                  }[edgeSignal(state.edgeLive[e.id])]
+                }
+              </small>
+            </button>
+          ))}
+      </div>
       <div className="rounded-sm border border-olive/40 bg-olive/10 p-3 text-xs leading-relaxed text-paper">
         <p className="font-medium">{t(locale, "decision.pickTarget")}</p>
         <p className="mt-1 text-muted">{t(locale, "decision.pickTargetHint")}</p>
       </div>
 
-      <Button variant={state.actionsLeft === 0 ? "default" : "outline"} className="w-full" onClick={resolve} disabled={spent < 1}>
+      <Button
+        variant={state.actionsLeft === 0 ? "default" : "outline"}
+        className="w-full"
+        onClick={resolve}
+        disabled={spent < 1}
+      >
         {t(locale, "act.resolve")}
       </Button>
     </div>
   );
 }
 
-type DecisionTarget = { kind: "node" | "edge"; id: string; label: string };
-
-function relevantActions(state: GameState, target: DecisionTarget): ActionId[] {
-  if (state.hat === "arastirmaci") {
-    const compared = (state.investigation.comparisons?.length ?? 0) > 0;
-    return compared ? ["src_tut", "src_paylas", "src_yayin"] : ["kaynak_karsilastir", "dogrula", "dosya_oku"];
-  }
-  if (state.hat === "hukuk") {
-    const chain = state.investigation.chain?.length ?? 0;
-    return chain > 0 ? ["kanit_esigi", "soru_sinir", "soru_yonlendir"] : ["delil_zincir", "kanit_esigi", "soru_sinir"];
-  }
-  if (target.kind === "edge") {
-    return state.hat === "idari" ? ["bag_yalitim", "bag_gevset", "bag_arabul"] : ["bag_guclendir", "bag_gozet", "bag_koru", "bag_gevset"];
-  }
-  return state.hat === "idari" ? ["kisi_koru", "kisi_mesafe", "ankara_koru"] : ["kisi_koru", "kisi_kullan", "kisi_mesafe", "kisi_harca"];
-}
-
 function delayedConsequence(id: ActionId, locale: "tr" | "en") {
   const tr = locale === "tr";
-  if (["kisi_koru", "kisi_kullan", "kisi_harca", "kisi_mesafe"].includes(id)) return tr ? "Bu kişi bunu hatırlar; sonraki olay seçenekleri değişebilir." : "This person remembers it; later event choices may change.";
-  if (["bag_guclendir", "bag_gevset", "bag_gozet", "bag_yalitim", "bag_koru"].includes(id)) return tr ? "Bağın durumu, bilgi akışını ve sonraki hat tepkilerini etkileyebilir." : "The tie's state can affect information flow and later line reactions.";
-  if (["kaynak_karsilastir", "dogrula", "src_tut", "src_paylas", "src_yayin"].includes(id)) return tr ? "Dosyanın ne zaman ve kimin önüne gideceği değişebilir." : "It can change when, and before whom, the file appears.";
-  return tr ? "Delil zinciri veya kurumsal tepki sonraki eşiği değiştirebilir." : "The evidence chain or institutional response can change the next threshold.";
+  if (["kisi_koru", "kisi_kullan", "kisi_harca", "kisi_mesafe"].includes(id))
+    return tr
+      ? "Bu kişi bunu hatırlar; sonraki olay seçenekleri değişebilir."
+      : "This person remembers it; later event choices may change.";
+  if (["bag_guclendir", "bag_gevset", "bag_gozet", "bag_yalitim", "bag_koru"].includes(id))
+    return tr
+      ? "Bağın durumu, bilgi akışını ve sonraki hat tepkilerini etkileyebilir."
+      : "The tie's state can affect information flow and later line reactions.";
+  if (["kaynak_karsilastir", "dogrula", "src_tut", "src_paylas", "src_yayin"].includes(id))
+    return tr
+      ? "Dosyanın ne zaman ve kimin önüne gideceği değişebilir."
+      : "It can change when, and before whom, the file appears.";
+  return tr
+    ? "Delil zinciri veya kurumsal tepki sonraki eşiği değiştirebilir."
+    : "The evidence chain or institutional response can change the next threshold.";
 }
 
 function ContextualDecisions({ state, target }: { state: GameState; target: DecisionTarget }) {
   const play = useGame((s) => s.play);
   const locale = useLocale((s) => s.locale);
   const [selected, setSelected] = useState<ActionId | null>(null);
+  const [claimId, setClaimId] = useState("");
+  const [method, setMethod] = useState<PlanMethod>("quiet");
+  const claims = targetClaims(state, target).filter(
+    (c) => state.hat !== "hukuk" || ["PARTIAL", "TRUE"].includes(state.hand[c.id].status),
+  );
+  const boundClaim = claims.find((c) => c.id === claimId) ?? claims[0];
+  const evidenceHat = state.hat === "hukuk" || state.hat === "arastirmaci";
+  const tr = locale === "tr";
 
   useEffect(() => {
     setSelected(null);
-  }, [target.id, state.hat]);
-  const actions = relevantActions(state, target).filter((id) => !hatBlocks(state.hat, id));
+    setMethod("quiet");
+  }, [target.id, state.hat, state.turn]);
+  const actions = decisionOptions(state, target, boundClaim?.id).filter(
+    (id) => !hatBlocks(state.hat, id),
+  );
   const chosen = selected ? ACTIONS.find((action) => action.id === selected) : null;
   const copy = selected ? copyForAction(selected, locale, state) : null;
-  const available = selected ? canPlay(state, selected) : false;
+  const methods = selected ? planMethods(state, selected) : [];
+  const available = selected
+    ? actions.includes(selected) &&
+      canPlay(state, selected) &&
+      (!methods.length || methods.includes(method)) &&
+      (method !== "operational" || state.actionsLeft >= (chosen?.ap ?? 1) + 1)
+    : false;
 
   const commit = () => {
     if (!selected || !available) return;
-    play(selected.startsWith("bag_") ? { id: selected, edgeId: target.id } : selected.startsWith("kisi_") ? { id: selected, nodeId: target.id } : { id: selected });
+    play({
+      id: selected,
+      contextual: true,
+      method: methods.length ? method : undefined,
+      claimId: evidenceHat ? boundClaim?.id : undefined,
+      ...(target.kind === "edge" ? { edgeId: target.id } : { nodeId: target.id }),
+    });
     setSelected(null);
   };
 
   return (
-    <section className="mt-3 space-y-2 rounded-sm border border-olive/40 bg-bg/45 p-2.5" aria-label={t(locale, "decision.title")}>
+    <section
+      className="decision-desk mt-3 space-y-2 rounded-sm border border-olive/40 bg-bg/45 p-2.5"
+      aria-label={t(locale, "decision.title")}
+    >
       <p className="scan font-mono text-[10px] text-olive">{t(locale, "decision.title")}</p>
-      <p className="text-xs text-paper"><span className="text-olive">{t(locale, "decision.target")}:</span> {target.label}</p>
+      <p className="text-xs text-paper">
+        <span className="text-olive">{t(locale, "decision.target")}:</span> {target.label}
+      </p>
+      <p className="decision-context">
+        {evidenceHat
+          ? tr
+            ? "Önce kaydı seç. Sonra bu kaydı nasıl işleyeceğine karar ver."
+            : "Choose the record, then decide how to handle it."
+          : (state.nodeHeat[target.id] ?? 0) > 0
+            ? tr
+              ? "Bu hedef iz bırakıyor. Koruma, erişim ve geri çekilme arasında karar ver."
+              : "This target is leaving a trail. Weigh protection, access and withdrawal."
+            : tr
+              ? "Bağın neye ihtiyacı var? Temas kur, koru veya bilgi için riske gir."
+              : "What does this connection need? Establish contact, protect it or risk it for information."}
+      </p>
+      {evidenceHat && claims.length ? (
+        <label className="block text-xs text-paper">
+          {tr ? "Çalışılacak kayıt" : "Working record"}
+          <select
+            className="plan-record"
+            value={boundClaim?.id}
+            onChange={(e) => {
+              setClaimId(e.target.value);
+              setSelected(null);
+            }}
+          >
+            {claims.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.title} · {state.hand[c.id].status}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+      {!actions.length ? (
+        <p className="text-xs text-muted">
+          {tr
+            ? "Bu hedef için yeni bir uygulanabilir hamle yok. Başka bir bağ veya kaynak seç; ya da turu sonuçlandır."
+            : "No new actionable move on this target. Select another connection or source, or resolve the turn."}
+        </p>
+      ) : null}
       <div className="grid gap-1.5">
         {actions.map((id) => {
           const actionCopy = copyForAction(id, locale, state);
@@ -373,39 +546,141 @@ function ContextualDecisions({ state, target }: { state: GameState; target: Deci
               key={id}
               type="button"
               disabled={!canPlay(state, id)}
-              onClick={() => setSelected(id)}
-              className={cn("min-h-11 rounded-sm border px-2 py-2 text-left text-xs", active ? "border-olive bg-olive/15" : "border-border bg-bg/40 hover:border-olive/50", !canPlay(state, id) && "opacity-40")}
+              onClick={() => {
+                setSelected(id);
+                setMethod("quiet");
+              }}
+              className={cn(
+                "min-h-11 rounded-sm border px-2 py-2 text-left text-xs",
+                active
+                  ? "border-olive bg-olive/15"
+                  : "border-border bg-bg/40 hover:border-olive/50",
+                !canPlay(state, id) && "opacity-40",
+              )}
             >
-              <span className="flex items-baseline justify-between gap-2"><span className="font-medium text-fg">{actionCopy.verb ?? actionCopy.label}</span><span className="font-mono text-[10px] text-olive">{ACTIONS.find((a) => a.id === id)?.ap}</span></span>
-              <span className="mt-0.5 block text-[11px] leading-snug text-muted">{actionCopy.shortExplanation}</span>
+              <span className="flex items-baseline justify-between gap-2">
+                <span className="font-medium text-fg">{actionCopy.verb ?? actionCopy.label}</span>
+                <span className="font-mono text-[10px] text-olive">
+                  {ACTIONS.find((a) => a.id === id)?.ap}
+                </span>
+              </span>
+              <span className="mt-0.5 block text-[11px] leading-snug text-muted">
+                {actionCopy.shortExplanation}
+              </span>
             </button>
           );
         })}
       </div>
       {copy && chosen ? (
         <div className="space-y-1.5 border-t border-border pt-2 text-[11px] leading-snug">
-          <p><span className="text-olive">{t(locale, "decision.intent")}:</span> {copy.whyItMatters}</p>
-          <p><span className="text-olive">{t(locale, "decision.cost")}:</span> {copy.knownCost}</p>
-          <p><span className="text-olive">{t(locale, "decision.effect")}:</span> {copy.expectedEffect}</p>
-          <p><span className="text-olive">{t(locale, "decision.risk")}:</span> {copy.shortExplanation}</p>
-          <p className="text-warn"><span className="text-olive">{t(locale, "decision.delayed")}:</span> {delayedConsequence(selected!, locale)}</p>
-          {copy.uncertainty ? <p className="text-warn"><span className="text-olive">{t(locale, "decision.uncertainty")}:</span> {copy.uncertainty}</p> : null}
-          <Button className="mt-1 w-full" disabled={!available} onClick={commit}>{t(locale, "decision.commit")}</Button>
+          {methods.length ? (
+            <fieldset className="plan-methods">
+              <legend>{tr ? "Uygulama biçimi" : "Approach"}</legend>
+              {methods.map((m) => (
+                <button
+                  type="button"
+                  key={m}
+                  aria-pressed={method === m}
+                  onClick={() => setMethod(m)}
+                >
+                  {m === "quiet"
+                    ? tr
+                      ? "Sessiz temas"
+                      : "Quiet contact"
+                    : m === "institutional"
+                      ? tr
+                        ? "Kurumsal kanal"
+                        : "Institutional channel"
+                      : tr
+                        ? "Hızlı müdahale"
+                        : "Rapid intervention"}
+                </button>
+              ))}
+              <p>
+                {method === "quiet"
+                  ? tr
+                    ? "Gizlilik artar, erişim daralır. Güven karşılığı iki tur sonra gelir."
+                    : "More secrecy, less reach. Trust returns after two turns."
+                  : method === "institutional"
+                    ? tr
+                      ? "4 nüfuz: gerilim azalır, kuruma bağımlılık ve soruşturma izi artar. Yanıt gelecek tur."
+                      : "4 influence: less tension, more institutional dependency and investigation exposure. Reply next turn."
+                    : tr
+                      ? "Ek 1 hamle + 4 örtülü kaynak: erişim hızlanır; kişiler ve bağlantılar iz bırakır. Geri tepme gelecek tur."
+                      : "Extra 1 action + 4 covert resources: faster reach; actors and connections leave traces. Blowback next turn."}
+              </p>
+            </fieldset>
+          ) : null}
+          <p>
+            <span className="text-olive">{t(locale, "decision.intent")}:</span> {copy.whyItMatters}
+          </p>
+          <p>
+            <span className="text-olive">{t(locale, "decision.cost")}:</span> {copy.knownCost}
+          </p>
+          <p>
+            <span className="text-olive">{t(locale, "decision.effect")}:</span>{" "}
+            {copy.expectedEffect}
+          </p>
+          <p>
+            <span className="text-olive">{t(locale, "decision.risk")}:</span>{" "}
+            {ACTIONS.find((a) => a.id === selected)?.risk && copy.uncertainty
+              ? copy.uncertainty
+              : copy.shortExplanation}
+          </p>
+          <p className="text-warn">
+            <span className="text-olive">{t(locale, "decision.delayed")}:</span>{" "}
+            {delayedConsequence(selected!, locale)}
+          </p>
+          {copy.uncertainty ? (
+            <p className="text-warn">
+              <span className="text-olive">{t(locale, "decision.uncertainty")}:</span>{" "}
+              {copy.uncertainty}
+            </p>
+          ) : null}
+          <Button className="mt-1 w-full" disabled={!available} onClick={commit}>
+            {t(locale, "decision.commit")}
+          </Button>
         </div>
+      ) : null}
+      {state.actionsLeft < apFor(state.hat) ? (
+        <Button variant="outline" className="w-full" onClick={() => useGame.getState().resolve()}>
+          {t(locale, "act.resolve")}
+        </Button>
       ) : null}
     </section>
   );
 }
 
 function OutcomeCard({ copy }: { copy: ReturnType<typeof copyForAction> }) {
+  const state = useGame((s) => s.state);
+  const pending = state?.tags
+    .filter((tag) => tag.startsWith("plan-due:"))
+    .at(-1)
+    ?.split(":");
   const locale = useLocale((s) => s.locale);
   return (
     <div className="mt-3 rounded-sm border border-olive/40 bg-olive/10 p-2.5 text-xs leading-snug">
       <p className="scan font-mono text-[10px] text-olive">{t(locale, "decision.after")}</p>
-      <p className="mt-1 text-paper"><span className="text-olive">{t(locale, "decision.happened")}:</span> {copy.resultExplanation}</p>
-      <p className="mt-1 text-muted"><span className="text-olive">{t(locale, "decision.why")}:</span> {copy.whyItMatters}</p>
-      <p className="mt-1 text-muted"><span className="text-olive">{t(locale, "decision.changed")}:</span> {copy.expectedEffect}</p>
-      <p className="mt-1 text-warn"><span className="text-olive">{t(locale, "decision.watch")}:</span> {copy.nextSuggestion}</p>
+      <p className="mt-1 text-paper">
+        <span className="text-olive">{t(locale, "decision.happened")}:</span>{" "}
+        {copy.resultExplanation}
+      </p>
+      <p className="mt-1 text-muted">
+        <span className="text-olive">{t(locale, "decision.why")}:</span> {copy.whyItMatters}
+      </p>
+      <p className="mt-1 text-muted">
+        <span className="text-olive">{t(locale, "decision.changed")}:</span> {copy.expectedEffect}
+      </p>
+      <p className="mt-1 text-warn">
+        <span className="text-olive">{t(locale, "decision.watch")}:</span> {copy.nextSuggestion}
+      </p>
+      {pending ? (
+        <p className="mt-2 border-t border-border pt-2 text-paper">
+          {locale === "tr"
+            ? `Beklenen karşılık: ${pending[1]}. tur. ${pending[2] === "quiet" ? "Sessiz temasın güven etkisi henüz gelmedi." : pending[2] === "institutional" ? "Kurumsal ilginin sonraki adımını izle." : "Müdahalenin bıraktığı izi sonraki tur izle."}`
+            : `Expected response: turn ${pending[1]}. ${pending[2] === "quiet" ? "The contact has not returned yet." : pending[2] === "institutional" ? "Watch the institution’s next response." : "Watch the trail left by the intervention."}`}
+        </p>
+      ) : null}
     </div>
   );
 }

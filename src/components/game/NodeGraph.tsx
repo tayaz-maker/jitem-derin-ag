@@ -2,7 +2,7 @@ import { useMemo, type KeyboardEvent } from "react";
 import { EDGES, NODES } from "@/game/data";
 import { isEdgeVisible, isNodeVisible, nodeById } from "@/game/engine";
 import { evidenceColor } from "@/game/evidence";
-import { edgeMarks, edgeSignal, dangerousActors } from "@/game/sim/edges";
+import { edgeSignal, dangerousActors } from "@/game/sim/edges";
 import { edgeWhy, nodeWhy } from "@/game/sim/inspect";
 import { useGame } from "@/game/store";
 import { t, useLocale } from "@/game/i18n";
@@ -35,15 +35,30 @@ export function NodeGraph() {
     () => (state ? EDGES.filter((e) => isEdgeVisible(state, e.id)) : []),
     [state],
   );
-  const dangerIds = useMemo(() => (state ? new Set(dangerousActors(state)) : new Set<string>()), [state]);
+  const dangerIds = useMemo(
+    () => (state ? new Set(dangerousActors(state)) : new Set<string>()),
+    [state],
+  );
   if (!state) return null;
 
   const arming =
-    ["bag_guclendir", "bag_gevset", "bag_gozet", "bag_yalitim", "bag_ifsa", "bag_arabul", "bag_koru"].includes(
-      state.pendingAction ?? "",
-    ) || ["kisi_koru", "kisi_kullan", "kisi_harca", "kisi_mesafe"].includes(state.pendingAction ?? "");
+    [
+      "bag_guclendir",
+      "bag_gevset",
+      "bag_gozet",
+      "bag_yalitim",
+      "bag_ifsa",
+      "bag_arabul",
+      "bag_koru",
+    ].includes(state.pendingAction ?? "") ||
+    ["kisi_koru", "kisi_kullan", "kisi_harca", "kisi_mesafe"].includes(state.pendingAction ?? "");
 
   const clustered = state.graphMode === "factions";
+  const minX = Math.min(...visibleNodes.map((n) => n.x)) - 85;
+  const minY = Math.min(...visibleNodes.map((n) => n.y)) - 85;
+  const boardWidth = Math.max(300, Math.max(...visibleNodes.map((n) => n.x)) - minX + 85);
+  const boardHeight = Math.max(270, Math.max(...visibleNodes.map((n) => n.y)) - minY + 100);
+  const boardView = clustered ? "-48 -16 1120 660" : `${minX} ${minY} ${boardWidth} ${boardHeight}`;
   const selected = state.selectedNodeId;
   const neighborIds = new Set<string>();
   if (selected) {
@@ -60,8 +75,12 @@ export function NodeGraph() {
       : null;
 
   return (
-    <div className="relative h-full min-h-[220px] w-full overflow-hidden bg-bg">
-      <img src="/images/map.jpg" alt="" className="absolute inset-0 size-full object-cover opacity-20" />
+    <div className="network-board relative h-full min-h-[220px] w-full overflow-hidden bg-bg">
+      <img
+        src="/images/map.jpg"
+        alt=""
+        className="absolute inset-0 size-full object-cover opacity-10"
+      />
       <div className="absolute inset-0 bg-bg/55" />
       <div className="absolute right-2 top-2 z-20 flex gap-1">
         <button
@@ -80,7 +99,7 @@ export function NodeGraph() {
         </button>
       </div>
       <svg
-        viewBox="-48 -16 1120 660"
+        viewBox={boardView}
         className="relative z-10 h-full w-full"
         role="img"
         aria-label={t(locale, "map.aria")}
@@ -88,8 +107,12 @@ export function NodeGraph() {
       >
         <title>{t(locale, "map.aria")}</title>
         {clustered
-          ? CLUSTERS.filter((c) => visibleNodes.some((n) => n.faction === c.faction || n.id === c.id)).map((c) => {
-              const count = visibleNodes.filter((n) => n.faction === c.faction || n.id === c.id).length;
+          ? CLUSTERS.filter((c) =>
+              visibleNodes.some((n) => n.faction === c.faction || n.id === c.id),
+            ).map((c) => {
+              const count = visibleNodes.filter(
+                (n) => n.faction === c.faction || n.id === c.id,
+              ).length;
               const heat = visibleNodes
                 .filter((n) => n.faction === c.faction)
                 .reduce((s, n) => s + (state.nodeHeat[n.id] ?? 0), 0);
@@ -122,10 +145,22 @@ export function NodeGraph() {
                     fill="var(--color-elevated)"
                     stroke={heat > 2 ? "var(--color-stamp)" : "var(--color-paper)"}
                   />
-                  <text textAnchor="middle" y={-4} fill="var(--color-fg)" fontSize={13} fontFamily="IBM Plex Sans, sans-serif">
+                  <text
+                    textAnchor="middle"
+                    y={-4}
+                    fill="var(--color-fg)"
+                    fontSize={13}
+                    fontFamily="IBM Plex Sans, sans-serif"
+                  >
                     {clusterName}
                   </text>
-                  <text textAnchor="middle" y={16} fill="var(--color-muted)" fontSize={10} fontFamily="IBM Plex Mono, monospace">
+                  <text
+                    textAnchor="middle"
+                    y={16}
+                    fill="var(--color-muted)"
+                    fontSize={10}
+                    fontFamily="IBM Plex Mono, monospace"
+                  >
                     {t(locale, "map.nodes", { n: count, heat })}
                   </text>
                 </g>
@@ -144,7 +179,6 @@ export function NodeGraph() {
             const color = evidenceColor(e.evidence);
             const live = state.edgeLive[e.id];
             const sig = live ? edgeSignal(live) : null;
-            const marks = selectedE ? edgeMarks(state, e.id) : [];
             const hot = sig === "hot" || sig === "pressure";
             const fragile = sig === "fragile";
             return (
@@ -157,7 +191,13 @@ export function NodeGraph() {
                   stroke={hot ? "var(--color-stamp)" : color}
                   strokeWidth={selectedE ? 4 : near ? 2.6 : Math.max(1, 1 + str + (hot ? 0.6 : 0))}
                   strokeOpacity={str <= 0 ? 0.2 : selectedE || near ? 0.95 : 0.4 + str * 0.12}
-                  strokeDasharray={fragile || e.evidence === "TARTIŞMALI" ? "6 4" : e.evidence === "BOŞLUK" ? "2 5" : undefined}
+                  strokeDasharray={
+                    fragile || e.evidence === "TARTIŞMALI"
+                      ? "6 4"
+                      : e.evidence === "BOŞLUK"
+                        ? "2 5"
+                        : undefined
+                  }
                   onClick={(ev) => {
                     ev.stopPropagation();
                     pickEdge(e.id);
@@ -189,7 +229,21 @@ export function NodeGraph() {
                     fontSize={10}
                     fontFamily="IBM Plex Mono, monospace"
                   >
-                    {marks.length ? `${marks.join(" ")} · ` : ""}g{live.trust} s{live.secrecy} t{live.tension}
+                    {locale === "tr"
+                      ? {
+                          stable: "İşleyen bağlantı",
+                          pressure: "Baskı hattı",
+                          fragile: "Kırılgan bağ",
+                          hot: "Soruşturma izi",
+                          sealed: "Korunan koridor",
+                        }[edgeSignal(live)]
+                      : {
+                          stable: "Working connection",
+                          pressure: "Pressure front",
+                          fragile: "Fragile tie",
+                          hot: "Investigation exposure",
+                          sealed: "Protected corridor",
+                        }[edgeSignal(live)]}
                   </text>
                 ) : null}
               </g>
@@ -200,7 +254,8 @@ export function NodeGraph() {
           visibleNodes.map((n) => {
             const isSel = state.selectedNodeId === n.id;
             const dead = Boolean(state.dead[n.id]);
-            const heated = (state.nodeHeat[n.id] ?? 0) > 0 || Boolean(state.actorMemory[n.id]?.length);
+            const heated =
+              (state.nodeHeat[n.id] ?? 0) > 0 || Boolean(state.actorMemory[n.id]?.length);
             const dangerous = dangerIds.has(n.id);
             const near = neighborIds.has(n.id);
             const focus =
@@ -212,7 +267,11 @@ export function NodeGraph() {
               visibleNodes.length <= 10;
             const fade = !focus;
             const color =
-              n.kind === "kurum" ? "var(--color-paper)" : n.kind === "koridor" ? "var(--color-olive)" : "var(--color-fg)";
+              n.kind === "kurum"
+                ? "var(--color-paper)"
+                : n.kind === "koridor"
+                  ? "var(--color-olive)"
+                  : "var(--color-fg)";
             const r = n.kind === "kurum" ? 18 : 14;
             return (
               <g
@@ -229,12 +288,33 @@ export function NodeGraph() {
                 }}
                 onKeyDown={(ev) => activate(ev, () => pickNode(n.id))}
               >
-                {isSel ? <circle r={r + 12} fill="none" stroke="var(--color-olive)" strokeWidth={1.5} opacity={0.9} /> : null}
+                {isSel ? (
+                  <circle
+                    r={r + 12}
+                    fill="none"
+                    stroke="var(--color-olive)"
+                    strokeWidth={1.5}
+                    opacity={0.9}
+                  />
+                ) : null}
                 {heated && !dead ? (
-                  <circle r={r + 7} fill="none" stroke="var(--color-stamp)" strokeWidth={1} opacity={0.55} />
+                  <circle
+                    r={r + 7}
+                    fill="none"
+                    stroke="var(--color-stamp)"
+                    strokeWidth={1}
+                    opacity={0.55}
+                  />
                 ) : null}
                 {dangerous && !dead ? (
-                  <circle r={r + 10} fill="none" stroke="var(--color-stamp)" strokeWidth={1.4} strokeDasharray="2 3" opacity={0.8} />
+                  <circle
+                    r={r + 10}
+                    fill="none"
+                    stroke="var(--color-stamp)"
+                    strokeWidth={1.4}
+                    strokeDasharray="2 3"
+                    opacity={0.8}
+                  />
                 ) : null}
                 {n.kind === "kurum" ? (
                   <rect
@@ -281,7 +361,13 @@ export function NodeGraph() {
                   {n.name}
                 </text>
                 {dead ? (
-                  <text y={4} textAnchor="middle" fill="var(--color-stamp)" fontSize={7} fontFamily="IBM Plex Mono, monospace">
+                  <text
+                    y={4}
+                    textAnchor="middle"
+                    fill="var(--color-stamp)"
+                    fontSize={7}
+                    fontFamily="IBM Plex Mono, monospace"
+                  >
                     {t(locale, "map.closed")}
                   </text>
                 ) : null}

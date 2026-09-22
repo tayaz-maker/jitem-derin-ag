@@ -180,6 +180,8 @@ export interface Decision {
 }
 
 export interface PlannedAction {
+  contextual?: boolean;
+  method?: "quiet" | "institutional" | "operational";
   id: ActionId;
   edgeId?: string;
   nodeId?: string;

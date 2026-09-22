@@ -378,9 +378,9 @@ export const en: DeepStringify<typeof tr> = {
     ties: "Critical ties",
     next: "The next problem",
     step1t: "1. Stance",
-    step1: "Read the period event. Pick one of three stances.",
+    step1: "Read the agenda; locate a person or connection under pressure.",
     step2t: "2. Capacity",
-    step2: "Heavy work costs 2–3, a glance costs 1. Field has 5; other lines have 4. Not two buttons — pick a risk.",
+    step2: "Choose a target and approach. Weigh resource cost, reach and the trail you leave.",
     step3t: "3. The turn",
     step3: "Close it. The other lines move on what they themselves know.",
     contentNote: "Documents, testimony and claims stay separate. Disputed narratives are not findings; gameplay reconstruction is labeled on its own.",
@@ -776,6 +776,7 @@ export const en: DeepStringify<typeof tr> = {
     yesil: "Yeşil was spent. The perpetrator claim warmed; the order-gap remains.",
   },
   note: {
+    plan: { quiet: "{target}: the quiet contact from turn {turn} now rebuilt trust. Access narrowed during the wait.", institutional: "{target}: the institutional approach from turn {turn} received a response; the tie recovered but institutional attention increased.", operational: "{target}: the rapid intervention from turn {turn} left a trail. Tension and investigation proximity increased." },
     jitem: {
       freelance: "The JITEM line is closing a capacity gap on its own. The desk did not order it.",
       resentment: "JITEM: a spent field line carries resentment. A freelance leak.",

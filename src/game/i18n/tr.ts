@@ -377,9 +377,9 @@ export const tr = {
     ties: "Kritik bağlar",
     next: "Sıradaki problem",
     step1t: "1. Duruş",
-    step1: "Dönem olayını oku, üç seçenekten birini seç.",
+    step1: "Gündemi oku; baskı altındaki kişi veya bağlantıyı haritada bul.",
     step2t: "2. Kapasite",
-    step2: "Ağır iş 2–3, bakış 1. Saha 5; diğer hatlar 4. İki buton değil; risk seç.",
+    step2: "Hedefini ve uygulama biçimini seç. Kaynak maliyetini, erişimi ve bırakacağın izi tart.",
     step3t: "3. Tur",
     step3: "Kapat. Diğer hatlar kendi bildikleriyle hareket eder.",
     contentNote: "Belge, tanıklık ve iddia ayrı tutulur. Tartışmalı anlatım kesin hüküm değildir; oyunsal rekonstrüksiyon ayrıca etiketlenir.",
@@ -783,6 +783,7 @@ export const tr = {
     yesil: "Yeşil harcandı. Fail iddiası ısındı; emir boşluğu durur.",
   },
   note: {
+    plan: { quiet: "{target}: {turn}. turdaki sessiz temas şimdi güveni toparladı. Beklerken erişim daraldı.", institutional: "{target}: {turn}. turdaki kurumsal temas karşılık buldu; bağ toparlandı ama kurumun ilgisi arttı.", operational: "{target}: {turn}. turdaki hızlı müdahalenin izi geri döndü. Bağdaki gerilim ve soruşturma yakınlığı arttı." },
     jitem: {
       freelance: "JİTEM hattı kapasite açığını kendi başına kapatıyor. Masa emretmedi.",
       resentment: "JİTEM: harcanan saha hattı kin taşıyor. Freelance sızıntı.",

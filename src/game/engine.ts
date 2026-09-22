@@ -1,3 +1,4 @@
+import { applyPlanConsequences, tickPlans, planMethods, decisionOptions } from "./sim/planning.ts";
 import { ACTIONS, EDGES, ENDINGS, EVENT_CHOICES, EVENTS, NODES } from "./data.ts";
 import { actOf, mechanicUnlocked } from "./sim/acts.ts";
 import { seedEdgeLive, touchEdge } from "./sim/edges.ts";
@@ -426,6 +427,16 @@ function needEdge(state: GameState, plan: PlannedAction) {
 }
 
 export function executeAction(state: GameState, plan: PlannedAction): GameState {
+  if(plan.contextual) {
+    const target = plan.edgeId ? {kind: "edge" as const,id:plan.edgeId,label:""} : {kind:"node" as const,id:plan.nodeId??"",label:""};
+    if(!decisionOptions(state,target,plan.claimId).includes(plan.id))return state;
+    if(plan.method && !planMethods(state,plan.id).includes(plan.method))return state;
+    if(plan.method==='operational' && state.actionsLeft<actionAp(plan.id)+1)return state;
+  }
+  return applyPlanConsequences(state,executeCoreAction(state,plan),plan);
+}
+
+function executeCoreAction(state: GameState, plan: PlannedAction): GameState {
   if (!canPlay(state, plan.id)) return state;
   const apCost = actionAp(plan.id);
   let next: GameState = { ...state, actionsLeft: state.actionsLeft - apCost, pendingAction: null };
@@ -724,7 +735,7 @@ export function executeAction(state: GameState, plan: PlannedAction): GameState 
       const fallback = ALL_CLAIMS.filter((c) => c.contradiction && held.some((h) => h.claimId === c.id));
       const unusedClash = clash.filter((c) => !compared.has(c.id));
       const unusedFb = fallback.filter((c) => !compared.has(c.id));
-      const pick = unusedClash[0] ?? clash[0] ?? unusedFb[0] ?? fallback[0];
+      const pick = (plan.claimId ? fallback.find(c=>c.id===plan.claimId) : undefined) ?? unusedClash[0] ?? clash[0] ?? unusedFb[0] ?? fallback[0];
       next = applyStat(next, "bilgi", 8);
       next = applyStat(next, "giz", -3);
       next = applyStat(next, "kamuoyu", pick ? 2 : 1);
@@ -792,7 +803,7 @@ export function executeAction(state: GameState, plan: PlannedAction): GameState 
       break;
     }
     case "dogrula": {
-      const rumor = Object.values(next.hand).find((h) => h.status === "RUMOR") ?? Object.values(next.hand).find((h) => h.status === "PARTIAL");
+      const rumor = (plan.claimId ? next.hand[plan.claimId] : undefined) ?? Object.values(next.hand).find((h) => h.status === "RUMOR") ?? Object.values(next.hand).find((h) => h.status === "PARTIAL");
       if (!rumor) {
         next.actionsLeft += apCost;
         next = addLog(next, "Yoklanacak söylenti yok.", "sistem", "act.dogrula.none");
@@ -954,7 +965,7 @@ function finish(state: GameState, ending: EndingId, notes: string[]): GameState 
 
 export function resolveTurn(state: GameState): GameState {
   const notes: string[] = [];
-  let next = tickFactions(state, notes);
+  let next = tickFactions(tickPlans(state, notes), notes);
   next = tickKnowledge(next, notes);
   next = tickSides(next, notes);
   next = tickMemory(next, notes);
