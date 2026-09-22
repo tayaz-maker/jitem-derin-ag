@@ -38,6 +38,7 @@ import { briefingFrom } from "./briefing.ts";
 import { ALL_CLAIMS } from "../db/catalog.ts";
 import { edgeSignal, dangerousActors, propagationRisk } from "./edges.ts";
 import { hatTick } from "./hats.ts";
+import { decisionOptions, targetClaims } from "./planning.ts";
 
 describe("campaign engine", () => {
   it("starts with research-backed visible nodes", () => {
@@ -504,9 +505,44 @@ describe("embedded shell", () => {
       new URL("../../components/game/SidePanel.tsx", import.meta.url),
       "utf8",
     );
-    assert.match(source, /function relevantActions\(state: GameState, target: DecisionTarget\)/);
-    assert.match(source, /state\.hat === "arastirmaci"/);
-    assert.match(source, /state\.hat === "hukuk"/);
+    assert.match(source, /decisionOptions\(state, target, boundClaim\?\.id\)/);
+    const target = { kind: "node" as const, id: "dogan", label: "Doğan" };
+    const field = createGame("saha", 42);
+    assert.deepEqual(decisionOptions(field, target), ["kisi_koru", "kisi_kullan"]);
+    const edgeId = Object.keys(field.edgeLive)[0];
+    assert.ok(edgeId);
+    assert.ok(
+      decisionOptions(field, { kind: "edge", id: edgeId, label: edgeId }).includes("bag_gozet"),
+    );
+
+    const researcher = createGame("arastirmaci", 42);
+    const researchClaim = targetClaims(researcher, target)[0];
+    assert.ok(researchClaim, "researcher holds a record related to the selected actor");
+    const unverified = {
+      ...researcher,
+      hand: {
+        ...researcher.hand,
+        [researchClaim.id]: {
+          ...researcher.hand[researchClaim.id],
+          status: "PARTIAL" as const,
+          confidence: 40,
+        },
+      },
+    };
+    assert.ok(decisionOptions(unverified, target, researchClaim.id).includes("dogrula"));
+    assert.deepEqual(decisionOptions(unverified, target, "not-held"), []);
+
+    const lawyer = { ...unverified, hat: "hukuk" as const };
+    assert.deepEqual(decisionOptions(lawyer, target, researchClaim.id), ["delil_zincir"]);
+    assert.deepEqual(decisionOptions(lawyer, target, "not-held"), []);
+    const rumor = {
+      ...lawyer,
+      hand: {
+        ...lawyer.hand,
+        [researchClaim.id]: { ...lawyer.hand[researchClaim.id], status: "RUMOR" as const },
+      },
+    };
+    assert.deepEqual(decisionOptions(rumor, target, researchClaim.id), []);
     assert.match(source, /target\.kind === "edge"/);
     assert.match(source, /decision\.pickTarget/);
     assert.match(source, /decision\.commit/);
