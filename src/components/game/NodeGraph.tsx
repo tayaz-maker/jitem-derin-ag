@@ -25,6 +25,7 @@ export function NodeGraph() {
   const pickNode = useGame((s) => s.pickNode);
   const pickEdge = useGame((s) => s.pickEdge);
   const setGraphMode = useGame((s) => s.setGraphMode);
+  const setMobilePane = useGame((s) => s.setMobilePane);
   const locale = useLocale((s) => s.locale);
   const visibleNodes = useMemo(
     () => (state ? NODES.filter((n) => isNodeVisible(state, n.id)) : []),
@@ -288,7 +289,7 @@ export function NodeGraph() {
             );
           })}
       </svg>
-      <div className="absolute bottom-2 left-2 right-2 z-20 rounded-sm border border-border bg-surface/90 px-2 py-1.5">
+      <div className="absolute bottom-2 left-2 right-2 z-20 flex items-center justify-between gap-2 rounded-sm border border-border bg-surface/90 px-2 py-1.5">
         <p className="text-[11px] leading-snug text-muted">
           {arming
             ? t(locale, "map.arm")
@@ -300,6 +301,19 @@ export function NodeGraph() {
                   ? t(locale, "map.focus")
                   : t(locale, "map.legend")}
         </p>
+        {why && !arming ? (
+          // Desktop already reveals the full ACTIONABLE/DETAIL file next to
+          // the map on selection (see SidePanel's auto tab-switch); this is
+          // the mobile-only bridge from a MAP SUMMARY tap to that same file,
+          // since mobile shows one pane at a time.
+          <button
+            type="button"
+            onClick={() => setMobilePane("kisi")}
+            className="min-h-8 shrink-0 rounded-sm bg-olive px-2 text-[11px] font-medium text-olive-fg lg:hidden"
+          >
+            {t(locale, "map.openFile")}
+          </button>
+        ) : null}
       </div>
     </div>
   );

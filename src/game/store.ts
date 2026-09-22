@@ -169,7 +169,10 @@ export const useGame = create<Store>((set, get) => ({
       set({ state, feedback: resultForAction(s.pendingAction, locale, state, id) });
       return;
     }
-    set({ state: { ...s, selectedEdgeId: id } });
+    set({
+      state: { ...s, selectedEdgeId: id },
+      mobilePane: get().mobilePane === "map" ? "kisi" : get().mobilePane,
+    });
   },
 
   armAction: (id) => {

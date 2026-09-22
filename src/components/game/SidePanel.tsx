@@ -20,7 +20,7 @@ import { useGame } from "@/game/store";
 import type { ActionGroup, ActionId, Faction } from "@/game/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { copyForAction, t, useLocale, nodeInteractive, edgeInteractive, logLine } from "@/game/i18n";
 import { hatBlocks } from "@/game/sim/hats";
@@ -31,6 +31,17 @@ export function SidePanel({ forceTab }: { forceTab?: "is" | "dosya" }) {
   const state = useGame((s) => s.state);
   const locale = useLocale((s) => s.locale);
   const [tab, setTab] = useState<"is" | "dosya">("is");
+  const selectionKey = state ? `${state.selectedNodeId ?? ""}:${state.selectedEdgeId ?? ""}` : "";
+  // Picking a node or edge on the map is a MAP SUMMARY click; the reader's
+  // next question is "what is this / what can I do about it", which lives
+  // in the Dosya tab below (PersonPane). Desktop keeps both panels on
+  // screen at once but defaulted to the "İş" tab, so a selection here used
+  // to go unnoticed unless the player thought to switch tabs by hand --
+  // mobile already auto-opens its "kisi" pane on selection (see
+  // store.ts's pickNode/pickEdge); this mirrors that for desktop.
+  useEffect(() => {
+    if (selectionKey) setTab("dosya");
+  }, [selectionKey]);
   if (!state) return null;
   const activeTab = forceTab ?? (state.phase === "actions" ? tab : "dosya");
   const inv = investigationView(state);
@@ -201,6 +212,16 @@ export function PersonPane() {
             </Badge>
             {state.dead[node.id] ? <Badge tone="stamp">{t(locale, "map.closed")}</Badge> : null}
           </div>
+          {state.actorMemory[node.id]?.length ? (
+            // Promoted out of the dl and given its own callout: this is the
+            // concrete "your earlier decision changed what happens here"
+            // signal (action -> consequence -> delayed callback). Burying
+            // it as one more flat dl row among five made it easy to miss
+            // exactly where a player most needs to feel continuity.
+            <p className="mt-2 rounded-sm border border-olive/40 bg-olive/10 px-2 py-1.5 text-xs leading-snug text-paper">
+              {memoryLine(state, node.id, locale)}
+            </p>
+          ) : null}
           <dl className="mt-3 space-y-1.5 text-xs leading-relaxed text-muted">
             <div>
               <dt className="text-paper">{t(locale, "map.who")}</dt>
@@ -217,10 +238,6 @@ export function PersonPane() {
             <div>
               <dt className="text-paper">{t(locale, "map.theySee")}</dt>
               <dd>{ni?.theySee ?? theySeePlayer(state, node.id, locale)}</dd>
-            </div>
-            <div>
-              <dt className="text-paper">{t(locale, "map.memory")}</dt>
-              <dd>{memoryLine(state, node.id, locale)}</dd>
             </div>
             <div>
               <dt className="text-paper">{t(locale, "map.evidence")}</dt>

@@ -527,8 +527,9 @@ export const en: DeepStringify<typeof tr> = {
     actEdge: "touch: tighten / loosen / watch / protect",
     noLive: "no reading",
     live: "trust {trust} · dependence {dep} · secrecy {secrecy} · tension {tension}",
-    inspectNode: "{name} · {evidence} · {know} · {mem} · {ties} ties · heat {heat} · {danger} · {act}",
-    inspectEdge: "{label} · {evidence} · {live} · {signal} · {forecast} · {marks} · {act}",
+    inspectNode: "{name} · {evidence} · {ties} ties · heat {heat} · {danger}",
+    inspectEdge: "{label} · {evidence} · {signal} · {forecast}",
+    openFile: "Open file →",
     danger: "dangerous node",
     signal: {
       stable: "stable",
@@ -567,6 +568,7 @@ export const en: DeepStringify<typeof tr> = {
     what: "What is this?",
     why: "Why does it matter?",
     ifDo: "If I do this, what might happen?",
+    memoryHint: "Your past decision changed this option.",
   },
   act: {
     step: "Step 2 · Capacity",
@@ -717,6 +719,15 @@ export const en: DeepStringify<typeof tr> = {
     "backed-rival": "backed my rival",
     "promise-kept": "kept their word",
     "promise-broken": "broke their word",
+  },
+  mutHint: {
+    "e4-saha": "The line you protected stays in the field. Loyalty returns; the anchor calendar holds.",
+    "e4-uy": "A line you spent or abandoned meets the handover with resentment.",
+    "e6-bas": "A line whose word you kept softens the suppression. The tape holds.",
+    "e6-not": "If a line you spent talks, the public heats up. The anchor holds.",
+    "e8-sogut": "A fragile intersection. Cooling cuts the spread; the November 3 calendar holds.",
+    "e10-inkar": "The public is already watching. Denial language holds but doesn't convince.",
+    "e10-parca": "The chain holds. Fragmented distribution heats the legal track; it doesn't produce an order.",
   },
   footer: {
     evidence: "Evidence: paper = documented, olive = strong, amber = disputed. Visible {n}/{total} · {e} ties",

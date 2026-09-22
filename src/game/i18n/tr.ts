@@ -526,8 +526,9 @@ export const tr = {
     actEdge: "dokun: sıkılaştır / gevşet / gözet / koru",
     noLive: "ölçüm yok",
     live: "güven {trust} · bağımlılık {dep} · sır {secrecy} · gerilim {tension}",
-    inspectNode: "{name} · {evidence} · {know} · {mem} · {ties} bağ · ısı {heat} · {danger} · {act}",
-    inspectEdge: "{label} · {evidence} · {live} · {signal} · {forecast} · {marks} · {act}",
+    inspectNode: "{name} · {evidence} · {ties} bağ · ısı {heat} · {danger}",
+    inspectEdge: "{label} · {evidence} · {signal} · {forecast}",
+    openFile: "Dosyayı aç →",
     danger: "tehlikeli düğüm",
     signal: {
       stable: "dengeli",
@@ -566,6 +567,7 @@ export const tr = {
     what: "Bu nedir?",
     why: "Neden önemli?",
     ifDo: "Bunu yaparsam ne olabilir?",
+    memoryHint: "Geçmişteki kararın bu seçeneği değiştirdi.",
   },
   act: {
     step: "Adım 2 · Kapasite",
@@ -716,6 +718,23 @@ export const tr = {
     "backed-rival": "rakibimi tuttu",
     "promise-kept": "sözünü tuttu",
     "promise-broken": "sözünü bozdu",
+  },
+  /**
+   * Choice hints that a family's choiceMutate() swaps in when the player's
+   * past memory with an actor (korundu/harcandı/söz tutuldu, vb.) changes
+   * what a later choice actually does. Keyed by the same static choice id
+   * used everywhere else, so this stays a semantic key (not translated
+   * prose) resolved per locale at render time -- see mutHint usage in
+   * EventModal.tsx and families.ts's mutate* functions.
+   */
+  mutHint: {
+    "e4-saha": "Korunan hat sahada kalır. Sadakat döner; çıpa takvim durmaz.",
+    "e4-uy": "Harcanan veya yalnız bırakılan hat devri kinle karşılar.",
+    "e6-bas": "Sözü tutulan hat bastırmayı yumuşatır. Kaset durur.",
+    "e6-not": "Harcanan hat konuşursa kamu ısınır. Çıpa durur.",
+    "e8-sogut": "Kırılgan kesişim. Soğutma yayılmayı keser; 3 Kasım takvimi durmaz.",
+    "e10-inkar": "Kamu zaten bakıyor. İnkâr dili tutulur; inandırmaz.",
+    "e10-parca": "Zincir duruyor. Parçalı dağıtım hukuku ısıtır; emir üretmez.",
   },
   footer: {
     evidence: "Kanıt: kâğıt = belgelı, zeytin = güçlü, amber = tartışmalı. Görünen {n}/{total} · {e} bağ",

@@ -101,13 +101,19 @@ function liveSig(s: GameState, id: string) {
   return live ? edgeSignal(live) : "stable";
 }
 
+// Hints below are semantic keys ("mutHint.<choiceId>"), not authored prose:
+// the mutated hint must resolve per the player's current locale like any
+// other runtime-generated text (see i18n/format.ts's encodeNote/parseNote
+// pattern used for notes). EventModal resolves and prioritizes this key
+// over the choice's static base hint, since it reflects what actually
+// changed because of the player's past decision with this actor.
 function mutateCommand(choices: EventChoice[], s: GameState): EventChoice[] {
   return choices.map((ch) => {
     if (ch.id === "e4-saha" && hasMemory(s, "ersever", "protected")) {
-      return { ...ch, hint: "Korunan hat sahada kalır. Sadakat döner; çıpa takvim durmaz.", effects: { ...ch.effects, sadakat: 4, giz: 2 } };
+      return { ...ch, hint: "mutHint.e4-saha", effects: { ...ch.effects, sadakat: 4, giz: 2 } };
     }
     if (ch.id === "e4-uy" && (hasMemory(s, "ersever", "spent") || hasMemory(s, "ersever", "abandoned") || hasMemory(s, "ersever", "promise-broken"))) {
-      return { ...ch, hint: "Harcanan veya yalnız bırakılan hat devri kinle karşılar.", effects: { ...ch.effects, sadakat: -5, giz: -3 } };
+      return { ...ch, hint: "mutHint.e4-uy", effects: { ...ch.effects, sadakat: -5, giz: -3 } };
     }
     return ch;
   });
@@ -116,10 +122,10 @@ function mutateCommand(choices: EventChoice[], s: GameState): EventChoice[] {
 function mutateTapes(choices: EventChoice[], s: GameState): EventChoice[] {
   return choices.map((ch) => {
     if (ch.id === "e6-bas" && hasMemory(s, "ersever", "promise-kept") && !hasMemory(s, "ersever", "promise-broken")) {
-      return { ...ch, hint: "Sözü tutulan hat bastırmayı yumuşatır. Kaset durur.", effects: { ...ch.effects, giz: 8, sadakat: 2 } };
+      return { ...ch, hint: "mutHint.e6-bas", effects: { ...ch.effects, giz: 8, sadakat: 2 } };
     }
     if (ch.id === "e6-not" && (hasMemory(s, "ersever", "spent") || hasMemory(s, "ersever", "promise-broken"))) {
-      return { ...ch, hint: "Harcanan hat konuşursa kamu ısınır. Çıpa durur.", effects: { ...ch.effects, kamuoyu: 4, giz: -10 } };
+      return { ...ch, hint: "mutHint.e6-not", effects: { ...ch.effects, kamuoyu: 4, giz: -10 } };
     }
     return ch;
   });
@@ -130,7 +136,7 @@ function mutateCatli(choices: EventChoice[], s: GameState): EventChoice[] {
   const hot = sig === "hot" || sig === "fragile" || sig === "pressure";
   return choices.map((ch) => {
     if (ch.id === "e8-sogut" && hot) {
-      return { ...ch, hint: "Kırılgan kesişim. Soğutma yayılmayı keser; 3 Kasım takvimi durmaz.", effects: { ...ch.effects, giz: 5, kara: -2 } };
+      return { ...ch, hint: "mutHint.e8-sogut", effects: { ...ch.effects, giz: 5, kara: -2 } };
     }
     if (ch.id === "e8-fayda" && hasMemory(s, "catli", "used")) {
       return { ...ch, effects: { ...ch.effects, giz: -8, kara: 10 } };
@@ -144,10 +150,10 @@ function mutateSusurluk(choices: EventChoice[], s: GameState): EventChoice[] {
   const chained = (s.investigation.chain?.length ?? 0) >= 2;
   return choices.map((ch) => {
     if (ch.id === "e10-inkar" && publicHeat) {
-      return { ...ch, hint: "Kamu zaten bakıyor. İnkâr dili tutulur; inandırmaz.", effects: { giz: 3, etki: -8, kamuoyu: 3 } };
+      return { ...ch, hint: "mutHint.e10-inkar", effects: { giz: 3, etki: -8, kamuoyu: 3 } };
     }
     if (ch.id === "e10-parca" && chained) {
-      return { ...ch, hint: "Zincir duruyor. Parçalı dağıtım hukuku ısıtır; emir üretmez.", effects: { ...ch.effects, hukuk: 4 } };
+      return { ...ch, hint: "mutHint.e10-parca", effects: { ...ch.effects, hukuk: 4 } };
     }
     return ch;
   });
