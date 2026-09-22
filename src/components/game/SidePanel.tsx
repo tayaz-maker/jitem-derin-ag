@@ -24,7 +24,8 @@ import { memoryLine } from "@/game/sim/memory";
 import { visibleObjectives } from "@/game/sim/objectives";
 import { SOURCE_BY_ID } from "@/game/db";
 import { useGame } from "@/game/store";
-import type { ActionId, GameState } from "@/game/types";
+import type { ActionId, GameState, PlannedAction } from "@/game/types";
+import { previewMove } from "@/game/sim/preview";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
@@ -39,6 +40,7 @@ import {
 } from "@/game/i18n";
 import { hatBlocks } from "@/game/sim/hats";
 import { ClaimDrawer } from "./ClaimDrawer";
+import { ChangeList } from "./MoveGuide";
 
 export function SidePanel({ forceTab }: { forceTab?: "is" | "dosya" }) {
   const state = useGame((s) => s.state);
@@ -450,9 +452,16 @@ function delayedConsequence(id: ActionId, locale: "tr" | "en") {
 function ContextualDecisions({ state, target }: { state: GameState; target: DecisionTarget }) {
   const play = useGame((s) => s.play);
   const locale = useLocale((s) => s.locale);
-  const [selected, setSelected] = useState<ActionId | null>(null);
+  // The chosen move lives in the store so it survives pane and tab switches;
+  // it only applies while this is the target it was chosen for.
+  const draft = useGame((s) => s.move);
+  const setMove = useGame((s) => s.setMove);
   const [claimId, setClaimId] = useState("");
-  const [method, setMethod] = useState<PlanMethod>("quiet");
+  const selected: ActionId | null = draft && draft.targetId === target.id ? draft.id : null;
+  const method: PlanMethod = selected ? draft!.method : "quiet";
+  const setSelected = (id: ActionId | null) =>
+    setMove(id ? { id, targetKind: target.kind, targetId: target.id, method: "quiet" } : null);
+  const setMethod = (m: PlanMethod) => draft && setMove({ ...draft, method: m });
   const claims = targetClaims(state, target).filter(
     (c) => state.hat !== "hukuk" || ["PARTIAL", "TRUE"].includes(state.hand[c.id].status),
   );
@@ -460,10 +469,6 @@ function ContextualDecisions({ state, target }: { state: GameState; target: Deci
   const evidenceHat = state.hat === "hukuk" || state.hat === "arastirmaci";
   const tr = locale === "tr";
 
-  useEffect(() => {
-    setSelected(null);
-    setMethod("quiet");
-  }, [target.id, state.hat, state.turn]);
   const actions = decisionOptions(state, target, boundClaim?.id).filter(
     (id) => !hatBlocks(state.hat, id),
   );
@@ -477,16 +482,19 @@ function ContextualDecisions({ state, target }: { state: GameState; target: Deci
       (method !== "operational" || state.actionsLeft >= (chosen?.ap ?? 1) + 1)
     : false;
 
+  const plan: PlannedAction | null = selected
+    ? {
+        id: selected,
+        contextual: true,
+        method: methods.length ? method : undefined,
+        claimId: evidenceHat ? boundClaim?.id : undefined,
+        ...(target.kind === "edge" ? { edgeId: target.id } : { nodeId: target.id }),
+      }
+    : null;
+  const preview = plan && available ? previewMove(state, plan) : null;
   const commit = () => {
-    if (!selected || !available) return;
-    play({
-      id: selected,
-      contextual: true,
-      method: methods.length ? method : undefined,
-      claimId: evidenceHat ? boundClaim?.id : undefined,
-      ...(target.kind === "edge" ? { edgeId: target.id } : { nodeId: target.id }),
-    });
-    setSelected(null);
+    if (!plan || !available) return;
+    play(plan);
   };
 
   return (
@@ -495,6 +503,21 @@ function ContextualDecisions({ state, target }: { state: GameState; target: Deci
       aria-label={t(locale, "decision.title")}
     >
       <p className="scan font-mono text-[10px] text-olive">{t(locale, "decision.title")}</p>
+      {selected && chosen ? (
+        <div className="selected-move flex items-center justify-between gap-2 rounded-sm border border-olive bg-olive/15 px-2 py-1.5 text-xs">
+          <span className="min-w-0">
+            <span className="text-olive">{t(locale, "move.selected")}:</span>{" "}
+            <span className="font-medium text-fg">{copy?.verb ?? copy?.label}</span>
+          </span>
+          <button
+            type="button"
+            className="min-h-8 shrink-0 rounded-sm border border-border px-2 text-[11px] text-muted"
+            onClick={() => setSelected(null)}
+          >
+            {t(locale, "move.clear")}
+          </button>
+        </div>
+      ) : null}
       <p className="text-xs text-paper">
         <span className="text-olive">{t(locale, "decision.target")}:</span> {target.label}
       </p>
@@ -546,10 +569,8 @@ function ContextualDecisions({ state, target }: { state: GameState; target: Deci
               key={id}
               type="button"
               disabled={!canPlay(state, id)}
-              onClick={() => {
-                setSelected(id);
-                setMethod("quiet");
-              }}
+              aria-pressed={active}
+              onClick={() => setSelected(active ? null : id)}
               className={cn(
                 "min-h-11 rounded-sm border px-2 py-2 text-left text-xs",
                 active
@@ -637,7 +658,18 @@ function ContextualDecisions({ state, target }: { state: GameState; target: Deci
               {copy.uncertainty}
             </p>
           ) : null}
-          <Button className="mt-1 w-full" disabled={!available} onClick={commit}>
+          <div className="move-preview space-y-1.5 rounded-sm border border-olive/40 bg-bg/50 p-2">
+            <p className="scan font-mono text-[10px] text-olive">
+              {t(locale, "move.previewTitle")}
+            </p>
+            {preview?.ok ? (
+              <ChangeList changes={preview.changes} empty={t(locale, "move.noChange")} />
+            ) : (
+              <p className="text-[11px] text-warn">{t(locale, "move.previewBlocked")}</p>
+            )}
+            <p className="text-[10px] leading-snug text-subtle">{t(locale, "move.previewNote")}</p>
+          </div>
+          <Button className="mt-1 w-full" disabled={!available || !preview?.ok} onClick={commit}>
             {t(locale, "decision.commit")}
           </Button>
         </div>
@@ -658,9 +690,16 @@ function OutcomeCard({ copy }: { copy: ReturnType<typeof copyForAction> }) {
     .at(-1)
     ?.split(":");
   const locale = useLocale((s) => s.locale);
+  const lastResult = useGame((s) => s.lastResult);
   return (
     <div className="mt-3 rounded-sm border border-olive/40 bg-olive/10 p-2.5 text-xs leading-snug">
       <p className="scan font-mono text-[10px] text-olive">{t(locale, "decision.after")}</p>
+      {lastResult && lastResult.turn === state?.turn ? (
+        <div className="mt-1.5 space-y-1">
+          <p className="text-olive">{t(locale, "move.resultTitle")}</p>
+          <ChangeList changes={lastResult.changes} empty={t(locale, "move.noChange")} />
+        </div>
+      ) : null}
       <p className="mt-1 text-paper">
         <span className="text-olive">{t(locale, "decision.happened")}:</span>{" "}
         {copy.resultExplanation}
