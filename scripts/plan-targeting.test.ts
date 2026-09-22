@@ -25,7 +25,7 @@ test("network methods alter edges, spend real resources and return after their d
   assert.equal(fast.actionsLeft, quiet.actionsLeft - 1);
   assert.equal(fast.stats.kara, quiet.stats.kara - 4);
   assert.ok(quiet.tags.some((t) => t.startsWith("plan-due:5:")));
-  let notes: string[] = [];
+  const notes: string[] = [];
   const early = tickPlans({ ...quiet, turn: 4 }, notes);
   assert.equal(notes.length, 0);
   const resumed = parseSave(JSON.stringify(serialize(early)))!;
@@ -41,7 +41,7 @@ test("network methods alter edges, spend real resources and return after their d
   assert.equal(notes.length, 1);
 });
 test("contextual repeated action is not spent twice and unavailable methods cannot run", () => {
-  let state = { ...startActions(createGame("saha", 71)), turn: 3, actionsLeft: 4 };
+  const state = { ...startActions(createGame("saha", 71)), turn: 3, actionsLeft: 4 };
   const edge = EDGES.find((e) => state.revealed[e.from] && state.revealed[e.to])!;
   const p = {
     id: "bag_gozet" as const,

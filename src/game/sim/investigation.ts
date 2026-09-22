@@ -158,7 +158,7 @@ export function recordComparison(state: GameState, claimId: string, sourceIds: s
 }
 
 export function recordChainLink(state: GameState, claimId: string, documentId: string): GameState {
-  let next = addDocument(state, documentId, false);
+  const next = addDocument(state, documentId, false);
   const chain = [...(next.investigation.chain ?? [])];
   if (!chain.some((c) => c.documentId === documentId)) {
     chain.push({ claimId, documentId, turn: next.turn });
