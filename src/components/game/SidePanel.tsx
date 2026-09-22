@@ -1,4 +1,4 @@
-import { ACTION_GROUPS, ACTIONS, EDGES, NODES } from "@/game/data";
+import { ACTIONS, EDGES, NODES } from "@/game/data";
 import {
   apFor,
   canPlay,
@@ -8,7 +8,7 @@ import {
   onboardingHint,
 } from "@/game/engine";
 import { evidenceTone } from "@/game/evidence";
-import { actOf, actLabel, mechanicUnlocked } from "@/game/sim/acts";
+import { actLabel, mechanicUnlocked } from "@/game/sim/acts";
 import { sourceUxFor } from "@/game/sim/authority";
 import { liveLine } from "@/game/sim/edges";
 import { investigationView } from "@/game/sim/investigation";
@@ -17,14 +17,13 @@ import { memoryLine } from "@/game/sim/memory";
 import { visibleObjectives } from "@/game/sim/objectives";
 import { SOURCE_BY_ID } from "@/game/db";
 import { useGame } from "@/game/store";
-import type { ActionGroup, ActionId, Faction } from "@/game/types";
+import type { ActionId, GameState } from "@/game/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { copyForAction, t, useLocale, nodeInteractive, edgeInteractive, logLine } from "@/game/i18n";
 import { hatBlocks } from "@/game/sim/hats";
-import { ExplainCard } from "./ExplainCard";
 import { ClaimDrawer } from "./ClaimDrawer";
 
 export function SidePanel({ forceTab }: { forceTab?: "is" | "dosya" }) {
@@ -121,8 +120,7 @@ export function SidePanel({ forceTab }: { forceTab?: "is" | "dosya" }) {
 
 export function PersonPane() {
   const state = useGame((s) => s.state);
-  const play = useGame((s) => s.play);
-  const armAction = useGame((s) => s.armAction);
+  const feedback = useGame((s) => s.feedback);
   const claimId = useGame((s) => s.claimId);
   const setClaimId = useGame((s) => s.setClaimId);
   const locale = useLocale((s) => s.locale);
@@ -166,35 +164,8 @@ export function PersonPane() {
             <dd>{ei?.risk}</dd>
           </div>
         </dl>
-        {state.phase === "actions" ? (
-          <div className="mt-3 grid grid-cols-2 gap-1.5">
-            {(
-              [
-                "bag_guclendir",
-                "bag_gevset",
-                "bag_gozet",
-                "bag_arabul",
-                "bag_yalitim",
-                "bag_ifsa",
-                "bag_koru",
-              ] as ActionId[]
-            ).map((id) => {
-              const copy = copyForAction(id, locale, state);
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  disabled={!canPlay(state, id)}
-                  onClick={() => play({ id, edgeId: edge.id })}
-                  className="min-h-11 rounded-sm border border-border bg-bg/40 px-2 py-2 text-left text-xs disabled:opacity-40"
-                >
-                  <span className="block font-medium text-fg">{copy.verb ?? copy.label}</span>
-                  <span className="text-[10px] text-muted">{copy.expectedEffect}</span>
-                </button>
-              );
-            })}
-          </div>
-        ) : null}
+        {feedback ? <OutcomeCard copy={feedback} /> : null}
+        {state.phase === "actions" ? <ContextualDecisions state={state} target={{ kind: "edge", id: edge.id, label: edge.label }} /> : null}
       </div>
     );
   }
@@ -290,25 +261,8 @@ export function PersonPane() {
               </div>
             </dl>
           </details>
-          {state.phase === "actions" && node.kind === "kisi" ? (
-            <div className="mt-3 grid grid-cols-2 gap-1.5">
-              {(["kisi_koru", "kisi_kullan", "kisi_harca", "kisi_mesafe"] as ActionId[]).map((id) => {
-                const copy = copyForAction(id, locale, state);
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    disabled={!canPlay(state, id) || hatBlocks(state.hat, id)}
-                    onClick={() => (canPlay(state, id) ? play({ id, nodeId: node.id }) : armAction(id))}
-                    className="min-h-11 rounded-sm border border-border bg-bg/40 px-2 py-2 text-left text-xs disabled:opacity-40"
-                  >
-                    <span className="block font-medium text-fg">{copy.verb ?? copy.label}</span>
-                    <span className="text-[10px] text-muted">{copy.expectedEffect}</span>
-                  </button>
-                );
-              })}
-            </div>
-          ) : null}
+          {feedback ? <OutcomeCard copy={feedback} /> : null}
+          {state.phase === "actions" ? <ContextualDecisions state={state} target={{ kind: "node", id: node.id, label: node.name }} /> : null}
         </>
       ) : (
         <p className="mt-2 text-sm text-muted">{t(locale, "map.pick")}</p>
@@ -319,56 +273,24 @@ export function PersonPane() {
 
 function ActionBlock() {
   const state = useGame((s) => s.state)!;
-  const armAction = useGame((s) => s.armAction);
-  const play = useGame((s) => s.play);
   const resolve = useGame((s) => s.resolve);
   const feedback = useGame((s) => s.feedback);
   const locale = useLocale((s) => s.locale);
-  const defaultGroup: ActionGroup =
-    state.turn === 1
-      ? "ag"
-      : state.turn === 2
-        ? "kisi"
-        : state.turn === 3
-          ? "bilgi"
-          : state.hat === "idari" || state.hat === "hukuk"
-            ? "koruma"
-            : state.hat === "arastirmaci"
-              ? "bilgi"
-              : "saha";
-  const [group, setGroup] = useState<ActionGroup>(defaultGroup);
-  const [focus, setFocus] = useState<ActionId | null>(null);
   const max = apFor(state.hat);
   const spent = max - state.actionsLeft;
-  const act = actOf(state.turn);
   const hintKey = onboardingHint(state);
-
-  const onAction = (id: ActionId) => {
-    const def = ACTIONS.find((a) => a.id === id);
-    if (!def || !canPlay(state, id)) return;
-    setFocus(id);
-    if (def.needs === "none") {
-      play({ id });
-      return;
-    }
-    armAction(state.pendingAction === id ? null : id);
-  };
-
-  const focused = focus ?? state.pendingAction;
-  const focusedCopy = focused ? copyForAction(focused, locale, state) : null;
 
   return (
     <div className="space-y-3">
       <div className="flex items-baseline justify-between gap-2">
-        <p className="text-sm font-medium text-paper">{t(locale, "act.step")}</p>
+        <p className="text-sm font-medium text-paper">{t(locale, "decision.agenda")}</p>
         <p className="tabular text-xs text-muted">{t(locale, "act.left", { n: state.actionsLeft, max })}</p>
       </div>
       <div className="h-1 overflow-hidden rounded-full bg-elevated">
         <div className="h-full bg-olive" style={{ width: `${Math.round((state.actionsLeft / max) * 100)}%` }} />
       </div>
       <p className="text-xs leading-relaxed text-subtle">{hintKey ? t(locale, hintKey) : t(locale, `hat.${state.hat}.body`)}</p>
-      {feedback ? <ExplainCard copy={feedback} mode="after" /> : null}
-      {focusedCopy && !feedback ? <ExplainCard copy={focusedCopy} mode="before" /> : null}
+      {feedback ? <OutcomeCard copy={feedback} /> : null}
       {visibleObjectives(state).filter((o) => o.status === "open" && !o.secret).length ? (
         <ul className="space-y-1 rounded-sm border border-border bg-bg/30 p-2">
           {visibleObjectives(state)
@@ -382,83 +304,108 @@ function ActionBlock() {
         </ul>
       ) : null}
 
-      <div className="grid grid-cols-5 gap-1">
-        {ACTION_GROUPS.map((g) => {
-          const locked =
-            (g.id === "kisi" && !mechanicUnlocked(state, "person")) ||
-            (g.id === "bilgi" && !mechanicUnlocked(state, "knowledge") && state.turn < 3);
-          return (
-            <button
-              key={g.id}
-              type="button"
-              onClick={() => setGroup(g.id)}
-              className={cn(
-                "min-h-10 rounded-sm px-1 text-xs font-medium",
-                group === g.id ? "bg-olive text-olive-fg" : "bg-bg/50 text-muted hover:text-fg",
-                locked && "opacity-50",
-              )}
-            >
-              {t(locale, `group.${g.id}.label`)}
-            </button>
-          );
-        })}
+      <div className="rounded-sm border border-olive/40 bg-olive/10 p-3 text-xs leading-relaxed text-paper">
+        <p className="font-medium">{t(locale, "decision.pickTarget")}</p>
+        <p className="mt-1 text-muted">{t(locale, "decision.pickTargetHint")}</p>
       </div>
-      <p className="text-[11px] text-subtle">{t(locale, `group.${group}.hint`)}</p>
-
-      <div className="grid grid-cols-2 gap-1.5">
-        {ACTIONS.filter((a) => a.group === group && !hatBlocks(state.hat, a.id)).map((a) => {
-          const locked = Boolean(a.unlockAct && act < a.unlockAct);
-          const armed = state.pendingAction === a.id;
-          const ok = canPlay(state, a.id);
-          const copy = copyForAction(a.id, locale, state);
-          return (
-            <button
-              key={a.id}
-              type="button"
-              disabled={(!ok && !armed) || locked}
-              onClick={() => onAction(a.id)}
-              onFocus={() => setFocus(a.id)}
-              className={cn(
-                "min-h-11 rounded-sm border px-2 py-2 text-left transition-colors duration-(--motion-quick)",
-                armed || focus === a.id ? "border-olive bg-olive/15" : "border-border bg-bg/40 hover:border-olive/40",
-                ((!ok && !armed) || locked) && "opacity-40",
-              )}
-            >
-              <span className="flex items-baseline justify-between gap-1">
-                <span className="text-sm font-medium text-fg">{copy.verb ?? copy.label}</span>
-                <span className="font-mono text-[10px] text-olive">{a.ap}</span>
-              </span>
-              <span className="mt-0.5 block text-[11px] leading-snug text-muted">{copy.expectedEffect}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {state.pendingAction === "rakip_sogut" ? (
-        <div className="rounded-sm border border-olive/40 bg-olive/10 p-2">
-          <p className="mb-2 text-xs text-paper">{t(locale, "act.armed")}</p>
-          <div className="flex gap-2">
-            {(["mit", "emniyet"] as Faction[]).map((f) => (
-              <Button key={f} size="sm" variant="secondary" onClick={() => play({ id: "rakip_sogut", faction: f })}>
-                {f === "mit" ? "MİT" : "Emniyet"}
-              </Button>
-            ))}
-          </div>
-        </div>
-      ) : null}
-      {state.pendingAction &&
-      ["bag_guclendir", "bag_gevset", "bag_gozet", "bag_yalitim", "bag_ifsa", "bag_arabul", "bag_koru"].includes(
-        state.pendingAction,
-      ) ? (
-        <p className="rounded-sm border border-olive/40 bg-olive/10 px-2 py-2 text-xs text-paper">{t(locale, "act.armed")}</p>
-      ) : null}
-      {state.pendingAction && ["kisi_koru", "kisi_kullan", "kisi_harca", "kisi_mesafe"].includes(state.pendingAction) ? (
-        <p className="rounded-sm border border-olive/40 bg-olive/10 px-2 py-2 text-xs text-paper">{t(locale, "act.armed")}</p>
-      ) : null}
 
       <Button variant={state.actionsLeft === 0 ? "default" : "outline"} className="w-full" onClick={resolve} disabled={spent < 1}>
         {t(locale, "act.resolve")}
       </Button>
+    </div>
+  );
+}
+
+type DecisionTarget = { kind: "node" | "edge"; id: string; label: string };
+
+function relevantActions(state: GameState, target: DecisionTarget): ActionId[] {
+  if (state.hat === "arastirmaci") {
+    const compared = (state.investigation.comparisons?.length ?? 0) > 0;
+    return compared ? ["src_tut", "src_paylas", "src_yayin"] : ["kaynak_karsilastir", "dogrula", "dosya_oku"];
+  }
+  if (state.hat === "hukuk") {
+    const chain = state.investigation.chain?.length ?? 0;
+    return chain > 0 ? ["kanit_esigi", "soru_sinir", "soru_yonlendir"] : ["delil_zincir", "kanit_esigi", "soru_sinir"];
+  }
+  if (target.kind === "edge") {
+    return state.hat === "idari" ? ["bag_yalitim", "bag_gevset", "bag_arabul"] : ["bag_guclendir", "bag_gozet", "bag_koru", "bag_gevset"];
+  }
+  return state.hat === "idari" ? ["kisi_koru", "kisi_mesafe", "ankara_koru"] : ["kisi_koru", "kisi_kullan", "kisi_mesafe", "kisi_harca"];
+}
+
+function delayedConsequence(id: ActionId, locale: "tr" | "en") {
+  const tr = locale === "tr";
+  if (["kisi_koru", "kisi_kullan", "kisi_harca", "kisi_mesafe"].includes(id)) return tr ? "Bu kişi bunu hatırlar; sonraki olay seçenekleri değişebilir." : "This person remembers it; later event choices may change.";
+  if (["bag_guclendir", "bag_gevset", "bag_gozet", "bag_yalitim", "bag_koru"].includes(id)) return tr ? "Bağın durumu, bilgi akışını ve sonraki hat tepkilerini etkileyebilir." : "The tie's state can affect information flow and later line reactions.";
+  if (["kaynak_karsilastir", "dogrula", "src_tut", "src_paylas", "src_yayin"].includes(id)) return tr ? "Dosyanın ne zaman ve kimin önüne gideceği değişebilir." : "It can change when, and before whom, the file appears.";
+  return tr ? "Delil zinciri veya kurumsal tepki sonraki eşiği değiştirebilir." : "The evidence chain or institutional response can change the next threshold.";
+}
+
+function ContextualDecisions({ state, target }: { state: GameState; target: DecisionTarget }) {
+  const play = useGame((s) => s.play);
+  const locale = useLocale((s) => s.locale);
+  const [selected, setSelected] = useState<ActionId | null>(null);
+
+  useEffect(() => {
+    setSelected(null);
+  }, [target.id, state.hat]);
+  const actions = relevantActions(state, target).filter((id) => !hatBlocks(state.hat, id));
+  const chosen = selected ? ACTIONS.find((action) => action.id === selected) : null;
+  const copy = selected ? copyForAction(selected, locale, state) : null;
+  const available = selected ? canPlay(state, selected) : false;
+
+  const commit = () => {
+    if (!selected || !available) return;
+    play(selected.startsWith("bag_") ? { id: selected, edgeId: target.id } : selected.startsWith("kisi_") ? { id: selected, nodeId: target.id } : { id: selected });
+    setSelected(null);
+  };
+
+  return (
+    <section className="mt-3 space-y-2 rounded-sm border border-olive/40 bg-bg/45 p-2.5" aria-label={t(locale, "decision.title")}>
+      <p className="scan font-mono text-[10px] text-olive">{t(locale, "decision.title")}</p>
+      <p className="text-xs text-paper"><span className="text-olive">{t(locale, "decision.target")}:</span> {target.label}</p>
+      <div className="grid gap-1.5">
+        {actions.map((id) => {
+          const actionCopy = copyForAction(id, locale, state);
+          const active = selected === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              disabled={!canPlay(state, id)}
+              onClick={() => setSelected(id)}
+              className={cn("min-h-11 rounded-sm border px-2 py-2 text-left text-xs", active ? "border-olive bg-olive/15" : "border-border bg-bg/40 hover:border-olive/50", !canPlay(state, id) && "opacity-40")}
+            >
+              <span className="flex items-baseline justify-between gap-2"><span className="font-medium text-fg">{actionCopy.verb ?? actionCopy.label}</span><span className="font-mono text-[10px] text-olive">{ACTIONS.find((a) => a.id === id)?.ap}</span></span>
+              <span className="mt-0.5 block text-[11px] leading-snug text-muted">{actionCopy.shortExplanation}</span>
+            </button>
+          );
+        })}
+      </div>
+      {copy && chosen ? (
+        <div className="space-y-1.5 border-t border-border pt-2 text-[11px] leading-snug">
+          <p><span className="text-olive">{t(locale, "decision.intent")}:</span> {copy.whyItMatters}</p>
+          <p><span className="text-olive">{t(locale, "decision.cost")}:</span> {copy.knownCost}</p>
+          <p><span className="text-olive">{t(locale, "decision.effect")}:</span> {copy.expectedEffect}</p>
+          <p><span className="text-olive">{t(locale, "decision.risk")}:</span> {copy.shortExplanation}</p>
+          <p className="text-warn"><span className="text-olive">{t(locale, "decision.delayed")}:</span> {delayedConsequence(selected!, locale)}</p>
+          {copy.uncertainty ? <p className="text-warn"><span className="text-olive">{t(locale, "decision.uncertainty")}:</span> {copy.uncertainty}</p> : null}
+          <Button className="mt-1 w-full" disabled={!available} onClick={commit}>{t(locale, "decision.commit")}</Button>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function OutcomeCard({ copy }: { copy: ReturnType<typeof copyForAction> }) {
+  const locale = useLocale((s) => s.locale);
+  return (
+    <div className="mt-3 rounded-sm border border-olive/40 bg-olive/10 p-2.5 text-xs leading-snug">
+      <p className="scan font-mono text-[10px] text-olive">{t(locale, "decision.after")}</p>
+      <p className="mt-1 text-paper"><span className="text-olive">{t(locale, "decision.happened")}:</span> {copy.resultExplanation}</p>
+      <p className="mt-1 text-muted"><span className="text-olive">{t(locale, "decision.why")}:</span> {copy.whyItMatters}</p>
+      <p className="mt-1 text-muted"><span className="text-olive">{t(locale, "decision.changed")}:</span> {copy.expectedEffect}</p>
+      <p className="mt-1 text-warn"><span className="text-olive">{t(locale, "decision.watch")}:</span> {copy.nextSuggestion}</p>
     </div>
   );
 }

@@ -498,6 +498,21 @@ describe("embedded shell", () => {
     assert.doesNotMatch(eventSource, /absolute inset-0/);
     assert.doesNotMatch(eventSource, /bg-bg\/70/);
   });
+
+  it("keeps the action desk target-led and preserves role-specific decision loops", () => {
+    const source = readFileSync(
+      new URL("../../components/game/SidePanel.tsx", import.meta.url),
+      "utf8",
+    );
+    assert.match(source, /function relevantActions\(state: GameState, target: DecisionTarget\)/);
+    assert.match(source, /state\.hat === "arastirmaci"/);
+    assert.match(source, /state\.hat === "hukuk"/);
+    assert.match(source, /target\.kind === "edge"/);
+    assert.match(source, /decision\.pickTarget/);
+    assert.match(source, /decision\.commit/);
+    assert.match(source, /delayedConsequence\(selected!, locale\)/);
+    assert.doesNotMatch(source, /ACTION_GROUPS/);
+  });
 });
 
 describe("intel fog", () => {
