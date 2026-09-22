@@ -12,6 +12,7 @@ import { NodeGraph } from "./NodeGraph";
 import { PersonPane, SidePanel } from "./SidePanel";
 import { StartScreen } from "./StartScreen";
 import { TopBar } from "./TopBar";
+import { NextStepBar } from "./MoveGuide";
 import { cn } from "@/lib/utils";
 
 export function GameApp() {
@@ -60,6 +61,7 @@ export function GameApp() {
   return (
     <div className="game-shell flex min-h-0 flex-col bg-bg text-fg">
       <TopBar />
+      <NextStepBar />
       {hint ? (
         <p className="border-b border-border bg-olive/10 px-3 py-1.5 text-[11px] leading-snug text-paper lg:hidden">
           {hint}

@@ -13,6 +13,23 @@ import { LEGACY_SAVE_KEY, SAVE_KEY } from "./types.ts";
 import type { InteractiveCopy } from "./i18n/types.ts";
 import { resultForAction } from "./i18n/interactive.ts";
 import { useLocale } from "./i18n/locale.ts";
+import { diffState, moveInput, type Change } from "./sim/preview.ts";
+import type { PlanMethod } from "./sim/planning.ts";
+
+/** The move the player is preparing. UI-only: never written to the save. */
+export interface MoveDraft {
+  id: ActionId;
+  targetKind: "node" | "edge";
+  targetId: string;
+  method: PlanMethod;
+}
+/** What the last committed move actually changed, for the result card. */
+export interface MoveResult {
+  id: ActionId;
+  targetId: string | null;
+  turn: number;
+  changes: Change[];
+}
 
 interface Store {
   hydrated: boolean;
@@ -22,6 +39,9 @@ interface Store {
   mobilePane: MobilePane;
   feedback: InteractiveCopy | null;
   claimId: string | null;
+  move: MoveDraft | null;
+  lastResult: MoveResult | null;
+  setMove: (m: MoveDraft | null) => void;
   hydrate: () => void;
   start: (hat: Hat, seed?: number) => void;
   load: () => boolean;
@@ -89,6 +109,10 @@ export const useGame = create<Store>((set, get) => ({
   mobilePane: "map",
   feedback: null,
   claimId: null,
+  move: null,
+  lastResult: null,
+
+  setMove: (move) => set({ move }),
 
   hydrate: () => {
     if (get().hydrated) return;
@@ -110,6 +134,8 @@ export const useGame = create<Store>((set, get) => ({
       mobilePane: "olay",
       feedback: null,
       claimId: null,
+      move: null,
+      lastResult: null,
     });
   },
 
@@ -128,7 +154,15 @@ export const useGame = create<Store>((set, get) => ({
     } catch {
       /* */
     }
-    set({ state: null, screen: "start", mobilePane: "map", feedback: null, claimId: null });
+    set({
+      state: null,
+      screen: "start",
+      mobilePane: "map",
+      feedback: null,
+      claimId: null,
+      move: null,
+      lastResult: null,
+    });
   },
 
   setScreen: (screen) => set({ screen }),
@@ -212,27 +246,31 @@ export const useGame = create<Store>((set, get) => ({
     if (!s) return;
     const id = opts?.id ?? s.pendingAction;
     if (!id) return;
-    const state = executeAction(
-      { ...s, pendingAction: id },
-      {
-        id,
-        edgeId: opts?.edgeId ?? s.selectedEdgeId ?? undefined,
-        nodeId: opts?.nodeId ?? s.selectedNodeId ?? undefined,
-        faction: opts?.faction,
-        claimId: opts?.claimId,
-        method: opts?.method,
-        contextual: opts?.contextual,
-      },
-    );
-    const locale = useLocale.getState().locale;
-    const feedback = resultForAction(
+    const plan: PlannedAction = {
       id,
-      locale,
-      state,
-      opts?.nodeId ?? opts?.edgeId ?? s.selectedNodeId ?? s.selectedEdgeId ?? undefined,
-    );
+      edgeId: opts?.edgeId ?? s.selectedEdgeId ?? undefined,
+      nodeId: opts?.nodeId ?? s.selectedNodeId ?? undefined,
+      faction: opts?.faction,
+      claimId: opts?.claimId,
+      method: opts?.method,
+      contextual: opts?.contextual,
+    };
+    // Same input the preview used, so the result card shows what was shown.
+    const state = executeAction(moveInput(s, plan), plan);
+    const locale = useLocale.getState().locale;
+    const targetId =
+      opts?.nodeId ?? opts?.edgeId ?? s.selectedNodeId ?? s.selectedEdgeId ?? undefined;
+    const feedback = resultForAction(id, locale, state, targetId);
     writeSave(state);
-    set({ state, feedback });
+    set({
+      state,
+      feedback,
+      move: null,
+      lastResult:
+        state === s
+          ? null
+          : { id, targetId: targetId ?? null, turn: s.turn, changes: diffState(s, state) },
+    });
   },
 
   resolve: () => {
@@ -240,7 +278,7 @@ export const useGame = create<Store>((set, get) => ({
     if (!s || s.phase !== "actions") return;
     const state = resolveTurn(s);
     writeSave(state);
-    set({ state, mobilePane: "rapor", feedback: null });
+    set({ state, mobilePane: "rapor", feedback: null, move: null, lastResult: null });
   },
 
   nextTurn: () => {
