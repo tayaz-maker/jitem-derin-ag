@@ -1,4 +1,5 @@
 import type { ActionId, GameState, Hat, StatKey } from "../types.ts";
+import { applyStat } from "./stats.ts";
 
 export const HATS: Hat[] = ["saha", "idari", "arastirmaci", "hukuk"];
 
@@ -21,6 +22,9 @@ const BLOCKED: Record<Hat, ActionId[]> = {
 const HAT_ONLY: Partial<Record<ActionId, Hat>> = {
   kaynak_karsilastir: "arastirmaci",
   dogrula: "arastirmaci",
+  src_tut: "arastirmaci",
+  src_paylas: "arastirmaci",
+  src_yayin: "arastirmaci",
   delil_zincir: "hukuk",
   kanit_esigi: "hukuk",
 };
@@ -39,8 +43,41 @@ export function defaultStats(hat: Hat): Record<StatKey, number> {
   return { etki: 38, kara: 28, giz: 68, bilgi: 36, saha: 18, sadakat: 32, kamuoyu: 26, hukuk: 40 };
 }
 
-export function hatTick(state: GameState, _notes: string[]): GameState {
-  return state;
+export function hatTick(state: GameState, notes: string[]): GameState {
+  let next = state;
+  const hat = next.hat;
+  if (hat === "saha") {
+    const fieldSpam = next.decisions.filter((d) => d.id === "tim_kur" || d.id === "saha_op" || d.id === "kara_topla").length;
+    if (fieldSpam >= 3 && next.turn >= 4) {
+      next = applyStat(next, "giz", -2);
+      notes.push("note.hat.saha.trace");
+    }
+    if (next.stats.sadakat < 28) next = applyStat(next, "saha", -1);
+  } else if (hat === "idari") {
+    const deny = next.decisions.filter((d) => d.id === "inkar_yaz").length;
+    if (deny >= 3 && next.stats.kamuoyu >= 24) {
+      next = applyStat(next, "giz", -2);
+      notes.push("note.hat.idari.repeat");
+    }
+  } else if (hat === "arastirmaci") {
+    if (next.tags.some((tag) => tag.startsWith("src-held"))) next = applyStat(next, "giz", 1);
+    if (next.tags.some((tag) => tag.startsWith("src-published"))) next = applyStat(next, "kamuoyu", 1);
+    if ((next.investigation.comparisons?.length ?? 0) === 0 && next.turn >= 4) {
+      next = applyStat(next, "bilgi", -1);
+      notes.push("note.hat.research.stall");
+    }
+  } else if (hat === "hukuk") {
+    const chainN = next.investigation.chain?.length ?? 0;
+    if (next.investigation.stage !== "dormant" && chainN === 0 && next.turn >= 5) {
+      next = applyStat(next, "hukuk", -1);
+      notes.push("note.hat.law.stall");
+    }
+    if (chainN >= 2 && next.stats.kamuoyu >= 28) {
+      next = applyStat(next, "kamuoyu", 1);
+      notes.push("note.hat.law.public");
+    }
+  }
+  return next;
 }
 
 export function hatOpeningLog(hat: Hat) {

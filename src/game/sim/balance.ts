@@ -18,7 +18,9 @@ export type PlayStyle =
   | "saha-bilgi"
   | "idari-koruma"
   | "idari-ifsa"
-  | "karma";
+  | "karma"
+  | "arastirmaci-compare"
+  | "hukuk-chain";
 
 const STYLE_HAT: Record<PlayStyle, Hat> = {
   "saha-agresif": "saha",
@@ -27,6 +29,8 @@ const STYLE_HAT: Record<PlayStyle, Hat> = {
   "idari-koruma": "idari",
   "idari-ifsa": "idari",
   karma: "saha",
+  "arastirmaci-compare": "arastirmaci",
+  "hukuk-chain": "hukuk",
 };
 
 function preferredActions(style: PlayStyle): ActionId[] {
@@ -35,6 +39,8 @@ function preferredActions(style: PlayStyle): ActionId[] {
   if (style === "saha-bilgi") return ["rapor_yaz", "dosya_oku", "bag_gozet", "kisi_harca", "bag_ifsa", "soru_ac"];
   if (style === "idari-koruma") return ["inkar_yaz", "ankara_koru", "dosya_oku", "bag_koru", "kisi_koru", "sizinti_bastir", "soru_sinir"];
   if (style === "idari-ifsa") return ["rapor_yaz", "dosya_oku", "bag_ifsa", "soru_ac", "kisi_harca", "bag_gozet"];
+  if (style === "arastirmaci-compare") return ["kaynak_karsilastir", "dogrula", "src_tut", "src_paylas", "dosya_oku", "rapor_yaz", "src_yayin"];
+  if (style === "hukuk-chain") return ["delil_zincir", "kanit_esigi", "dosya_oku", "soru_yonlendir", "soru_sinir"];
   return ["tim_kur", "bag_guclendir", "kisi_koru", "kara_topla", "rapor_yaz", "inkar_yaz", "dosya_oku"];
 }
 
@@ -126,6 +132,8 @@ export const BALANCE_STYLES: PlayStyle[] = [
   "idari-koruma",
   "idari-ifsa",
   "karma",
+  "arastirmaci-compare",
+  "hukuk-chain",
 ];
 
 export function runBalance(seeds = 50): BalanceReport {

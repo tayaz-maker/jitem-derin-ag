@@ -282,6 +282,38 @@ export const actionsTr: ActionCopy = {
     resultWatch: "Yoklama çelişkiyi kapatmadı. Kayıt tartışmalı duruyor.",
     nextSuggestion: "Kısmi bilgiyi kamuoyuna dökmek soruşturmayı ısıtır.",
   },
+  src_tut: {
+    label: "Karşılaştırmayı tut",
+    verb: "Tut",
+    shortExplanation: "Çelişkiyi basına dökmez. Dosyada kalır. Tek doğru kilitlemez.",
+    whyItMatters: "Araştırmacı hattı: belirsizliği taşımak da bir karardır. Yayımlamak zorunlu değildir.",
+    knownCost: "1 kapasite",
+    expectedEffect: "Beklenen: Giz ↑ · kamu hafif iner · basın güveni düşer",
+    uncertainty: "Tutmak, çelişkiyi yok etmez.",
+    resultOk: "Karşılaştırma tutuldu. Basına dökülmedi.",
+    nextSuggestion: "Tutulan kayıt sonra paylaşılabilir veya yayımlanabilir.",
+  },
+  src_paylas: {
+    label: "Karşılaştırmayı hukuka ver",
+    verb: "Paylaş",
+    shortExplanation: "Karşılaştırmayı hukuk hattına verir. Emir üretmez.",
+    whyItMatters: "Belirsizlik, savcı masasına spekülasyon olarak gitmez; karşı anlatım olarak gider.",
+    knownCost: "1 kapasite · giz incelir",
+    expectedEffect: "Beklenen: Hukuk ↑ · dosya ısınır · giz iner",
+    resultOk: "Karşılaştırma hukuk hattına verildi. Emir üretilmedi.",
+    nextSuggestion: "Halka eklemek ayrı iş. Yayımlamak kamu ısısını büyütür.",
+  },
+  src_yayin: {
+    label: "Karşılaştırmayı yayımla",
+    verb: "Yayımla",
+    shortExplanation: "Çelişkiyi kamu yüzeyine çeker. Tek doğru kilitlemez.",
+    whyItMatters: "Görünürlük seçilir. Belirsizliğin maliyeti kamuoyuna yazılır.",
+    knownCost: "2 kapasite · giz yanar",
+    expectedEffect: "Beklenen: Kamu ↑ · giz ↓↓ · hukuk hafif ısınır",
+    uncertainty: "Yayımlamak teyit değildir.",
+    resultOk: "Karşılaştırma yayımlandı. Kamu ısındı. Tek doğru kilitlenmedi.",
+    nextSuggestion: "Açılan yüzey kapanmaz. Bundan sonra tutmak pahalı.",
+  },
   delil_zincir: {
     label: "Delil zincirine halka ekle",
     verb: "Zincir kur",
@@ -345,9 +377,9 @@ export const tr = {
     ties: "Kritik bağlar",
     next: "Sıradaki problem",
     step1t: "1. Duruş",
-    step1: "Dönem olayını oku, üç seçenekten birini seç.",
+    step1: "Gündemi oku; baskı altındaki kişi veya bağlantıyı haritada bul.",
     step2t: "2. Kapasite",
-    step2: "Ağır iş 2–3, bakış 1. Saha 5; diğer hatlar 4. İki buton değil; risk seç.",
+    step2: "Hedefini ve uygulama biçimini seç. Kaynak maliyetini, erişimi ve bırakacağın izi tart.",
     step3t: "3. Tur",
     step3: "Kapat. Diğer hatlar kendi bildikleriyle hareket eder.",
     contentNote: "Belge, tanıklık ve iddia ayrı tutulur. Tartışmalı anlatım kesin hüküm değildir; oyunsal rekonstrüksiyon ayrıca etiketlenir.",
@@ -494,8 +526,26 @@ export const tr = {
     actEdge: "dokun: sıkılaştır / gevşet / gözet / koru",
     noLive: "ölçüm yok",
     live: "güven {trust} · bağımlılık {dep} · sır {secrecy} · gerilim {tension}",
-    inspectNode: "{name} · {evidence} · {know} · {mem} · {ties} bağ · ısı {heat} · {act}",
-    inspectEdge: "{label} · {evidence} · {live} · {act}",
+    inspectNode: "{name} · {evidence} · {ties} bağ · ısı {heat} · {danger}",
+    inspectEdge: "{label} · {evidence} · {signal} · {forecast}",
+    openFile: "Dosyayı aç →",
+    danger: "tehlikeli düğüm",
+    signal: {
+      stable: "dengeli",
+      pressure: "baskı",
+      fragile: "kırılgan",
+      hot: "sıcak sızıntı",
+      sealed: "mühürlü",
+    },
+    forecast: {
+      quiet: "yayılma düşük",
+      leak: "sızıntı yüzeyi açık",
+      break: "kopuş yakın",
+      heat: "ısı komşulara yürür",
+    },
+    markP: "P baskı",
+    markF: "F kırılgan",
+    markL: "L yayılma",
   },
   claim: {
     title: "Ne biliyoruz?",
@@ -517,6 +567,7 @@ export const tr = {
     what: "Bu nedir?",
     why: "Neden önemli?",
     ifDo: "Bunu yaparsam ne olabilir?",
+    memoryHint: "Geçmişteki kararın bu seçeneği değiştirdi.",
   },
   act: {
     step: "Adım 2 · Kapasite",
@@ -528,6 +579,25 @@ export const tr = {
     what: "Bu nedir?",
     why: "Neden önemli?",
     expect: "Bunu yaparsam ne olabilir?",
+  },
+  decision: {
+    agenda: "Gündem · kapasite",
+    title: "Bağlamsal karar",
+    target: "Hedef",
+    pickTarget: "Haritadan bir kişi veya bağ seç.",
+    pickTargetHint: "Bu masa genel işlem listesi vermez; seçili dosyanın bağlamına göre karar açar.",
+    intent: "Niyet",
+    cost: "Bilinen bedel",
+    effect: "Muhtemel ilk etki",
+    risk: "Risk",
+    delayed: "Olası gecikmeli sonuç",
+    uncertainty: "Belirsizlik",
+    commit: "Kararı uygula",
+    after: "Karar kaydı",
+    happened: "Ne oldu?",
+    why: "Neden?",
+    changed: "Ne değişti?",
+    watch: "Şimdi neye dikkat?",
   },
   res: {
     step: "Adım 3 · Karşı hatlar",
@@ -583,6 +653,18 @@ export const tr = {
     pressGrow: "Basında ilgi büyüyor.",
     pressGrowWhy: "İki ayrı kanaldan benzer bilgi dolaşıma girdi. Henüz senin ağınla doğrudan bağ kurulmuş değil.",
     pressGrowRisk: "Risk: soruşturma hattı güçlenebilir.",
+    why: {
+      desk: "Kendi hattın. Kapasite ve inkâr dili sende; iç plan karşı tarafta görünmez.",
+      known: "Görünen hareket kamu veya kurum yüzeyinde. Niyet okunmaz.",
+      suspected: "İşaretler var; niyet ve iç plan görünmez.",
+      press: "Basın kanalı ısınıyor. Teyit yok — yanlış da olabilir.",
+      fog: "Sis. Elinde somut hareket yok.",
+    },
+    risk: {
+      inquiry: "Risk: soruşturma hattı ısınabilir.",
+      public: "Risk: kamu karesi kilitlenebilir.",
+      rivalry: "Risk: karşı hat mesafe veya kin büyütür.",
+    },
     act: {
       freelance: "Saha hattında emirsiz kapasite kayması duyuldu.",
       resentment: "İçeride harcanan hat kırgın; sızıntı söylentisi.",
@@ -637,6 +719,7 @@ export const tr = {
   see: {
     none: "Seni henüz dosyalamadı.",
     spent: "Seni yakmış biri olarak görüyor.",
+    broken: "Seni sözünü bozan masa olarak görüyor.",
     abandoned: "Seni yalnız bırakan masa olarak görüyor.",
     kept: "Seni sözünü tutan koruyucu olarak görüyor.",
     protected: "Seni koruyan hat olarak görüyor.",
@@ -654,6 +737,23 @@ export const tr = {
     "backed-rival": "rakibimi tuttu",
     "promise-kept": "sözünü tuttu",
     "promise-broken": "sözünü bozdu",
+  },
+  /**
+   * Choice hints that a family's choiceMutate() swaps in when the player's
+   * past memory with an actor (korundu/harcandı/söz tutuldu, vb.) changes
+   * what a later choice actually does. Keyed by the same static choice id
+   * used everywhere else, so this stays a semantic key (not translated
+   * prose) resolved per locale at render time -- see mutHint usage in
+   * EventModal.tsx and families.ts's mutate* functions.
+   */
+  mutHint: {
+    "e4-saha": "Korunan hat sahada kalır. Sadakat döner; çıpa takvim durmaz.",
+    "e4-uy": "Harcanan veya yalnız bırakılan hat devri kinle karşılar.",
+    "e6-bas": "Sözü tutulan hat bastırmayı yumuşatır. Kaset durur.",
+    "e6-not": "Harcanan hat konuşursa kamu ısınır. Çıpa durur.",
+    "e8-sogut": "Kırılgan kesişim. Soğutma yayılmayı keser; 3 Kasım takvimi durmaz.",
+    "e10-inkar": "Kamu zaten bakıyor. İnkâr dili tutulur; inandırmaz.",
+    "e10-parca": "Zincir duruyor. Parçalı dağıtım hukuku ısıtır; emir üretmez.",
   },
   footer: {
     evidence: "Kanıt: kâğıt = belgelı, zeytin = güçlü, amber = tartışmalı. Görünen {n}/{total} · {e} bağ",
@@ -683,6 +783,7 @@ export const tr = {
     yesil: "Yeşil harcandı. Fail iddiası ısındı; emir boşluğu durur.",
   },
   note: {
+    plan: { quiet: "{target}: {turn}. turdaki sessiz temas şimdi güveni toparladı. Beklerken erişim daraldı.", institutional: "{target}: {turn}. turdaki kurumsal temas karşılık buldu; bağ toparlandı ama kurumun ilgisi arttı.", operational: "{target}: {turn}. turdaki hızlı müdahalenin izi geri döndü. Bağdaki gerilim ve soruşturma yakınlığı arttı." },
     jitem: {
       freelance: "JİTEM hattı kapasite açığını kendi başına kapatıyor. Masa emretmedi.",
       resentment: "JİTEM: harcanan saha hattı kin taşıyor. Freelance sızıntı.",
@@ -747,6 +848,16 @@ export const tr = {
     mem: {
       talk: "{id} hattı konuşma eşiğine geldi. Tanıklık değil; ısı. Bellek tutuyor.",
       help: "{id} hattı sessiz yardım etti. Korunan bellek döndü.",
+      spentLeak: "{id} harcandı. İç sızıntı basına söylenti olarak düştü — teyit yok.",
+    },
+    hat: {
+      saha: { trace: "Saha tekrarı iz bıraktı. Getiri azaldı." },
+      idari: { repeat: "İnkâr tekrarı sis tutmadı. Kamu bakıyor." },
+      research: { stall: "Karşılaştırma yok. Araştırmacı hattı durağan." },
+      law: {
+        stall: "Halka yok. Hukuk hattı spekülasyona kayıyor; sönmedi.",
+        public: "Zincir kamu ısısının üstüne bindi. Emir üretilmedi.",
+      },
     },
   },
   dosya: {

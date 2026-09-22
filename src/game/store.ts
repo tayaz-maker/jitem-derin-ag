@@ -8,7 +8,7 @@ import {
   startActions,
 } from "./engine.ts";
 import { parseSave, serialize } from "./sim/save.ts";
-import type { ActionId, Faction, GameState, Hat, MobilePane } from "./types.ts";
+import type { ActionId, GameState, Hat, MobilePane, PlannedAction } from "./types.ts";
 import { LEGACY_SAVE_KEY, SAVE_KEY } from "./types.ts";
 import type { InteractiveCopy } from "./i18n/types.ts";
 import { resultForAction } from "./i18n/interactive.ts";
@@ -37,7 +37,7 @@ interface Store {
   pickNode: (id: string | null) => void;
   pickEdge: (id: string | null) => void;
   armAction: (id: ActionId | null) => void;
-  play: (opts?: { id?: ActionId; edgeId?: string; nodeId?: string; faction?: Faction }) => void;
+  play: (opts?: Partial<PlannedAction>) => void;
   resolve: () => void;
   nextTurn: () => void;
 }
@@ -54,7 +54,10 @@ function writeSave(state: GameState) {
 
 function readSave(): GameState | null {
   try {
-    const raw = localStorage.getItem(SAVE_KEY) ?? localStorage.getItem(SAVE_KEY + ":bak") ?? localStorage.getItem(LEGACY_SAVE_KEY);
+    const raw =
+      localStorage.getItem(SAVE_KEY) ??
+      localStorage.getItem(SAVE_KEY + ":bak") ??
+      localStorage.getItem(LEGACY_SAVE_KEY);
     if (!raw) return null;
     return parseSave(raw);
   } catch {
@@ -67,7 +70,15 @@ function readSave(): GameState | null {
   }
 }
 
-const EDGE_ACTIONS: ActionId[] = ["bag_guclendir", "bag_gevset", "bag_gozet", "bag_yalitim", "bag_ifsa", "bag_arabul", "bag_koru"];
+const EDGE_ACTIONS: ActionId[] = [
+  "bag_guclendir",
+  "bag_gevset",
+  "bag_gozet",
+  "bag_yalitim",
+  "bag_ifsa",
+  "bag_arabul",
+  "bag_koru",
+];
 const NODE_ACTIONS: ActionId[] = ["kisi_koru", "kisi_kullan", "kisi_harca", "kisi_mesafe"];
 
 export const useGame = create<Store>((set, get) => ({
@@ -92,7 +103,14 @@ export const useGame = create<Store>((set, get) => ({
   start: (hat, seed) => {
     const state = createGame(hat, seed);
     writeSave(state);
-    set({ state, screen: "play", explainStat: null, mobilePane: "olay", feedback: null, claimId: null });
+    set({
+      state,
+      screen: "play",
+      explainStat: null,
+      mobilePane: "olay",
+      feedback: null,
+      claimId: null,
+    });
   },
 
   load: () => {
@@ -143,7 +161,10 @@ export const useGame = create<Store>((set, get) => ({
     const s = get().state;
     if (!s) return;
     if (s.pendingAction && NODE_ACTIONS.includes(s.pendingAction) && id) {
-      const state = executeAction({ ...s, selectedNodeId: id }, { id: s.pendingAction, nodeId: id });
+      const state = executeAction(
+        { ...s, selectedNodeId: id },
+        { id: s.pendingAction, nodeId: id },
+      );
       const locale = useLocale.getState().locale;
       writeSave(state);
       set({ state, feedback: resultForAction(s.pendingAction, locale, state, id) });
@@ -153,7 +174,9 @@ export const useGame = create<Store>((set, get) => ({
       state: {
         ...s,
         selectedNodeId: id,
-        selectedEdgeId: EDGE_ACTIONS.includes(s.pendingAction as ActionId) ? s.selectedEdgeId : null,
+        selectedEdgeId: EDGE_ACTIONS.includes(s.pendingAction as ActionId)
+          ? s.selectedEdgeId
+          : null,
       },
       mobilePane: get().mobilePane === "map" ? "kisi" : get().mobilePane,
     });
@@ -163,13 +186,19 @@ export const useGame = create<Store>((set, get) => ({
     const s = get().state;
     if (!s) return;
     if (s.pendingAction && EDGE_ACTIONS.includes(s.pendingAction) && id) {
-      const state = executeAction({ ...s, selectedEdgeId: id }, { id: s.pendingAction, edgeId: id });
+      const state = executeAction(
+        { ...s, selectedEdgeId: id },
+        { id: s.pendingAction, edgeId: id },
+      );
       const locale = useLocale.getState().locale;
       writeSave(state);
       set({ state, feedback: resultForAction(s.pendingAction, locale, state, id) });
       return;
     }
-    set({ state: { ...s, selectedEdgeId: id } });
+    set({
+      state: { ...s, selectedEdgeId: id },
+      mobilePane: get().mobilePane === "map" ? "kisi" : get().mobilePane,
+    });
   },
 
   armAction: (id) => {
@@ -190,10 +219,18 @@ export const useGame = create<Store>((set, get) => ({
         edgeId: opts?.edgeId ?? s.selectedEdgeId ?? undefined,
         nodeId: opts?.nodeId ?? s.selectedNodeId ?? undefined,
         faction: opts?.faction,
+        claimId: opts?.claimId,
+        method: opts?.method,
+        contextual: opts?.contextual,
       },
     );
     const locale = useLocale.getState().locale;
-    const feedback = resultForAction(id, locale, state, opts?.nodeId ?? opts?.edgeId ?? s.selectedNodeId ?? s.selectedEdgeId ?? undefined);
+    const feedback = resultForAction(
+      id,
+      locale,
+      state,
+      opts?.nodeId ?? opts?.edgeId ?? s.selectedNodeId ?? s.selectedEdgeId ?? undefined,
+    );
     writeSave(state);
     set({ state, feedback });
   },

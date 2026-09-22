@@ -134,6 +134,7 @@ export function theySeePlayer(state: GameState, actorId: string, locale: Locale 
   const tags = state.actorMemory[actorId] ?? [];
   if (!tags.length) return t(locale, "see.none");
   if (tags.includes("spent")) return t(locale, "see.spent");
+  if (tags.includes("promise-broken")) return t(locale, "see.broken");
   if (tags.includes("abandoned")) return t(locale, "see.abandoned");
   if (tags.includes("protected") && tags.includes("promise-kept")) return t(locale, "see.kept");
   if (tags.includes("protected")) return t(locale, "see.protected");

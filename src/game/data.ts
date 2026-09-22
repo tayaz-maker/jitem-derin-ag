@@ -638,6 +638,9 @@ export const ACTIONS: ActionDef[] = [
   { id: "soru_ac", name: "Yüzeyi aç", blurb: "Kamu öne. Giz yanar. Çıpa durmaz.", cost: "3 kap · Kamu + · Hukuk + · Giz −−", risk: "Görünürlük", group: "bilgi", needs: "none", authority: "influence", ap: 3, unlockAct: 4 },
   { id: "kaynak_karsilastir", name: "Kaynak karşılaştır", blurb: "Çelişkiyi aç. Tek doğru kilitlemez.", cost: "2 kap · Bilgi + · Giz −", risk: "Kamu ısınabilir", group: "bilgi", needs: "none", authority: "influence", ap: 2 },
   { id: "dogrula", name: "Söylentiyi yokla", blurb: "Kısmi bilgiye çek. Kesinleştirmez.", cost: "2 kap · Bilgi + · Giz −", risk: "Sızıntı", group: "bilgi", needs: "none", authority: "influence", ap: 2 },
+  { id: "src_tut", name: "Karşılaştırmayı tut", blurb: "Çelişkiyi basına dökme. Dosyada kalsın.", cost: "1 kap · Giz + · Kamu −", risk: "Asimetri daralır", group: "bilgi", needs: "none", authority: "influence", ap: 1 },
+  { id: "src_paylas", name: "Hukuka paylaş", blurb: "Karşılaştırmayı hukuk hattına ver. Emir üretmez.", cost: "1 kap · Hukuk + · Giz −", risk: "Dosya ısınır", group: "bilgi", needs: "none", authority: "influence", ap: 1 },
+  { id: "src_yayin", name: "Karşılaştırmayı yayımla", blurb: "Kamu ısınır. Tek doğru kilitlenmez.", cost: "2 kap · Kamu + · Giz −−", risk: "Görünürlük", group: "bilgi", needs: "none", authority: "influence", ap: 2 },
   { id: "delil_zincir", name: "Delil zinciri", blurb: "Belge halkası. Emir üretmez.", cost: "2 kap · Hukuk + · Giz −", risk: "İz", group: "koruma", needs: "none", authority: "influence", ap: 2 },
   { id: "kanit_esigi", name: "Kanıt eşiği", blurb: "Belge varsa kat ilerle; yoksa spekülasyonu kes.", cost: "2 kap", risk: "Kurum direnci", group: "koruma", needs: "none", authority: "influence", ap: 2, unlockAct: 2 },
 ];

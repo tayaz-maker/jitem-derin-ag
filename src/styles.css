@@ -4,14 +4,14 @@
   --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
-  --color-bg: #14120e;
-  --color-surface: #1c1914;
-  --color-elevated: #252119;
+  --color-bg: #0d1412;
+  --color-surface: #17201c;
+  --color-elevated: #243029;
   --color-fg: #e6dfd0;
   --color-muted: #9a9284;
-  --color-subtle: #6f6a60;
+  --color-subtle: #92998a;
   --color-paper: #cfc3a4;
-  --color-olive: #7d8b68;
+  --color-olive: #a2ac86;
   --color-olive-fg: #14120e;
   --color-stamp: #8a3a32;
   --color-warn: #b08a4a;
@@ -130,3 +130,18 @@ html[data-shell="embedded"] .start-screen-shell {
 .safe-bottom {
   padding-bottom: max(0.25rem, env(safe-area-inset-bottom, 0px));
 }
+
+/* The work surface uses the existing scroll owner; no viewport sizing here. */
+.decision-desk { border-top: 2px solid var(--color-warn); box-shadow: 0 10px 28px #0005; }
+.decision-context { font-size: 12px; line-height: 1.6; color: var(--color-paper); padding: 8px 0; }
+.plan-record { display: block; width: 100%; min-height: 44px; margin-top: 6px; background: var(--color-surface); color: var(--color-fg); padding: 8px; border: 1px solid var(--color-border); }
+.plan-methods { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 0; }
+.plan-methods legend { color: var(--color-paper); font-size: 12px; }
+.plan-methods button { min-height: 44px; border: 1px solid var(--color-border); padding: 6px 10px; color: var(--color-fg); }
+.plan-methods button[aria-pressed=true] { background: var(--color-paper); color: var(--color-bg); border-color: var(--color-paper); }
+.plan-methods p { flex-basis: 100%; color: var(--color-warn); line-height: 1.55; }
+
+.agenda-fronts { display: grid; gap: 6px; }
+.agenda-fronts button { min-height: 52px; padding: 9px 12px; text-align: left; border-left: 2px solid var(--color-warn); background: var(--color-bg); font-size: 12px; }
+.agenda-fronts small { display: block; color: var(--color-warn); margin-top: 3px; }
+.network-board { box-shadow: inset 0 0 90px #0008; }

@@ -76,6 +76,23 @@ function headlineFor(id: Faction, lastAct: string, grade: IntelGrade): string {
   return "intel.stir";
 }
 
+function whyFor(id: Faction, lastAct: string, grade: IntelGrade): string | undefined {
+  if (id === "jitem") return "desk";
+  if (grade === "RUMOR" || lastAct === "press-push" || lastAct === "press-rumor") return "press";
+  if (grade === "KNOWN") return "known";
+  if (grade === "SUSPECTED") return "suspected";
+  return "fog";
+}
+
+function riskFor(state: GameState, id: Faction, grade: IntelGrade): string | undefined {
+  if (id === "jitem" || grade === "UNKNOWN") return undefined;
+  const stage = state.investigation.stage;
+  if (stage === "public" || stage === "response") return "public";
+  if ((state.factions[id]?.hostility ?? 0) >= 28) return "rivalry";
+  if (state.investigation.heat >= 8 || stage === "inquiry" || stage === "investigation") return "inquiry";
+  return "inquiry";
+}
+
 export function factionSignals(state: GameState): IntelSignal[] {
   const out: IntelSignal[] = [];
   for (const def of FACTION_DEFS) {
@@ -88,8 +105,8 @@ export function factionSignals(state: GameState): IntelSignal[] {
       name: def.name,
       grade,
       headline: headlineFor(def.id, lastAct, grade),
-      why: grade === "RUMOR" || lastAct === "press-push" || lastAct === "press-rumor" ? "press" : undefined,
-      risk: grade !== "UNKNOWN" && def.id !== "jitem" ? "inquiry" : undefined,
+      why: whyFor(def.id, lastAct, grade),
+      risk: riskFor(state, def.id, grade),
     });
   }
   return out;

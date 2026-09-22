@@ -75,6 +75,14 @@ function EventBody() {
       <div className="mt-2 grid gap-2">
         {ev.choices.map((c) => {
           const cc = choiceCopy(locale, c.id);
+          // A choiceMutate() pass (see families.ts) can swap this choice's
+          // hint for a "mutHint.<id>" key when the player's memory with an
+          // actor changed what picking it actually does now. That live,
+          // state-driven hint takes priority over the static base copy --
+          // it is the concrete "this outcome is different because of what
+          // you did earlier" signal, and must resolve in the current
+          // locale rather than leak the raw Turkish authoring string.
+          const mutated = c.hint.startsWith("mutHint.") ? t(locale, c.hint) : null;
           return (
             <button
               key={c.id}
@@ -84,8 +92,13 @@ function EventBody() {
             >
               <span className="block text-sm font-medium text-fg">{cc?.label ?? c.label}</span>
               <span className="mt-0.5 block text-xs leading-snug text-muted">
-                {cc?.hint ?? c.hint}
+                {mutated ?? cc?.hint ?? c.hint}
               </span>
+              {mutated ? (
+                <span className="mt-1 block text-[10px] font-medium text-olive">
+                  {t(locale, "event.memoryHint")}
+                </span>
+              ) : null}
             </button>
           );
         })}
