@@ -32,8 +32,12 @@ function driftKeys(state: GameState): string[] {
 }
 
 export function buildDossier(state: GameState): Dossier {
-  const protectedActors = names(Object.entries(state.stance).filter(([, v]) => v === "protect").map(([id]) => id));
-  const sacrificedActors = names(Object.entries(state.stance).filter(([, v]) => v === "spend").map(([id]) => id));
+  const stanceProtect = Object.entries(state.stance).filter(([, v]) => v === "protect").map(([id]) => id);
+  const memProtect = Object.entries(state.actorMemory).filter(([, tags]) => tags.includes("protected")).map(([id]) => id);
+  const stanceSpend = Object.entries(state.stance).filter(([, v]) => v === "spend").map(([id]) => id);
+  const memSpend = Object.entries(state.actorMemory).filter(([, tags]) => tags.includes("spent")).map(([id]) => id);
+  const protectedActors = names([...new Set([...stanceProtect, ...memProtect])]);
+  const sacrificedActors = names([...new Set([...stanceSpend, ...memSpend])]);
   const exposedDocuments = state.investigation.documents;
   const suppressedDocuments = state.investigation.suppressed;
   const risenFactions = Object.values(state.factions)
@@ -241,6 +245,30 @@ export function causalNarrative(state: GameState, locale: Locale = "tr"): string
       en
         ? "Spent people wrote talk and resentment into memory. The network broke from inside."
         : "Harcanan kişiler belleğe konuşma ve kin yazdı. Ağ kendi içinde kırıldı.",
+    );
+  }
+  const namedProtect = names(
+    Object.entries(state.actorMemory)
+      .filter(([, tags]) => tags.includes("protected"))
+      .map(([id]) => id),
+  );
+  const namedSpent = names(
+    Object.entries(state.actorMemory)
+      .filter(([, tags]) => tags.includes("spent") || tags.includes("promise-broken"))
+      .map(([id]) => id),
+  );
+  if (namedProtect.length) {
+    lines.push(
+      en
+        ? `You protected ${namedProtect.join(", ")}. That memory still sits in the network.`
+        : `Korudukların: ${namedProtect.join(", ")}. Bu bellek ağda duruyor.`,
+    );
+  }
+  if (namedSpent.length) {
+    lines.push(
+      en
+        ? `You spent or broke word with ${namedSpent.join(", ")}. Talk and resentment followed.`
+        : `Harcanan veya sözü bozulanlar: ${namedSpent.join(", ")}. Konuşma ve kin bunu izledi.`,
     );
   }
   if (denies >= 3 && state.stats.giz < 22) {

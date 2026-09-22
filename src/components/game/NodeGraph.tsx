@@ -2,6 +2,7 @@ import { useMemo, type KeyboardEvent } from "react";
 import { EDGES, NODES } from "@/game/data";
 import { isEdgeVisible, isNodeVisible, nodeById } from "@/game/engine";
 import { evidenceColor } from "@/game/evidence";
+import { edgeMarks, edgeSignal, dangerousActors } from "@/game/sim/edges";
 import { edgeWhy, nodeWhy } from "@/game/sim/inspect";
 import { useGame } from "@/game/store";
 import { t, useLocale } from "@/game/i18n";
@@ -33,6 +34,7 @@ export function NodeGraph() {
     () => (state ? EDGES.filter((e) => isEdgeVisible(state, e.id)) : []),
     [state],
   );
+  const dangerIds = useMemo(() => (state ? new Set(dangerousActors(state)) : new Set<string>()), [state]);
   if (!state) return null;
 
   const arming =
@@ -140,6 +142,10 @@ export function NodeGraph() {
             const near = selected && (e.from === selected || e.to === selected);
             const color = evidenceColor(e.evidence);
             const live = state.edgeLive[e.id];
+            const sig = live ? edgeSignal(live) : null;
+            const marks = selectedE ? edgeMarks(state, e.id) : [];
+            const hot = sig === "hot" || sig === "pressure";
+            const fragile = sig === "fragile";
             return (
               <g key={e.id}>
                 <line
@@ -147,10 +153,10 @@ export function NodeGraph() {
                   y1={a.y}
                   x2={b.x}
                   y2={b.y}
-                  stroke={color}
-                  strokeWidth={selectedE ? 4 : near ? 2.6 : Math.max(1, 1 + str)}
+                  stroke={hot ? "var(--color-stamp)" : color}
+                  strokeWidth={selectedE ? 4 : near ? 2.6 : Math.max(1, 1 + str + (hot ? 0.6 : 0))}
                   strokeOpacity={str <= 0 ? 0.2 : selectedE || near ? 0.95 : 0.4 + str * 0.12}
-                  strokeDasharray={e.evidence === "TARTIŞMALI" ? "6 4" : e.evidence === "BOŞLUK" ? "2 5" : undefined}
+                  strokeDasharray={fragile || e.evidence === "TARTIŞMALI" ? "6 4" : e.evidence === "BOŞLUK" ? "2 5" : undefined}
                   onClick={(ev) => {
                     ev.stopPropagation();
                     pickEdge(e.id);
@@ -182,7 +188,7 @@ export function NodeGraph() {
                     fontSize={10}
                     fontFamily="IBM Plex Mono, monospace"
                   >
-                    g{live.trust} s{live.secrecy} t{live.tension}
+                    {marks.length ? `${marks.join(" ")} · ` : ""}g{live.trust} s{live.secrecy} t{live.tension}
                   </text>
                 ) : null}
               </g>
@@ -194,6 +200,7 @@ export function NodeGraph() {
             const isSel = state.selectedNodeId === n.id;
             const dead = Boolean(state.dead[n.id]);
             const heated = (state.nodeHeat[n.id] ?? 0) > 0 || Boolean(state.actorMemory[n.id]?.length);
+            const dangerous = dangerIds.has(n.id);
             const near = neighborIds.has(n.id);
             const focus =
               isSel ||
@@ -224,6 +231,9 @@ export function NodeGraph() {
                 {isSel ? <circle r={r + 12} fill="none" stroke="var(--color-olive)" strokeWidth={1.5} opacity={0.9} /> : null}
                 {heated && !dead ? (
                   <circle r={r + 7} fill="none" stroke="var(--color-stamp)" strokeWidth={1} opacity={0.55} />
+                ) : null}
+                {dangerous && !dead ? (
+                  <circle r={r + 10} fill="none" stroke="var(--color-stamp)" strokeWidth={1.4} strokeDasharray="2 3" opacity={0.8} />
                 ) : null}
                 {n.kind === "kurum" ? (
                   <rect

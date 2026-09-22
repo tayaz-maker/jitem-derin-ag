@@ -25,9 +25,9 @@ import {
   viewEvent,
 } from "./families.ts";
 import { initialFactions } from "./factions.ts";
-import { hasMemory } from "./memory.ts";
+import { hasMemory, talkChance } from "./memory.ts";
 import { tickInvestigation } from "./investigation.ts";
-import { pickEnding } from "./recap.ts";
+import { causalNarrative, pickEnding } from "./recap.ts";
 import { parseSave, serialize, migrate } from "./save.ts";
 import { autoCampaign, runBalance } from "./balance.ts";
 import { formatReplay, formatReplayJson, replayFilename } from "./recap.ts";
@@ -36,6 +36,8 @@ import { investigationView } from "./investigation.ts";
 import { factionSignals } from "./intel.ts";
 import { briefingFrom } from "./briefing.ts";
 import { ALL_CLAIMS } from "../db/catalog.ts";
+import { edgeSignal, dangerousActors, propagationRisk } from "./edges.ts";
+import { hatTick } from "./hats.ts";
 
 describe("campaign engine", () => {
   it("starts with research-backed visible nodes", () => {
@@ -730,5 +732,123 @@ describe("researcher and lawyer loops", () => {
     assert.ok(back);
     assert.deepEqual(back!.investigation.comparisons, []);
     assert.deepEqual(back!.investigation.chain, []);
+  });
+});
+
+describe("product depth loops", () => {
+  it("map signals mark pressure, fragility and dangerous actors without new save fields", () => {
+    let s = createGame("saha", 41);
+    s = {
+      ...s,
+      edgeLive: {
+        ...s.edgeLive,
+        "ersever-jitem": { trust: 18, dependency: 12, secrecy: 20, tension: 72 },
+      },
+      nodeHeat: { ...s.nodeHeat, ersever: 3 },
+      actorMemory: { ...s.actorMemory, aygan: ["spent"] },
+    };
+    assert.equal(edgeSignal(s.edgeLive["ersever-jitem"]!), "hot");
+    assert.ok(propagationRisk(s, "ersever-jitem") >= 48);
+    const danger = dangerousActors(s);
+    assert.ok(danger.includes("ersever"));
+    assert.ok(danger.includes("aygan"));
+    assert.equal(s.schemaVersion, 5);
+  });
+
+  it("strengthening a tie writes used memory; isolation writes abandoned", () => {
+    let s = createGame("saha", 42);
+    s = { ...s, turn: 3, phase: "actions", actionsLeft: 5, selectedEdgeId: "ersever-jitem" };
+    s = executeAction(s, { id: "bag_guclendir", edgeId: "ersever-jitem" });
+    assert.equal(hasMemory(s, "ersever", "used"), true);
+    s = { ...s, phase: "actions", actionsLeft: 5 };
+    s = executeAction(s, { id: "bag_yalitim", edgeId: "ersever-jitem" });
+    assert.equal(hasMemory(s, "ersever", "abandoned"), true);
+  });
+
+  it("spending after a kept word writes promise-broken and raises talk chance", () => {
+    let s = createGame("saha", 43);
+    s = { ...s, turn: 4, phase: "event" };
+    s = applyEventChoice(s, "e4-saha");
+    assert.equal(hasMemory(s, "ersever", "promise-kept"), true);
+    s = { ...s, turn: 2, phase: "actions", actionsLeft: 3, selectedNodeId: "ersever", revealed: { ...s.revealed, ersever: true } };
+    const before = talkChance(s, "ersever");
+    s = executeAction(s, { id: "kisi_harca", nodeId: "ersever" });
+    assert.equal(hasMemory(s, "ersever", "spent"), true);
+    assert.equal(hasMemory(s, "ersever", "promise-broken"), true);
+    assert.ok(talkChance(s, "ersever") > before);
+  });
+
+  it("anchor choices mutate effects from campaign history without dropping options", () => {
+    const s = {
+      ...createGame("saha", 44),
+      turn: 4,
+      phase: "event" as const,
+      actorMemory: { ersever: ["protected" as const] },
+    };
+    const view = eventViewFor(s);
+    assert.equal(view?.familyId, "fam_command_shift");
+    assert.ok(view!.choices.length >= 3);
+    const held = view!.choices.find((c) => c.id === "e4-saha");
+    assert.ok((held?.effects.sadakat ?? 0) >= 4);
+  });
+
+  it("researcher hold/share/publish sit on a comparison and verify never writes TRUE", () => {
+    let s = createGame("arastirmaci", 45);
+    s = { ...s, phase: "actions", actionsLeft: 4 };
+    s = executeAction(s, { id: "kaynak_karsilastir" });
+    assert.ok((s.investigation.comparisons ?? []).length >= 1);
+    assert.equal(canPlay({ ...s, phase: "actions", actionsLeft: 4 }, "src_tut"), true);
+    const held = executeAction({ ...s, phase: "actions", actionsLeft: 4 }, { id: "src_tut" });
+    assert.ok(held.tags.some((tag) => tag.startsWith("src-held:")));
+    const published = executeAction({ ...s, phase: "actions", actionsLeft: 4 }, { id: "src_yayin" });
+    const pubClaim = (published.investigation.comparisons ?? [])[0]?.claimId;
+    assert.ok(pubClaim);
+    assert.notEqual(published.factions.media.knowledgeBase[pubClaim!]?.status, "TRUE");
+    const verified = executeAction({ ...s, phase: "actions", actionsLeft: 4 }, { id: "dogrula" });
+    for (const row of Object.values(verified.hand)) {
+      if (row.source === "yoklama") assert.notEqual(row.status, "TRUE");
+    }
+  });
+
+  it("lawyer chain can bind a chosen claim and still needs public heat for kismi_adalet", () => {
+    let s = createGame("hukuk", 46);
+    s = { ...s, phase: "actions", actionsLeft: 4 };
+    s = executeAction(s, { id: "delil_zincir", claimId: "clm_official_denial" });
+    assert.equal(s.investigation.chain?.[0]?.claimId, "clm_official_denial");
+    const base = {
+      ...s,
+      turn: 10,
+      stats: { ...s.stats, hukuk: 60, kamuoyu: 31 },
+      investigation: {
+        ...s.investigation,
+        stage: "public" as const,
+        documents: ["doc-a", "doc-b"],
+        chain: [
+          { claimId: "clm_kutlu_vs_official", documentId: "doc-a", turn: 5 },
+          { claimId: "clm_kutlu_vs_official", documentId: "doc-b", turn: 6 },
+        ],
+      },
+    };
+    assert.notEqual(pickEnding(base), "kismi_adalet");
+    assert.equal(pickEnding({ ...base, stats: { ...base.stats, kamuoyu: 32 } }), "kismi_adalet");
+  });
+
+  it("hatTick is no longer a no-op and dossier cites protected memory", () => {
+    let s = createGame("arastirmaci", 47);
+    s = { ...s, turn: 5, actorMemory: { ...s.actorMemory, ersever: ["protected"] } };
+    const notes: string[] = [];
+    const next = hatTick(s, notes);
+    assert.ok(notes.some((n) => n.startsWith("note.hat.")) || next.stats.bilgi !== s.stats.bilgi);
+    const lines = causalNarrative({ ...next, ending: "kontrollu_parcalanma" });
+    assert.ok(lines.some((l) => /Ersever|Koruduk/.test(l)));
+  });
+
+  it("repeating field actions diminish", () => {
+    let s = createGame("saha", 48);
+    s = { ...s, phase: "actions", actionsLeft: 5, stats: { ...s.stats, kara: 40 } };
+    const first = executeAction(s, { id: "tim_kur" });
+    const gain = first.stats.saha - s.stats.saha;
+    const second = executeAction({ ...first, phase: "actions", actionsLeft: 5, stats: { ...first.stats, kara: 40 } }, { id: "tim_kur" });
+    assert.ok(second.stats.saha - first.stats.saha < gain);
   });
 });

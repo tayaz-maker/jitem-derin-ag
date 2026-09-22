@@ -1,7 +1,7 @@
 import { EDGES, NODES } from "../data.ts";
 import type { GameState, Locale } from "../types.ts";
 import { mechanicUnlocked } from "./acts.ts";
-import { liveLine } from "./edges.ts";
+import { dangerousActors, edgeForecast, edgeMarks, edgeSignal, liveLine } from "./edges.ts";
 import { memoryLine } from "./memory.ts";
 import { playerViewOf } from "./knowledge.ts";
 import { t } from "../i18n/copy.ts";
@@ -19,6 +19,7 @@ export function nodeWhy(state: GameState, id: string, locale: Locale = "tr"): st
     : n.kind === "kurum"
       ? t(locale, "map.actOrg")
       : t(locale, "map.actCorridor");
+  const danger = dangerousActors(state).includes(id) ? t(locale, "map.danger") : "";
   return t(locale, "map.inspectNode", {
     name: n.name,
     evidence: t(locale, `evidence.${n.evidence}.label`),
@@ -27,6 +28,7 @@ export function nodeWhy(state: GameState, id: string, locale: Locale = "tr"): st
     ties,
     heat,
     act,
+    danger,
   });
 }
 
@@ -35,10 +37,18 @@ export function edgeWhy(state: GameState, id: string, locale: Locale = "tr"): st
   if (!e) return t(locale, "map.missingEdge");
   const live = state.edgeLive[id];
   const liveTxt = live ? liveLine(live, locale) : t(locale, "map.noLive");
+  const signal = live ? t(locale, `map.signal.${edgeSignal(live)}`) : t(locale, "map.noLive");
+  const forecast = edgeForecast(state, id, locale);
+  const marks = edgeMarks(state, id)
+    .map((m) => t(locale, `map.mark${m}`))
+    .join(" · ");
   return t(locale, "map.inspectEdge", {
     label: e.label,
     evidence: t(locale, `evidence.${e.evidence}.label`),
     live: liveTxt,
+    signal,
+    forecast,
+    marks: marks || "—",
     act: t(locale, "map.actEdge"),
   });
 }

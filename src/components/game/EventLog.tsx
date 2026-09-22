@@ -111,6 +111,11 @@ export function ReportPane() {
                     <span className="block text-subtle">{t(locale, "intel.pressGrowWhy")}</span>
                     <span className="block text-stamp">{t(locale, "intel.pressGrowRisk")}</span>
                   </>
+                ) : s.why ? (
+                  <>
+                    <span className="mt-0.5 block text-subtle">{t(locale, `intel.why.${s.why}`)}</span>
+                    {s.risk ? <span className="block text-stamp">{t(locale, `intel.risk.${s.risk}`)}</span> : null}
+                  </>
                 ) : null}
               </li>
             ))}

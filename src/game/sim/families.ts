@@ -8,6 +8,7 @@ import type {
   StatKey,
 } from "../types.ts";
 import { actOf } from "./acts.ts";
+import { edgeSignal } from "./edges.ts";
 import { addDocument } from "./investigation.ts";
 import { entry, setFactionKnow, setHand } from "./knowledge.ts";
 import { hasMemory } from "./memory.ts";
@@ -45,7 +46,7 @@ export interface FamilyVariant {
   title?: string;
   body?: string;
   extraTags?: string[];
-  choiceMutate?: (c: EventChoice[]) => EventChoice[];
+  choiceMutate?: (c: EventChoice[], s: GameState) => EventChoice[];
   consequence?: VariantConsequence;
 }
 
@@ -65,6 +66,7 @@ export interface EventFamily {
   triggers: (s: GameState) => boolean;
   variants: FamilyVariant[];
   followUps?: string[];
+  choiceMutate?: (c: EventChoice[], s: GameState) => EventChoice[];
 }
 
 function has(s: GameState, tag: string) {
@@ -92,6 +94,63 @@ export function familyEligible(f: EventFamily, s: GameState, side: boolean) {
   if (f.relationshipState && !f.relationshipState(s)) return false;
   if (f.playerHistory && !f.playerHistory(s)) return false;
   return true;
+}
+
+function liveSig(s: GameState, id: string) {
+  const live = s.edgeLive[id];
+  return live ? edgeSignal(live) : "stable";
+}
+
+function mutateCommand(choices: EventChoice[], s: GameState): EventChoice[] {
+  return choices.map((ch) => {
+    if (ch.id === "e4-saha" && hasMemory(s, "ersever", "protected")) {
+      return { ...ch, hint: "Korunan hat sahada kalır. Sadakat döner; çıpa takvim durmaz.", effects: { ...ch.effects, sadakat: 4, giz: 2 } };
+    }
+    if (ch.id === "e4-uy" && (hasMemory(s, "ersever", "spent") || hasMemory(s, "ersever", "abandoned") || hasMemory(s, "ersever", "promise-broken"))) {
+      return { ...ch, hint: "Harcanan veya yalnız bırakılan hat devri kinle karşılar.", effects: { ...ch.effects, sadakat: -5, giz: -3 } };
+    }
+    return ch;
+  });
+}
+
+function mutateTapes(choices: EventChoice[], s: GameState): EventChoice[] {
+  return choices.map((ch) => {
+    if (ch.id === "e6-bas" && hasMemory(s, "ersever", "promise-kept") && !hasMemory(s, "ersever", "promise-broken")) {
+      return { ...ch, hint: "Sözü tutulan hat bastırmayı yumuşatır. Kaset durur.", effects: { ...ch.effects, giz: 8, sadakat: 2 } };
+    }
+    if (ch.id === "e6-not" && (hasMemory(s, "ersever", "spent") || hasMemory(s, "ersever", "promise-broken"))) {
+      return { ...ch, hint: "Harcanan hat konuşursa kamu ısınır. Çıpa durur.", effects: { ...ch.effects, kamuoyu: 4, giz: -10 } };
+    }
+    return ch;
+  });
+}
+
+function mutateCatli(choices: EventChoice[], s: GameState): EventChoice[] {
+  const sig = liveSig(s, "catli-emniyet");
+  const hot = sig === "hot" || sig === "fragile" || sig === "pressure";
+  return choices.map((ch) => {
+    if (ch.id === "e8-sogut" && hot) {
+      return { ...ch, hint: "Kırılgan kesişim. Soğutma yayılmayı keser; 3 Kasım takvimi durmaz.", effects: { ...ch.effects, giz: 5, kara: -2 } };
+    }
+    if (ch.id === "e8-fayda" && hasMemory(s, "catli", "used")) {
+      return { ...ch, effects: { ...ch.effects, giz: -8, kara: 10 } };
+    }
+    return ch;
+  });
+}
+
+function mutateSusurluk(choices: EventChoice[], s: GameState): EventChoice[] {
+  const publicHeat = s.investigation.stage === "public" || s.investigation.stage === "response";
+  const chained = (s.investigation.chain?.length ?? 0) >= 2;
+  return choices.map((ch) => {
+    if (ch.id === "e10-inkar" && publicHeat) {
+      return { ...ch, hint: "Kamu zaten bakıyor. İnkâr dili tutulur; inandırmaz.", effects: { giz: 3, etki: -8, kamuoyu: 3 } };
+    }
+    if (ch.id === "e10-parca" && chained) {
+      return { ...ch, hint: "Zincir duruyor. Parçalı dağıtım hukuku ısıtır; emir üretmez.", effects: { ...ch.effects, hukuk: 4 } };
+    }
+    return ch;
+  });
 }
 
 export const FAMILIES: EventFamily[] = [
@@ -188,10 +247,21 @@ export const FAMILIES: EventFamily[] = [
     turnWindow: [4, 4],
     historicalAnchor: true,
     triggers: () => true,
+    choiceMutate: mutateCommand,
     variants: [
       { id: "base", weight: 3 },
       { id: "saha-split", weight: 3, when: (s) => s.hat === "saha", addendum: "OYUNSAL REKONSTRÜKSİYON: Saha hattı devri kendi bedeniyle yaşar." },
       { id: "ersever-held", weight: 2, when: (s) => hasMemory(s, "ersever", "protected"), addendum: "OYUNSAL REKONSTRÜKSİYON: Ersever korundu. Kopuş kişisel değil, kurumsal." },
+      {
+        id: "edge-pressure",
+        weight: 2,
+        when: (s) => {
+          const sig = liveSig(s, "ersever-jitem");
+          return sig === "pressure" || sig === "hot" || sig === "fragile";
+        },
+        addendum: "OYUNSAL REKONSTRÜKSİYON: Ersever hattı zaten gerilimde. Devir, bağın üstüne biner; takvim durmaz.",
+        consequence: { note: "Komuta kayması gerilimli bağın üstüne bindi. Çıpa durur; saha ısınır.", effects: { giz: -2, sadakat: -2 } },
+      },
     ],
   },
   {
@@ -235,11 +305,19 @@ export const FAMILIES: EventFamily[] = [
     historicalAnchor: true,
     triggers: () => true,
     followUps: ["fam_mumcu"],
+    choiceMutate: mutateTapes,
     variants: [
       { id: "base", weight: 3 },
       { id: "files-ready", weight: 3, when: (s) => s.flags.lastReportTurn > 0, addendum: "OYUNSAL REKONSTRÜKSİYON: Kaset boşluğa değil dolu dosyaya düşer.", consequence: { note: "Kaset dolu dosyaya düştü. Asimetri daraldı.", effects: { bilgi: 3 }, documents: ["kaset-not"] } },
       { id: "spent-talk", weight: 3, when: (s) => hasMemory(s, "ersever", "spent") || hasMemory(s, "ersever", "abandoned"), addendum: "OYUNSAL REKONSTRÜKSİYON: Harcanan hat konuştu. Sadakat çatladı.", consequence: { note: "Harcanan hat konuşmayı sertleştirdi. Çıpa durur; hasar büyür.", effects: { sadakat: -4, kamuoyu: 3 } } },
       { id: "protected-soft", weight: 2, when: (s) => hasMemory(s, "ersever", "protected"), addendum: "OYUNSAL REKONSTRÜKSİYON: Korunan hat yine konuştu — çıpa durur; hasar kesilir.", consequence: { note: "Korunan hat konuştu. Çıpa durur; giz hasarı kısmen kesilir.", effects: { giz: 4, sadakat: 2 } } },
+      {
+        id: "broken-word",
+        weight: 3,
+        when: (s) => hasMemory(s, "ersever", "promise-broken"),
+        addendum: "OYUNSAL REKONSTRÜKSİYON: Bozulan söz kaseti sertleştirdi. Konuşma durmaz.",
+        consequence: { note: "Söz bozulmuştu. Kaset aynı çıpa; hasar büyüdü.", effects: { sadakat: -5, kamuoyu: 4, giz: -3 } },
+      },
     ],
   },
   {
@@ -263,6 +341,13 @@ export const FAMILIES: EventFamily[] = [
     actorState: (s) => hasMemory(s, "aygan", "spent") || hasMemory(s, "aygan", "used"),
     variants: [
       { id: "talk", weight: 3, addendum: "OYUNSAL REKONSTRÜKSİYON: İtirafçı konuşma eşiği. Tanıklık bilgi patlatır.", consequence: { note: "İtirafçı katmanı konuşma eşiğine geldi. Tanıklık bilgi açar, giz yakar.", effects: { bilgi: 8, giz: -7, kamuoyu: 4 }, documents: ["aygan-taniklik"], hand: [{ claimId: "clm_informant_layer", status: "TRUE", confidence: 70, source: "tanık" }] } },
+      {
+        id: "held-quiet",
+        weight: 4,
+        when: (s) => hasMemory(s, "aygan", "protected") && hasMemory(s, "aygan", "promise-kept") && !hasMemory(s, "aygan", "promise-broken"),
+        addendum: "OYUNSAL REKONSTRÜKSİYON: Korunan ve sözü tutulan tanık tutuldu. Konuşma ertelendi.",
+        consequence: { note: "Tanık korundu. Konuşma ertelendi; ısı durdu, dosya durmadı.", effects: { giz: 4, sadakat: 3, hukuk: -1 } },
+      },
     ],
     followUps: ["fam_investigate_branch"],
   },
@@ -283,10 +368,21 @@ export const FAMILIES: EventFamily[] = [
     turnWindow: [8, 8],
     historicalAnchor: true,
     triggers: () => true,
+    choiceMutate: mutateCatli,
     variants: [
       { id: "base", weight: 3 },
       { id: "logistics", weight: 2, when: (s) => s.stats.kara >= 55, addendum: "OYUNSAL REKONSTRÜKSİYON: Örtülü kaynak bol. Çatlı hattı fayda olarak ısınır." },
       { id: "cooled", weight: 2, when: (s) => s.flags.emniyetCooledUntil >= s.turn, addendum: "OYUNSAL REKONSTRÜKSİYON: Emniyet soğutulmuştu. Isınma yavaş; takvim durmaz." },
+      {
+        id: "fragile-web",
+        weight: 3,
+        when: (s) => {
+          const sig = liveSig(s, "catli-emniyet");
+          return sig === "fragile" || sig === "hot";
+        },
+        addendum: "OYUNSAL REKONSTRÜKSİYON: Çatlı–Emniyet bağı kırılgan. Kesişim ısınır; JİTEM uzantısı uydurulmaz.",
+        consequence: { note: "Kırılgan kesişim ısındı. Takvim durmaz; bağ JİTEM emri değildir.", effects: { giz: -3, kara: 2 } },
+      },
     ],
   },
   {
@@ -298,6 +394,16 @@ export const FAMILIES: EventFamily[] = [
     factionState: (s) => s.factions.emniyet.resources >= 30,
     variants: [
       { id: "warm", weight: 2, addendum: "OYUNSAL REKONSTRÜKSİYON: Emniyet–yeraltı kendi çıkarını güder. JİTEM uzantısı değil.", consequence: { note: "Emniyet hattı kendi kesişimini ısıtıyor. JİTEM uzantısı değil.", effects: { giz: -3, kara: 2 }, reveal: ["sahin"] } },
+      {
+        id: "pressure",
+        weight: 3,
+        when: (s) => {
+          const sig = liveSig(s, "catli-emniyet");
+          return sig === "pressure" || sig === "hot";
+        },
+        addendum: "OYUNSAL REKONSTRÜKSİYON: Baskılı kesişim kendi ısısını büyütüyor. Emir yok.",
+        consequence: { note: "Baskılı kesişim büyüdü. Masa emretmedi.", effects: { giz: -4, kamuoyu: 2 } },
+      },
     ],
   },
   {
@@ -311,6 +417,20 @@ export const FAMILIES: EventFamily[] = [
     variants: [
       { id: "wrong", weight: 2, addendum: "OYUNSAL REKONSTRÜKSİYON: Basın bakıyor. Bildikleri tam değil — yanlış da olabilir.", consequence: { note: "Basın bakıyor. Söylenti yazıldı; teyit yok.", effects: { kamuoyu: 4, giz: -2 }, factionKnow: [{ fac: "media", claimId: "clm_jitem_exists", status: "RUMOR", confidence: 28 }] } },
       { id: "true", weight: 1, when: (s) => s.factions.media.knowledgeBase.clm_jitem_exists?.status === "TRUE", addendum: "OYUNSAL REKONSTRÜKSİYON: Basın JİTEM’i teyit etti sanıyor. Kamu ısınır.", consequence: { note: "Basın teyit sandı. Kamu ısındı.", effects: { kamuoyu: 8, hukuk: 4, giz: -6 } } },
+      {
+        id: "held-file",
+        weight: 3,
+        when: (s) => s.tags.some((tag) => tag.startsWith("src-held")),
+        addendum: "OYUNSAL REKONSTRÜKSİYON: Karşılaştırma tutuldu. Basın sisli kaldı.",
+        consequence: { note: "Karşılaştırma tutuldu. Basın teyit yazmadı.", effects: { giz: 2, kamuoyu: -1 } },
+      },
+      {
+        id: "published",
+        weight: 3,
+        when: (s) => s.tags.some((tag) => tag.startsWith("src-published")),
+        addendum: "OYUNSAL REKONSTRÜKSİYON: Yayımlanan karşılaştırma kamu ısısını büyüttü. Tek doğru kilitlenmedi.",
+        consequence: { note: "Yayımlanan karşılaştırma kamu ısısını büyüttü. Kilitleme yok.", effects: { kamuoyu: 6, giz: -4, hukuk: 2 } },
+      },
     ],
   },
   {
@@ -366,6 +486,13 @@ export const FAMILIES: EventFamily[] = [
     variants: [
       { id: "crack", weight: 2, addendum: "OYUNSAL REKONSTRÜKSİYON: Sadakat çatladı. Saha freelance kayıyor.", consequence: { note: "Sadakat çatladı. Saha freelance kayıyor.", effects: { saha: -3, giz: -3 } } },
       { id: "spent-crack", weight: 3, when: (s) => Object.values(s.actorMemory).some((t) => t.includes("spent")), addendum: "OYUNSAL REKONSTRÜKSİYON: Harcanan bellek çatlağı büyüttü.", consequence: { note: "Harcanan bellek çatlağı büyüttü. Freelance + konuşma ısısı.", effects: { saha: -2, giz: -5, sadakat: -3 } } },
+      {
+        id: "broken",
+        weight: 3,
+        when: (s) => Object.values(s.actorMemory).some((t) => t.includes("promise-broken")),
+        addendum: "OYUNSAL REKONSTRÜKSİYON: Bozulan söz çatlağı büyüttü. Konuşma eşiği yaklaşır.",
+        consequence: { note: "Bozulan söz çatlağı büyüttü. Sadakat inceldi.", effects: { sadakat: -4, giz: -3 } },
+      },
     ],
   },
   {
@@ -406,10 +533,18 @@ export const FAMILIES: EventFamily[] = [
     turnWindow: [10, 10],
     historicalAnchor: true,
     triggers: () => true,
+    choiceMutate: mutateSusurluk,
     variants: [
       { id: "base", weight: 3 },
       { id: "contained", weight: 2, when: (s) => s.stats.giz >= 32, addendum: "OYUNSAL REKONSTRÜKSİYON: Görünürlük şoku var; masa kareyi dar tutmaya çalışıyor.", consequence: { note: "Kaza belgelendi. Masa kareyi dar tutuyor; kamu yine bakıyor.", effects: { giz: 3 } } },
       { id: "blown", weight: 2, when: (s) => s.stats.giz < 22 || s.investigation.stage === "public", addendum: "OYUNSAL REKONSTRÜKSİYON: Kamu zaten bakıyordu. Kaza tek kareyi kilitledi.", consequence: { note: "Kamu zaten bakıyordu. Kaza kilitledi; soruşturma kamu eşiğine yürüdü.", effects: { kamuoyu: 4, hukuk: 3 }, tags: ["inv-expose"] } },
+      {
+        id: "file-ready",
+        weight: 3,
+        when: (s) => (s.investigation.chain?.length ?? 0) >= 2 || (s.investigation.comparisons?.length ?? 0) >= 1,
+        addendum: "OYUNSAL REKONSTRÜKSİYON: Kaza, eldeki zincir/karşılaştırmanın üstüne düştü. Emir uydurulmadı.",
+        consequence: { note: "Kaza belgelendi. Eldeki dosya kareyi ısıttı; emir üretilmedi.", effects: { hukuk: 4, kamuoyu: 2 } },
+      },
     ],
   },
   {
@@ -696,7 +831,9 @@ export function viewEvent(state: GameState): EventView | null {
   if (!family) return { ...base, variantId: "base", choices };
 
   const picked = pickVariant(state, family);
-  const mutated = picked.choiceMutate ? picked.choiceMutate(choices) : choices;
+  let mutated = choices;
+  if (family.choiceMutate) mutated = family.choiceMutate(mutated, state);
+  if (picked.choiceMutate) mutated = picked.choiceMutate(mutated, state);
   return {
     ...base,
     familyId: family.id,

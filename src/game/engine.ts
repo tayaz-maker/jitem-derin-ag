@@ -5,7 +5,7 @@ import { applyConsequence, applyFamilyFire, pickSideFamilies, pickVariant, selec
 import { initialFactions, tickFactions } from "./sim/factions.ts";
 import { addDocument, recordChainLink, recordComparison, tickInvestigation } from "./sim/investigation.ts";
 import { entry, initialHand, initialTruth, setFactionKnow, setHand, tickKnowledge } from "./sim/knowledge.ts";
-import { remember, tickMemory } from "./sim/memory.ts";
+import { remember, tickMemory, breakPromise } from "./sim/memory.ts";
 import { syncObjectives } from "./sim/objectives.ts";
 import { pickSeed } from "./sim/rng.ts";
 import { buildDossier, buildRecap, pickEnding, pushDecision } from "./sim/recap.ts";
@@ -67,8 +67,34 @@ function tightness(state: GameState) {
   for (const e of EDGES) {
     if (!isEdgeVisible(state, e.id)) continue;
     sum += state.edgeStr[e.id] ?? 0;
+    const live = state.edgeLive[e.id];
+    if (!live) continue;
+    if (live.secrecy < 30) sum += 1;
+    if (live.tension >= 60) sum += 1;
   }
   return sum;
+}
+
+function actionRepeat(state: GameState, id: ActionId) {
+  return state.decisions.filter((d) => d.id === id).length;
+}
+
+function scaled(n: number, repeats: number) {
+  if (repeats <= 0) return n;
+  const f = Math.max(0.35, 1 - repeats * 0.28);
+  const out = Math.round(n * f);
+  if (n > 0) return Math.max(1, out);
+  if (n < 0) return Math.min(-1, out);
+  return 0;
+}
+
+function openClaim(state: GameState, plan?: PlannedAction) {
+  if (plan?.claimId && (state.investigation.comparisons ?? []).some((c) => c.claimId === plan.claimId)) {
+    return plan.claimId;
+  }
+  const tagged = state.tags.filter((tag) => tag.startsWith("src-open:")).map((tag) => tag.slice("src-open:".length));
+  if (tagged.length) return tagged[tagged.length - 1];
+  return state.investigation.comparisons?.at(-1)?.claimId;
 }
 
 export function isNodeVisible(state: GameState, id: string) {
@@ -317,9 +343,15 @@ export function applyEventChoice(state: GameState, choiceId: string): GameState 
     next = { ...next, edgeStr };
   }
   if (choice.id === "e4-saha") next = remember(next, "ersever", "promise-kept");
-  if (choice.id === "e4-uy") next = remember(next, "ersever", "abandoned");
+  if (choice.id === "e4-uy") {
+    next = remember(next, "ersever", "abandoned");
+    next = breakPromise(next, "ersever");
+  }
   if (choice.id === "e6-bas") next = remember(next, "ersever", "promise-kept");
-  if (choice.id === "e6-not") next = remember(next, "ersever", "leaked");
+  if (choice.id === "e6-not") {
+    next = remember(next, "ersever", "leaked");
+    next = breakPromise(next, "ersever");
+  }
   if (choice.id === "e3-oku") next = setHand(next, entry("clm_eymur_abas_split", "PARTIAL", { source: "memo", confidence: 55 }));
   if (choice.id === "e7-dosya") next = setHand(next, entry("clm_yesil_ersever", "PARTIAL", { source: "dosya", confidence: 60 }));
   return syncObjectives(next);
@@ -340,10 +372,11 @@ export function canPlay(state: GameState, id: ActionId) {
   if (id === "ankara_koru" && state.stats.kara < 5) return false;
   if (id === "medya_kes" && state.stats.etki < 4) return false;
   if (id === "saha_op" && state.flags.erseverDead && state.turn === 7) return false;
-  if ((id === "kaynak_karsilastir" || id === "dogrula") && state.hat !== "arastirmaci") return false;
+  if ((id === "kaynak_karsilastir" || id === "dogrula" || id === "src_tut" || id === "src_paylas" || id === "src_yayin") && state.hat !== "arastirmaci") return false;
   if ((id === "delil_zincir" || id === "kanit_esigi") && state.hat !== "hukuk") return false;
   if (id === "dogrula" && !Object.values(state.hand).some((h) => h.status === "RUMOR" || h.status === "PARTIAL")) return false;
   if (id === "delil_zincir" && !Object.values(state.hand).some((h) => h.status === "PARTIAL" || h.status === "TRUE")) return false;
+  if ((id === "src_tut" || id === "src_paylas" || id === "src_yayin") && (state.investigation.comparisons?.length ?? 0) < 1) return false;
   return true;
 }
 
@@ -370,6 +403,7 @@ function runPerson(
   const tag: MemoryTag =
     kind === "protect" ? "protected" : kind === "use" ? "used" : kind === "spend" ? "spent" : "abandoned";
   next = remember(next, node.id, tag);
+  if (kind === "spend" || kind === "distance") next = breakPromise(next, node.id);
   if (kind === "spend") next = remember(next, node.id, "leaked");
   if (kind === "protect" && node.faction && node.faction !== "jitem") {
     for (const other of ["ersever", "dogan", "aygan"]) {
@@ -400,10 +434,11 @@ export function executeAction(state: GameState, plan: PlannedAction): GameState 
 
   switch (plan.id) {
     case "tim_kur": {
-      next = applyStat(next, "saha", sahaHat ? 12 : 8);
-      next = applyStat(next, "kara", -8);
-      next = applyStat(next, "giz", sahaHat ? -3 : -5);
-      next = addLog(next, "Tim kapasitesi açıldı. Resmi kayıt: yok. Örtülü düştü.", "aksiyon");
+      const n = actionRepeat(state, "tim_kur");
+      next = applyStat(next, "saha", scaled(sahaHat ? 12 : 8, n));
+      next = applyStat(next, "kara", scaled(-8, n));
+      next = applyStat(next, "giz", scaled(sahaHat ? -3 : -5, n));
+      next = addLog(next, n ? "Tim tekrar açıldı. Getiri azaldı. İz duruyor." : "Tim kapasitesi açıldı. Resmi kayıt: yok. Örtülü düştü.", "aksiyon");
       break;
     }
     case "itirafci_al": {
@@ -431,6 +466,8 @@ export function executeAction(state: GameState, plan: PlannedAction): GameState 
       const cost = edge.evidence === "TARTIŞMALI" ? 10 : edge.evidence === "BELGELİ" ? 2 : 4;
       next = applyStat(next, "giz", -cost);
       next = applyStat(next, "etki", edge.evidence === "TARTIŞMALI" ? -4 : 1);
+      next = remember(next, edge.from, "used");
+      next = remember(next, edge.to, "used");
       next = addLog(next, `Bağ sıkılaştırıldı: ${edge.label} (${edge.evidence}). Giz −${cost}.`, "aksiyon");
       next = pushDecision(next, { kind: "action", id: plan.id, target: edge.id, summary: edge.label });
       return revealDueNodes(syncObjectives(next));
@@ -488,6 +525,8 @@ export function executeAction(state: GameState, plan: PlannedAction): GameState 
       next = touchEdge(next, edge.id, { trust: -12, secrecy: 16, tension: 8, dependency: -10 });
       next = applyStat(next, "giz", 6);
       next = applyStat(next, "saha", -4);
+      next = remember(next, edge.from, "abandoned");
+      next = remember(next, edge.to, "abandoned");
       next = addLog(next, `Bağ yalıtıldı: ${edge.label}. Sekiz duvar. Kapasite düşer.`, "aksiyon");
       break;
     }
@@ -599,18 +638,20 @@ export function executeAction(state: GameState, plan: PlannedAction): GameState 
       break;
     }
     case "kara_topla": {
-      next = applyStat(next, "kara", 12);
-      next = applyStat(next, "giz", -4);
-      next = applyStat(next, "etki", -2);
-      next = addLog(next, "Örtülü kaynak toplandı. Lojistik döndü, iz kaldı.", "aksiyon");
+      const n = actionRepeat(state, "kara_topla");
+      next = applyStat(next, "kara", scaled(12, n));
+      next = applyStat(next, "giz", scaled(-4, n));
+      next = applyStat(next, "etki", scaled(-2, n));
+      next = addLog(next, n ? "Örtülü kaynak tekrar toplandı. Getiri azaldı." : "Örtülü kaynak toplandı. Lojistik döndü, iz kaldı.", "aksiyon");
       break;
     }
     case "inkar_yaz": {
-      next = applyStat(next, "giz", idariHat ? 10 : 7);
-      next = applyStat(next, "bilgi", -3);
-      next = applyStat(next, "kamuoyu", 2);
+      const n = actionRepeat(state, "inkar_yaz");
+      next = applyStat(next, "giz", scaled(idariHat ? 10 : 7, n));
+      next = applyStat(next, "bilgi", scaled(-3, n));
+      next = applyStat(next, "kamuoyu", 2 + (n >= 2 ? 1 : 0));
       next = setHand(next, entry("clm_official_denial", "TRUE", { source: "resmi dil", confidence: 92 }));
-      next = addLog(next, "Resmi dil: yapı yoktur. İnkâr yazıldı.", "aksiyon");
+      next = addLog(next, n >= 2 ? "Resmi dil tekrar: yapı yoktur. Tekrar inandırmaz." : "Resmi dil: yapı yoktur. İnkâr yazıldı.", "aksiyon");
       break;
     }
     case "medya_kes": {
@@ -622,17 +663,19 @@ export function executeAction(state: GameState, plan: PlannedAction): GameState 
       break;
     }
     case "ankara_koru": {
-      next = applyStat(next, "etki", idariHat ? 12 : 9);
-      next = applyStat(next, "kara", -6);
-      next = addLog(next, "Ankara kalkanı. Kurumsal koruma alındı.", "aksiyon");
+      const n = actionRepeat(state, "ankara_koru");
+      next = applyStat(next, "etki", scaled(idariHat ? 12 : 9, n));
+      next = applyStat(next, "kara", scaled(-6, n));
+      next = addLog(next, n ? "Ankara kalkanı tekrar. Getiri azaldı." : "Ankara kalkanı. Kurumsal koruma alındı.", "aksiyon");
       break;
     }
     case "dosya_oku": {
-      next = applyStat(next, "bilgi", 7);
-      next = applyStat(next, "giz", -4);
+      const n = actionRepeat(state, "dosya_oku");
+      next = applyStat(next, "bilgi", scaled(7, n));
+      next = applyStat(next, "giz", scaled(-4, n));
       next = addDocument(next, `dosya-t${next.turn}`, false);
       next = revealDueNodes(next);
-      next = addLog(next, "Dosya okundu. Sis biraz açıldı.", "aksiyon");
+      next = addLog(next, n ? "Dosya tekrar okundu. Yeni sis az." : "Dosya okundu. Sis biraz açıldı.", "aksiyon");
       break;
     }
     case "kisi_koru":
@@ -676,9 +719,12 @@ export function executeAction(state: GameState, plan: PlannedAction): GameState 
     }
     case "kaynak_karsilastir": {
       const held = Object.values(next.hand).filter((h) => h.status !== "UNKNOWN");
+      const compared = new Set((next.investigation.comparisons ?? []).map((c) => c.claimId));
       const clash = ALL_CLAIMS.filter((c) => c.contradiction && held.some((h) => h.claimId === c.id) && c.sourceIds.length >= 2);
       const fallback = ALL_CLAIMS.filter((c) => c.contradiction && held.some((h) => h.claimId === c.id));
-      const pick = clash[0] ?? fallback[0];
+      const unusedClash = clash.filter((c) => !compared.has(c.id));
+      const unusedFb = fallback.filter((c) => !compared.has(c.id));
+      const pick = unusedClash[0] ?? clash[0] ?? unusedFb[0] ?? fallback[0];
       next = applyStat(next, "bilgi", 8);
       next = applyStat(next, "giz", -3);
       next = applyStat(next, "kamuoyu", pick ? 2 : 1);
@@ -687,6 +733,7 @@ export function executeAction(state: GameState, plan: PlannedAction): GameState 
         next = recordComparison(next, pick.id, pick.sourceIds);
         next = setFactionKnow(next, "media", entry(pick.id, "RUMOR", { source: "karşılaştırma sızıntısı", confidence: 30 }));
         next = setFactionKnow(next, "hukuk", entry(pick.id, "PARTIAL", { source: "karşılaştırma notu", confidence: 40 }));
+        if (!next.tags.includes(`src-open:${pick.id}`)) next = { ...next, tags: [...next.tags, `src-open:${pick.id}`] };
       }
       next = addLog(
         next,
@@ -696,6 +743,52 @@ export function executeAction(state: GameState, plan: PlannedAction): GameState 
         "aksiyon",
         "act.kaynak_karsilastir",
       );
+      break;
+    }
+    case "src_tut": {
+      const claimId = openClaim(next, plan);
+      if (!claimId) {
+        next.actionsLeft += apCost;
+        next = addLog(next, "Tutulacak karşılaştırma yok.", "sistem", "act.src_tut.none");
+        break;
+      }
+      const media = next.factions.media.knowledgeBase[claimId];
+      if (media) {
+        next = setFactionKnow(next, "media", { ...media, confidence: Math.max(8, media.confidence - 18), propagationRisk: Math.max(8, media.propagationRisk - 12) });
+      }
+      next = applyStat(next, "giz", 4);
+      next = applyStat(next, "kamuoyu", -2);
+      next = { ...next, tags: [...next.tags, `src-held:${claimId}`] };
+      next = addLog(next, "Karşılaştırma tutuldu. Basına dökülmedi. Çelişki dosyada kaldı.", "aksiyon", "act.src_tut");
+      break;
+    }
+    case "src_paylas": {
+      const claimId = openClaim(next, plan);
+      if (!claimId) {
+        next.actionsLeft += apCost;
+        next = addLog(next, "Paylaşılacak karşılaştırma yok.", "sistem", "act.src_paylas.none");
+        break;
+      }
+      next = setFactionKnow(next, "hukuk", entry(claimId, "PARTIAL", { source: "karşılaştırma paylaşımı", confidence: 52 }));
+      next = applyStat(next, "hukuk", 4);
+      next = applyStat(next, "giz", -3);
+      next = { ...next, investigation: { ...next.investigation, heat: next.investigation.heat + 2 }, tags: [...next.tags, `src-shared:${claimId}`] };
+      next = addLog(next, "Karşılaştırma hukuk hattına verildi. Emir üretilmedi.", "aksiyon", "act.src_paylas");
+      break;
+    }
+    case "src_yayin": {
+      const claimId = openClaim(next, plan);
+      if (!claimId) {
+        next.actionsLeft += apCost;
+        next = addLog(next, "Yayımlanacak karşılaştırma yok.", "sistem", "act.src_yayin.none");
+        break;
+      }
+      next = setFactionKnow(next, "media", entry(claimId, "PARTIAL", { source: "yayımlanan karşılaştırma", confidence: 48 }));
+      next = applyStat(next, "kamuoyu", 6);
+      next = applyStat(next, "giz", -6);
+      next = applyStat(next, "hukuk", 2);
+      next = { ...next, tags: [...next.tags, `src-published:${claimId}`] };
+      next = addLog(next, "Karşılaştırma yayımlandı. Kamu ısındı. Tek doğru kilitlenmedi.", "aksiyon", "act.src_yayin");
       break;
     }
     case "dogrula": {
@@ -720,10 +813,18 @@ export function executeAction(state: GameState, plan: PlannedAction): GameState 
     case "delil_zincir": {
       const held = Object.values(next.hand).filter((h) => h.status === "PARTIAL" || h.status === "TRUE");
       const compared = (next.investigation.comparisons ?? []).map((c) => c.claimId);
+      const chained = new Set((next.investigation.chain ?? []).map((c) => c.claimId));
+      const eligible = ALL_CLAIMS.filter((c) => held.some((h) => h.claimId === c.id));
+      const byPlan = plan.claimId ? eligible.find((c) => c.id === plan.claimId) : undefined;
+      const unusedCompared = eligible.filter((c) => compared.includes(c.id) && !chained.has(c.id));
+      const unusedStrong = eligible.filter((c) => (c.evidence === "BELGELİ" || c.evidence === "GÜÇLÜ") && !chained.has(c.id));
       const bound =
-        ALL_CLAIMS.find((c) => compared.includes(c.id) && held.some((h) => h.claimId === c.id)) ??
-        ALL_CLAIMS.find((c) => (c.evidence === "BELGELİ" || c.evidence === "GÜÇLÜ") && held.some((h) => h.claimId === c.id)) ??
-        ALL_CLAIMS.find((c) => held.some((h) => h.claimId === c.id));
+        byPlan ??
+        unusedCompared[0] ??
+        unusedStrong[0] ??
+        eligible.find((c) => compared.includes(c.id)) ??
+        eligible.find((c) => c.evidence === "BELGELİ" || c.evidence === "GÜÇLÜ") ??
+        eligible[0];
       if (!bound) {
         next.actionsLeft += apCost;
         next = addLog(next, "Delil zincirine bağlanacak uygun iddia yok.", "sistem", "act.delil_zincir.none");
@@ -735,13 +836,9 @@ export function executeAction(state: GameState, plan: PlannedAction): GameState 
       next = applyStat(next, "hukuk", 7);
       next = applyStat(next, "giz", -4);
       next = applyStat(next, "bilgi", 3);
+      if (next.stats.kamuoyu >= 32) next = applyStat(next, "kamuoyu", 1);
       next = setFactionKnow(next, "hukuk", entry(claimId, "PARTIAL", { source: "delil halkası", confidence: 48 }));
-      next = addLog(
-        next,
-`Delil zincirine halka: ${bound.title}. Emir üretilmedi.`,
-        "aksiyon",
-        "act.delil_zincir",
-      );
+      next = addLog(next, `Delil zincirine halka: ${bound.title}. Emir üretilmedi.`, "aksiyon", "act.delil_zincir");
       break;
     }
     case "kanit_esigi": {

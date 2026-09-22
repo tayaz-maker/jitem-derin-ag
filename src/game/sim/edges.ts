@@ -1,4 +1,4 @@
-import { EDGES } from "../data.ts";
+import { EDGES, NODES } from "../data.ts";
 import type { EdgeLive, GameState, Locale } from "../types.ts";
 import { t } from "../i18n/copy.ts";
 
@@ -51,4 +51,66 @@ export function edgePreview(kind: EdgeMove) {
 
 export function liveLine(e: EdgeLive, locale: Locale = "tr") {
   return t(locale, "map.live", { trust: e.trust, dep: e.dependency, secrecy: e.secrecy, tension: e.tension });
+}
+
+export type EdgeSignal = "stable" | "pressure" | "fragile" | "hot" | "sealed";
+
+export function edgeSignal(live: EdgeLive): EdgeSignal {
+  if (live.secrecy >= 70 && live.trust >= 48) return "sealed";
+  if (live.tension >= 62 || live.secrecy < 22) return "hot";
+  if (live.trust < 28 || live.dependency < 16) return "fragile";
+  if (live.tension >= 44 || live.secrecy < 36) return "pressure";
+  return "stable";
+}
+
+export function propagationRisk(state: GameState, edgeId: string) {
+  const def = EDGES.find((e) => e.id === edgeId);
+  const live = state.edgeLive[edgeId];
+  if (!def || !live) return 0;
+  const heat = (state.nodeHeat[def.from] ?? 0) + (state.nodeHeat[def.to] ?? 0);
+  const sig = edgeSignal(live);
+  const bonus = sig === "hot" ? 18 : sig === "pressure" ? 10 : sig === "fragile" ? 8 : sig === "sealed" ? -12 : 0;
+  return clamp(live.tension * 0.4 + (100 - live.secrecy) * 0.32 + heat * 9 + bonus);
+}
+
+export function edgeForecast(state: GameState, edgeId: string, locale: Locale = "tr") {
+  const live = state.edgeLive[edgeId];
+  if (!live) return t(locale, "map.forecast.quiet");
+  const risk = propagationRisk(state, edgeId);
+  const sig = edgeSignal(live);
+  if (sig === "fragile" || live.trust < 22) return t(locale, "map.forecast.break");
+  if (risk >= 58 || sig === "hot") return t(locale, "map.forecast.heat");
+  if (risk >= 38 || sig === "pressure") return t(locale, "map.forecast.leak");
+  return t(locale, "map.forecast.quiet");
+}
+
+export function dangerousActors(state: GameState): string[] {
+  const out = new Set<string>();
+  for (const n of NODES) {
+    const heat = state.nodeHeat[n.id] ?? 0;
+    const tags = state.actorMemory[n.id] ?? [];
+    const spent = tags.includes("spent") || tags.includes("leaked") || tags.includes("promise-broken");
+    if (heat >= 2 || spent) out.add(n.id);
+  }
+  for (const e of EDGES) {
+    const live = state.edgeLive[e.id];
+    if (!live) continue;
+    const sig = edgeSignal(live);
+    if (sig === "hot" || (sig === "fragile" && live.tension >= 50)) {
+      out.add(e.from);
+      out.add(e.to);
+    }
+  }
+  return [...out];
+}
+
+export function edgeMarks(state: GameState, edgeId: string): Array<"P" | "F" | "L"> {
+  const live = state.edgeLive[edgeId];
+  if (!live) return [];
+  const sig = edgeSignal(live);
+  const marks: Array<"P" | "F" | "L"> = [];
+  if (sig === "pressure" || sig === "hot") marks.push("P");
+  if (sig === "fragile") marks.push("F");
+  if (propagationRisk(state, edgeId) >= 48) marks.push("L");
+  return marks;
 }

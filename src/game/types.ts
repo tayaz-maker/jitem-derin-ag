@@ -116,6 +116,9 @@ export type ActionId =
   | "soru_sinir"
   | "kaynak_karsilastir"
   | "dogrula"
+  | "src_tut"
+  | "src_paylas"
+  | "src_yayin"
   | "delil_zincir"
   | "kanit_esigi";
 
@@ -181,6 +184,7 @@ export interface PlannedAction {
   edgeId?: string;
   nodeId?: string;
   faction?: Faction;
+  claimId?: string;
 }
 
 export type EndingId =
