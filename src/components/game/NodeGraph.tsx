@@ -77,7 +77,7 @@ export function NodeGraph() {
   return (
     <div className="network-board relative h-full min-h-[220px] w-full overflow-hidden bg-bg">
       <img
-        src="/images/map.jpg"
+        src={`${import.meta.env.BASE_URL}images/map.jpg`}
         alt=""
         className="absolute inset-0 size-full object-cover opacity-10"
       />
