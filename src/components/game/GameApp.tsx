@@ -138,7 +138,7 @@ export function GameApp() {
             type="button"
             onClick={() => setMobilePane(p.id)}
             className={cn(
-              "min-h-12 px-1 text-[11px] font-medium",
+              "min-h-12 truncate px-1 text-[11px] font-medium leading-tight",
               mobilePane === p.id || (eventOpen && p.id === "olay")
                 ? "bg-elevated text-paper"
                 : "text-muted",
