@@ -246,10 +246,14 @@ export const useGame = create<Store>((set, get) => ({
     if (!s) return;
     const id = opts?.id ?? s.pendingAction;
     if (!id) return;
+    // A plan that names its own target keeps exactly that target: filling the
+    // other slot from the map selection would make the committed move differ
+    // from the one previewed on the desk.
+    const named = Boolean(opts?.edgeId || opts?.nodeId);
     const plan: PlannedAction = {
       id,
-      edgeId: opts?.edgeId ?? s.selectedEdgeId ?? undefined,
-      nodeId: opts?.nodeId ?? s.selectedNodeId ?? undefined,
+      edgeId: named ? opts?.edgeId : (s.selectedEdgeId ?? undefined),
+      nodeId: named ? opts?.nodeId : (s.selectedNodeId ?? undefined),
       faction: opts?.faction,
       claimId: opts?.claimId,
       method: opts?.method,

@@ -776,7 +776,7 @@ export const en: DeepStringify<typeof tr> = {
     yesil: "Yeşil was spent. The perpetrator claim warmed; the order-gap remains.",
   },
   note: {
-    plan: { quiet: "{target}: the quiet contact from turn {turn} now rebuilt trust. Access narrowed during the wait.", institutional: "{target}: the institutional approach from turn {turn} received a response; the tie recovered but institutional attention increased.", operational: "{target}: the rapid intervention from turn {turn} left a trail. Tension and investigation proximity increased." },
+    plan: { quiet: "{target}: the quiet contact from turn {turn} now rebuilt trust. Access narrowed during the wait.", institutional: "{target}: the institutional approach from turn {turn} received a response; the tie recovered but institutional attention increased.", operational: "{target}: the rapid intervention from turn {turn} left a trail. Tension and investigation proximity increased.", burned: "{target}: the quiet contact from turn {turn} came back burned. The investigation was too close; trust fell and the tie was exposed." },
     jitem: {
       freelance: "The JITEM line is closing a capacity gap on its own. The desk did not order it.",
       resentment: "JITEM: a spent field line carries resentment. A freelance leak.",

@@ -1,6 +1,6 @@
 import { actOf } from "./acts.ts";
 import { hasMemory } from "./memory.ts";
-import type { GameState, Objective } from "../types.ts";
+import type { GameState, Objective, StatKey } from "../types.ts";
 
 const CATALOG: Omit<Objective, "status">[] = [
   { id: "obj_edge", title: "Bir bağı sıkılaştır veya gevşet", hint: "Haritada çizgi.", secret: false, origin: "act" },
@@ -14,6 +14,38 @@ const CATALOG: Omit<Objective, "status">[] = [
   { id: "obj_balance", title: "Emniyet hattını soğut, saha kapasitesini tut", hint: "Kesişim ısınmasın.", secret: false, origin: "faction" },
   { id: "obj_secret_aygan", title: "İtirafçıyı yakma", hint: "Aygan’ı harcama.", secret: true, origin: "actor" },
 ];
+
+/**
+ * What finishing each objective earns. Paid once, the first time the objective
+ * reads "done", and recorded as an `obj-reward:<id>` tag so saves, replays and
+ * the move preview (which runs the real engine) all agree.
+ */
+export const OBJECTIVE_REWARDS: Record<string, Partial<Record<StatKey, number>>> = {
+  obj_edge: { etki: 3 },
+  obj_person: { sadakat: 4 },
+  obj_truth: { bilgi: 4 },
+  obj_hold_ersever: { saha: 5 },
+  obj_cool_mit: { giz: 3 },
+  obj_leak: { etki: 3 },
+  obj_inv: { hukuk: -4 },
+  obj_chain: { bilgi: 6 },
+  obj_balance: { saha: 4 },
+  obj_secret_aygan: { sadakat: 6 },
+};
+
+function payRewards(state: GameState, objectives: Objective[]): GameState {
+  let next = state;
+  for (const o of objectives) {
+    const tag = `obj-reward:${o.id}`;
+    const reward = OBJECTIVE_REWARDS[o.id];
+    if (o.status !== "done" || !reward || next.tags.includes(tag)) continue;
+    const stats = { ...next.stats };
+    for (const [k, v] of Object.entries(reward))
+      stats[k as StatKey] = Math.max(0, Math.min(100, stats[k as StatKey] + (v ?? 0)));
+    next = { ...next, stats, tags: [...next.tags, tag] };
+  }
+  return next;
+}
 
 function evalStatus(state: GameState, id: string): Objective["status"] {
   const reports = state.decisions.filter((d) => d.id === "rapor_yaz" || d.id === "dosya_oku").length;
@@ -77,7 +109,7 @@ export function syncObjectives(state: GameState): GameState {
   for (const o of state.objectives) {
     if (!want.includes(o.id) && o.status === "done") next.push(o);
   }
-  return { ...state, objectives: next };
+  return payRewards({ ...state, objectives: next }, next);
 }
 
 export function visibleObjectives(state: GameState) {

@@ -546,7 +546,8 @@ describe("embedded shell", () => {
     assert.match(source, /target\.kind === "edge"/);
     assert.match(source, /decision\.pickTarget/);
     assert.match(source, /decision\.commit/);
-    assert.match(source, /delayedConsequence\(selected!, locale\)/);
+    // The delayed half is projected from the engine, not described in prose.
+    assert.match(source, /<DueLine preview={preview} state={state} locale={locale} \/>/);
     assert.doesNotMatch(source, /ACTION_GROUPS/);
   });
 });
