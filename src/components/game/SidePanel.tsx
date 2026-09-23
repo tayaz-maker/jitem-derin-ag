@@ -169,36 +169,17 @@ export function PersonPane() {
 
   if (edge && live && (!node || state.selectedEdgeId)) {
     return (
-      <div className="p-3 lg:p-0">
-        <p className="scan font-mono text-[10px] text-olive">{t(locale, "map.edge")}</p>
-        <h2 className="mt-1 text-lg font-medium text-fg">{edge.label}</h2>
-        <div className="mt-1 flex flex-wrap gap-1">
-          <Badge tone={evidenceTone(edge.evidence)}>
-            {t(locale, `evidence.${edge.evidence}.label`)}
-          </Badge>
+      <div className="target-pane p-3 lg:p-0">
+        <div className="target-strip sticky top-0 z-10 bg-surface/95 pb-2">
+          <p className="scan font-mono text-[10px] text-olive">{t(locale, "map.edge")}</p>
+          <h2 className="mt-1 text-lg font-medium text-fg">{edge.label}</h2>
+          <div className="mt-1 flex flex-wrap gap-1">
+            <Badge tone={evidenceTone(edge.evidence)}>
+              {t(locale, `evidence.${edge.evidence}.label`)}
+            </Badge>
+          </div>
+          <p className="decision-context">{ei?.why ?? edge.source}</p>
         </div>
-        <dl className="mt-3 space-y-1.5 text-xs leading-relaxed text-muted">
-          <div>
-            <dt className="text-paper">{t(locale, "map.edgeWhat")}</dt>
-            <dd>{ei?.what ?? edge.label}</dd>
-          </div>
-          <div>
-            <dt className="text-paper">{t(locale, "map.edgeWhy")}</dt>
-            <dd>{ei?.why ?? edge.source}</dd>
-          </div>
-          <div>
-            <dt className="text-paper">{t(locale, "map.edgeTrust")}</dt>
-            <dd>{ei?.trust ?? liveLine(live, locale)}</dd>
-          </div>
-          <div>
-            <dt className="text-paper">{t(locale, "map.edgeGain")}</dt>
-            <dd>{ei?.gain}</dd>
-          </div>
-          <div>
-            <dt className="text-paper">{t(locale, "map.edgeRisk")}</dt>
-            <dd>{ei?.risk}</dd>
-          </div>
-        </dl>
         {feedback ? <OutcomeCard copy={feedback} /> : null}
         {state.phase === "actions" ? (
           <ContextualDecisions
@@ -206,116 +187,69 @@ export function PersonPane() {
             target={{ kind: "edge", id: edge.id, label: edge.label }}
           />
         ) : null}
+        <details className="file-fold mt-3 rounded-sm border border-border bg-bg/40 p-2">
+          <summary className="cursor-pointer text-xs text-olive">{t(locale, "map.file")}</summary>
+          <dl className="mt-2 space-y-1.5 text-xs leading-relaxed text-muted">
+            <div>
+              <dt className="text-paper">{t(locale, "map.edgeWhat")}</dt>
+              <dd>{ei?.what ?? edge.label}</dd>
+            </div>
+            <div>
+              <dt className="text-paper">{t(locale, "map.edgeWhy")}</dt>
+              <dd>{ei?.why ?? edge.source}</dd>
+            </div>
+            <div>
+              <dt className="text-paper">{t(locale, "map.edgeTrust")}</dt>
+              <dd>{ei?.trust ?? liveLine(live, locale)}</dd>
+            </div>
+            <div>
+              <dt className="text-paper">{t(locale, "map.edgeGain")}</dt>
+              <dd>{ei?.gain}</dd>
+            </div>
+            <div>
+              <dt className="text-paper">{t(locale, "map.edgeRisk")}</dt>
+              <dd>{ei?.risk}</dd>
+            </div>
+          </dl>
+        </details>
       </div>
     );
   }
 
   return (
-    <div className="p-3 lg:p-0">
+    <div className="target-pane p-3 lg:p-0">
       <p className="scan font-mono text-[10px] text-olive">{t(locale, "map.selected")}</p>
       {visible && node ? (
         <>
-          <div className="mt-1 flex flex-wrap items-center gap-2">
-            <h2 className="text-lg font-medium text-fg">{node.name}</h2>
-            <Badge tone={evidenceTone(node.evidence)}>
-              {t(locale, `evidence.${node.evidence}.label`)}
-            </Badge>
-            <Badge>
-              {node.kind === "kisi"
-                ? t(locale, "map.person")
-                : node.kind === "kurum"
-                  ? t(locale, "map.org")
-                  : t(locale, "map.corridor")}
-            </Badge>
-            {state.dead[node.id] ? <Badge tone="stamp">{t(locale, "map.closed")}</Badge> : null}
-          </div>
-          {state.actorMemory[node.id]?.length ? (
-            // Promoted out of the dl and given its own callout: this is the
-            // concrete "your earlier decision changed what happens here"
-            // signal (action -> consequence -> delayed callback). Burying
-            // it as one more flat dl row among five made it easy to miss
-            // exactly where a player most needs to feel continuity.
-            <p className="mt-2 rounded-sm border border-olive/40 bg-olive/10 px-2 py-1.5 text-xs leading-snug text-paper">
-              {memoryLine(state, node.id, locale)}
-            </p>
-          ) : null}
-          <dl className="mt-3 space-y-1.5 text-xs leading-relaxed text-muted">
-            <div>
-              <dt className="text-paper">{t(locale, "map.who")}</dt>
-              <dd>{ni?.who ?? node.name}</dd>
+          <div className="target-strip sticky top-0 z-10 bg-surface/95 pb-2">
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <h2 className="text-lg font-medium text-fg">{node.name}</h2>
+              <Badge tone={evidenceTone(node.evidence)}>
+                {t(locale, `evidence.${node.evidence}.label`)}
+              </Badge>
+              <Badge>
+                {node.kind === "kisi"
+                  ? t(locale, "map.person")
+                  : node.kind === "kurum"
+                    ? t(locale, "map.org")
+                    : t(locale, "map.corridor")}
+              </Badge>
+              {state.dead[node.id] ? <Badge tone="stamp">{t(locale, "map.closed")}</Badge> : null}
             </div>
-            <div>
-              <dt className="text-paper">{t(locale, "map.why")}</dt>
-              <dd>{ni?.why ?? node.role}</dd>
-            </div>
-            <div>
-              <dt className="text-paper">{t(locale, "map.youKnow")}</dt>
-              <dd>{ni?.youKnow}</dd>
-            </div>
-            <div>
-              <dt className="text-paper">{t(locale, "map.theySee")}</dt>
-              <dd>{ni?.theySee ?? theySeePlayer(state, node.id, locale)}</dd>
-            </div>
-            <div>
-              <dt className="text-paper">{t(locale, "map.evidence")}</dt>
-              <dd>
-                {t(locale, `evidence.${node.evidence}.label`)} ·{" "}
-                {src ? `${src.title}${src.location ? ` · ${src.location}` : ""}` : node.source}
-              </dd>
-            </div>
-          </dl>
-          <div className="mt-2 flex flex-wrap gap-1">
-            {ux.slice(0, 3).map((tag) => (
-              <Badge key={tag}>{tag}</Badge>
-            ))}
-            {node.sourceIds[0] ? (
-              <button
-                type="button"
-                className="rounded-sm border border-border px-1.5 py-0.5 text-[10px] text-olive"
-                onClick={() =>
-                  setClaimId(node.researchId.startsWith("clm_") ? node.researchId : null)
-                }
-              >
-                {t(locale, "claim.title")}
-              </button>
+            <p className="decision-context">{ni?.why ?? node.role}</p>
+            {state.actorMemory[node.id]?.length ? (
+              <p className="mt-1 rounded-sm border border-olive/40 bg-olive/10 px-2 py-1.5 text-xs leading-snug text-paper">
+                {memoryLine(state, node.id, locale)}
+              </p>
             ) : null}
           </div>
-          {node.sourceIds.length ? (
-            <button
-              type="button"
-              className="mt-2 w-full rounded-sm border border-border bg-bg/40 px-2 py-2 text-left text-[11px] text-olive"
-              onClick={() => {
-                const related = Object.keys(state.hand).find((id) => id.startsWith("clm_"));
-                setClaimId(related ?? "clm_jitem_exists");
-              }}
-            >
-              {t(locale, "claim.title")}
-            </button>
+          {feedback ? <OutcomeCard copy={feedback} /> : null}
+          {state.phase === "actions" ? (
+            <ContextualDecisions
+              state={state}
+              target={{ kind: "node", id: node.id, label: node.name }}
+            />
           ) : null}
-          {claimId ? (
-            <div className="mt-2">
-              <ClaimDrawer claimId={claimId} onClose={() => setClaimId(null)} />
-            </div>
-          ) : null}
-          <details className="mt-3 rounded-sm border border-border bg-bg/40 p-2">
-            <summary className="cursor-pointer text-xs text-olive">
-              {t(locale, "map.layers")}
-            </summary>
-            <dl className="mt-2 space-y-2 text-xs leading-relaxed text-muted">
-              <div>
-                <dt className="text-paper">{t(locale, "map.hist")}</dt>
-                <dd>{node.historicalFact}</dd>
-              </div>
-              <div>
-                <dt className="text-paper">{t(locale, "map.claim")}</dt>
-                <dd>{node.sourceClaim}</dd>
-              </div>
-              <div>
-                <dt className="text-paper">{t(locale, "map.recon")}</dt>
-                <dd>{node.gameReconstruction}</dd>
-              </div>
-            </dl>
-          </details>
           <div className="agenda-fronts mt-3">
             {EDGES.filter(
               (e) => (e.from === node.id || e.to === node.id) && isEdgeVisible(state, e.id),
@@ -330,13 +264,81 @@ export function PersonPane() {
                 </button>
               ))}
           </div>
-          {feedback ? <OutcomeCard copy={feedback} /> : null}
-          {state.phase === "actions" ? (
-            <ContextualDecisions
-              state={state}
-              target={{ kind: "node", id: node.id, label: node.name }}
-            />
-          ) : null}
+          <details className="file-fold mt-3 rounded-sm border border-border bg-bg/40 p-2">
+            <summary className="cursor-pointer text-xs text-olive">{t(locale, "map.file")}</summary>
+            <dl className="mt-2 space-y-1.5 text-xs leading-relaxed text-muted">
+              <div>
+                <dt className="text-paper">{t(locale, "map.who")}</dt>
+                <dd>{ni?.who ?? node.name}</dd>
+              </div>
+              <div>
+                <dt className="text-paper">{t(locale, "map.why")}</dt>
+                <dd>{ni?.why ?? node.role}</dd>
+              </div>
+              <div>
+                <dt className="text-paper">{t(locale, "map.youKnow")}</dt>
+                <dd>{ni?.youKnow}</dd>
+              </div>
+              <div>
+                <dt className="text-paper">{t(locale, "map.theySee")}</dt>
+                <dd>{ni?.theySee ?? theySeePlayer(state, node.id, locale)}</dd>
+              </div>
+              <div>
+                <dt className="text-paper">{t(locale, "map.evidence")}</dt>
+                <dd>
+                  {t(locale, `evidence.${node.evidence}.label`)} ·{" "}
+                  {src ? `${src.title}${src.location ? ` · ${src.location}` : ""}` : node.source}
+                </dd>
+              </div>
+            </dl>
+            <div className="mt-2 flex flex-wrap gap-1">
+              {ux.slice(0, 3).map((tag) => (
+                <Badge key={tag}>{tag}</Badge>
+              ))}
+              {node.sourceIds[0] ? (
+                <button
+                  type="button"
+                  className="rounded-sm border border-border px-1.5 py-0.5 text-[10px] text-olive"
+                  onClick={() =>
+                    setClaimId(node.researchId.startsWith("clm_") ? node.researchId : null)
+                  }
+                >
+                  {t(locale, "claim.title")}
+                </button>
+              ) : null}
+            </div>
+            {node.sourceIds.length ? (
+              <button
+                type="button"
+                className="mt-2 w-full rounded-sm border border-border bg-bg/40 px-2 py-2 text-left text-[11px] text-olive"
+                onClick={() => {
+                  const related = Object.keys(state.hand).find((id) => id.startsWith("clm_"));
+                  setClaimId(related ?? "clm_jitem_exists");
+                }}
+              >
+                {t(locale, "claim.title")}
+              </button>
+            ) : null}
+            {claimId ? (
+              <div className="mt-2">
+                <ClaimDrawer claimId={claimId} onClose={() => setClaimId(null)} />
+              </div>
+            ) : null}
+            <dl className="mt-3 space-y-2 text-xs leading-relaxed text-muted">
+              <div>
+                <dt className="text-paper">{t(locale, "map.hist")}</dt>
+                <dd>{node.historicalFact}</dd>
+              </div>
+              <div>
+                <dt className="text-paper">{t(locale, "map.claim")}</dt>
+                <dd>{node.sourceClaim}</dd>
+              </div>
+              <div>
+                <dt className="text-paper">{t(locale, "map.recon")}</dt>
+                <dd>{node.gameReconstruction}</dd>
+              </div>
+            </dl>
+          </details>
         </>
       ) : (
         <p className="mt-2 text-sm text-muted">{t(locale, "map.pick")}</p>
@@ -494,6 +496,7 @@ function ContextualDecisions({ state, target }: { state: GameState; target: Deci
     if (!plan || !available) return;
     play(plan);
   };
+  const openObjective = visibleObjectives(state).find((o) => o.status === "open" && !o.secret);
 
   return (
     <section
@@ -501,6 +504,12 @@ function ContextualDecisions({ state, target }: { state: GameState; target: Deci
       aria-label={t(locale, "decision.title")}
     >
       <p className="scan font-mono text-[10px] text-olive">{t(locale, "decision.title")}</p>
+      {openObjective ? (
+        <p className="text-[11px] leading-snug text-muted">
+          <span className="text-olive">{t(locale, "decision.openObj")}:</span>{" "}
+          {t(locale, `obj.${openObjective.id}`)} · {rewardLine(openObjective.id, locale)}
+        </p>
+      ) : null}
       {selected && chosen ? (
         <div className="selected-move flex items-center justify-between gap-2 rounded-sm border border-olive bg-olive/15 px-2 py-1.5 text-xs">
           <span className="min-w-0">

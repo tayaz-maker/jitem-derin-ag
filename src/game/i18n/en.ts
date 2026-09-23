@@ -345,7 +345,7 @@ export const en: DeepStringify<typeof tr> = {
     pitch:
       "You are not a person. You are an unofficial desk. Keep the network working, and officially say it does not exist. When secrecy fails you do not lose at once — an inquiry opens. There is no single-hand conspiracy.",
   },
-  pane: { map: "Map", olay: "Event", kisi: "Person", isler: "Work", rapor: "Report" },
+  pane: { map: "Map", olay: "Event", kisi: "Decision", isler: "Work", rapor: "Report" },
   lang: { tr: "TR", en: "EN", label: "Language" },
   hat: {
     saha: {
@@ -492,6 +492,7 @@ export const en: DeepStringify<typeof tr> = {
     edgeRisk: "What risk do you take?",
     pick: "Touch a name or a line on the map. Fogged names open with period and knowledge.",
     selected: "Selected from the map",
+    file: "Target file",
     edge: "Tie",
     closed: "CLOSED",
     person: "person",
@@ -584,6 +585,7 @@ export const en: DeepStringify<typeof tr> = {
   decision: {
     agenda: "Agenda · capacity",
     title: "Contextual decision",
+    openObj: "Open objective",
     target: "Target",
     pickTarget: "Select a person or tie on the map.",
     pickTargetHint: "This desk does not offer a generic action list; a selected file opens decisions that fit its context.",

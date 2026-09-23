@@ -344,7 +344,7 @@ export const tr = {
     pitch:
       "Bir kişi değilsin. Gayri resmi bir masasın. Ağı çalışır tut, resmen “yok” de. Gizlilik bitince kaybetmezsin hemen — soruşturma açılır. Tek el komplo yok.",
   },
-  pane: { map: "Harita", olay: "Olay", kisi: "Kişi", isler: "İşler", rapor: "Rapor" },
+  pane: { map: "Harita", olay: "Olay", kisi: "Karar", isler: "İşler", rapor: "Rapor" },
   lang: { tr: "TR", en: "EN", label: "Dil" },
   hat: {
     saha: {
@@ -491,6 +491,7 @@ export const tr = {
     edgeRisk: "Ne risk alırsın?",
     pick: "Haritada bir isme veya çizgiye dokun. Sisli isimler dönem ve bilgiyle açılır.",
     selected: "Haritadan seçilen",
+    file: "Hedef dosyası",
     edge: "Bağ",
     closed: "KAPALI",
     person: "kişi",
@@ -583,6 +584,7 @@ export const tr = {
   decision: {
     agenda: "Gündem · kapasite",
     title: "Bağlamsal karar",
+    openObj: "Açık hedef",
     target: "Hedef",
     pickTarget: "Haritadan bir kişi veya bağ seç.",
     pickTargetHint: "Bu masa genel işlem listesi vermez; seçili dosyanın bağlamına göre karar açar.",
