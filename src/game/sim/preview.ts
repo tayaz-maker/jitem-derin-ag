@@ -1,6 +1,7 @@
 import { EDGES, NODES } from "../data.ts";
 import { executeAction } from "../engine.ts";
 import type { GameState, PlannedAction, StatKey } from "../types.ts";
+import { METHOD_NOW, planDue, type PlanDue } from "./planning.ts";
 
 /**
  * Move preview and outcome use one code path: the preview runs the real
@@ -82,13 +83,39 @@ export interface MovePreview {
   /** false when the engine would refuse the move as it stands */
   ok: boolean;
   changes: Change[];
+  /** Objectives this move completes (their reward is already in `changes`). */
+  rewards: string[];
+  /** The approach's delayed half, as it would land under today's conditions. */
+  due: { turn: number; effect: PlanDue } | null;
 }
 
 export function previewMove(state: GameState, plan: PlannedAction): MovePreview {
   const input = structuredClone(moveInput(state, plan));
   const next = executeAction(input, plan);
-  if (next === input) return { ok: false, changes: [] };
-  return { ok: true, changes: diffState(state, next) };
+  if (next === input) return { ok: false, changes: [], rewards: [], due: null };
+  const rewards = next.tags
+    .filter((t) => t.startsWith("obj-reward:") && !state.tags.includes(t))
+    .map((t) => t.slice("obj-reward:".length));
+  const due =
+    plan.contextual && plan.method
+      ? {
+          turn: state.turn + METHOD_NOW[plan.method].dueIn,
+          effect: planDue(next, plan.method, plan.nodeId, plan.edgeId),
+        }
+      : null;
+  return { ok: true, changes: diffState(state, next), rewards, due };
+}
+
+/**
+ * Where a change belongs on the operation desk: what you gain, what you pay,
+ * or what it does to your trail (secrecy, heat, exposure, legal risk).
+ */
+export function changeGroup(c: Change): "gain" | "cost" | "trace" {
+  if (c.kind === "heat" || c.kind === "node" || c.kind === "faction") return "trace";
+  if (c.kind === "stat" && (c.key === "giz" || c.key === "hukuk" || c.key === "kamuoyu")) return "trace";
+  if (c.kind === "edge" && c.field === "secrecy") return "trace";
+  if (c.kind === "actions") return "cost";
+  return changeTone(c) === "bad" ? "cost" : "gain";
 }
 
 /** Which way a change reads for the player, so colour is never the only cue. */

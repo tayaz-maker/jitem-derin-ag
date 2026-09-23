@@ -2,6 +2,7 @@ import { useGame } from "@/game/store";
 import { t, useLocale } from "@/game/i18n";
 import { changeTone, nextStep, type Change } from "@/game/sim/preview";
 import { cn } from "@/lib/utils";
+import { changeLabel } from "./operation-copy";
 
 const STEP_ORDER = ["target", "move", "confirm", "resolve"] as const;
 
@@ -29,25 +30,6 @@ export function NextStepBar() {
       <span>{t(locale, `move.next.${step}`)}</span>
     </p>
   );
-}
-
-function changeLabel(c: Change, locale: "tr" | "en") {
-  switch (c.kind) {
-    case "stat":
-      return t(locale, `stat.${c.key}.label`);
-    case "actions":
-      return t(locale, "move.change.actions");
-    case "heat":
-      return t(locale, "move.change.heat");
-    case "records":
-      return t(locale, "move.change.records");
-    case "edge":
-      return `${c.label} · ${t(locale, `move.change.${c.field}`)}`;
-    case "node":
-      return `${c.label} · ${t(locale, "move.change.node")}`;
-    case "faction":
-      return `${t(locale, `move.faction.${c.id}`)} · ${t(locale, "move.change.faction")}`;
-  }
 }
 
 /** Exact before → after rows; direction is shown by sign and arrow, not colour alone. */

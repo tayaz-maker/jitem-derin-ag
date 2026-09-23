@@ -2,6 +2,8 @@ import {
   decisionOptions,
   targetClaims,
   planMethods,
+  pendingPlans,
+  planDue,
   type PlanMethod,
   type DecisionTarget,
 } from "@/game/sim/planning";
@@ -40,7 +42,8 @@ import {
 } from "@/game/i18n";
 import { hatBlocks } from "@/game/sim/hats";
 import { ClaimDrawer } from "./ClaimDrawer";
-import { ChangeList } from "./MoveGuide";
+import { DueLine, MethodCompare, RiskRewardGrid } from "./OperationDesk";
+import { dueSummary, rewardLine } from "./operation-copy";
 
 export function SidePanel({ forceTab }: { forceTab?: "is" | "dosya" }) {
   const state = useGame((s) => s.state);
@@ -375,8 +378,9 @@ function ActionBlock() {
             .filter((o) => o.status === "open")
             .slice(0, 3)
             .map((o) => (
-              <li key={o.id} className="text-[11px] text-muted">
-                {t(locale, `obj.${o.id}`)}
+              <li key={o.id} className="flex justify-between gap-2 text-[11px] text-muted">
+                <span>{t(locale, `obj.${o.id}`)}</span>
+                <span className="shrink-0 font-mono text-[10px] text-olive">{rewardLine(o.id, locale)}</span>
               </li>
             ))}
         </ul>
@@ -430,23 +434,15 @@ function ActionBlock() {
   );
 }
 
-function delayedConsequence(id: ActionId, locale: "tr" | "en") {
-  const tr = locale === "tr";
-  if (["kisi_koru", "kisi_kullan", "kisi_harca", "kisi_mesafe"].includes(id))
-    return tr
-      ? "Bu kişi bunu hatırlar; sonraki olay seçenekleri değişebilir."
-      : "This person remembers it; later event choices may change.";
-  if (["bag_guclendir", "bag_gevset", "bag_gozet", "bag_yalitim", "bag_koru"].includes(id))
-    return tr
-      ? "Bağın durumu, bilgi akışını ve sonraki hat tepkilerini etkileyebilir."
-      : "The tie's state can affect information flow and later line reactions.";
-  if (["kaynak_karsilastir", "dogrula", "src_tut", "src_paylas", "src_yayin"].includes(id))
-    return tr
-      ? "Dosyanın ne zaman ve kimin önüne gideceği değişebilir."
-      : "It can change when, and before whom, the file appears.";
-  return tr
-    ? "Delil zinciri veya kurumsal tepki sonraki eşiği değiştirebilir."
-    : "The evidence chain or institutional response can change the next threshold.";
+/** What the people on this target remember of you, if anything. */
+function memoryFor(state: GameState, target: DecisionTarget, locale: "tr" | "en") {
+  const edge = target.kind === "edge" ? EDGES.find((e) => e.id === target.id) : null;
+  const ids = edge ? [edge.from, edge.to] : [target.id];
+  return ids
+    .filter((id) => state.actorMemory[id]?.length)
+    .map((id) => `${NODES.find((n) => n.id === id)?.name ?? id} — ${memoryLine(state, id, locale)}`)
+    .join(" ")
+    .trim();
 }
 
 function ContextualDecisions({ state, target }: { state: GameState; target: DecisionTarget }) {
@@ -461,7 +457,9 @@ function ContextualDecisions({ state, target }: { state: GameState; target: Deci
   const method: PlanMethod = selected ? draft!.method : "quiet";
   const setSelected = (id: ActionId | null) =>
     setMove(id ? { id, targetKind: target.kind, targetId: target.id, method: "quiet" } : null);
-  const setMethod = (m: PlanMethod) => draft && setMove({ ...draft, method: m });
+  const setMethod = (m: PlanMethod) => {
+    if (draft) setMove({ ...draft, method: m });
+  };
   const claims = targetClaims(state, target).filter(
     (c) => state.hat !== "hukuk" || ["PARTIAL", "TRUE"].includes(state.hand[c.id].status),
   );
@@ -592,81 +590,57 @@ function ContextualDecisions({ state, target }: { state: GameState; target: Deci
           );
         })}
       </div>
-      {copy && chosen ? (
-        <div className="space-y-1.5 border-t border-border pt-2 text-[11px] leading-snug">
-          {methods.length ? (
-            <fieldset className="plan-methods">
-              <legend>{tr ? "Uygulama biçimi" : "Approach"}</legend>
-              {methods.map((m) => (
-                <button
-                  type="button"
-                  key={m}
-                  aria-pressed={method === m}
-                  onClick={() => setMethod(m)}
-                >
-                  {m === "quiet"
-                    ? tr
-                      ? "Sessiz temas"
-                      : "Quiet contact"
-                    : m === "institutional"
-                      ? tr
-                        ? "Kurumsal kanal"
-                        : "Institutional channel"
-                      : tr
-                        ? "Hızlı müdahale"
-                        : "Rapid intervention"}
-                </button>
-              ))}
-              <p>
-                {method === "quiet"
-                  ? tr
-                    ? "Gizlilik artar, erişim daralır. Güven karşılığı iki tur sonra gelir."
-                    : "More secrecy, less reach. Trust returns after two turns."
-                  : method === "institutional"
-                    ? tr
-                      ? "4 nüfuz: gerilim azalır, kuruma bağımlılık ve soruşturma izi artar. Yanıt gelecek tur."
-                      : "4 influence: less tension, more institutional dependency and investigation exposure. Reply next turn."
-                    : tr
-                      ? "Ek 1 hamle + 4 örtülü kaynak: erişim hızlanır; kişiler ve bağlantılar iz bırakır. Geri tepme gelecek tur."
-                      : "Extra 1 action + 4 covert resources: faster reach; actors and connections leave traces. Blowback next turn."}
-              </p>
-            </fieldset>
-          ) : null}
-          <p>
+      {copy && chosen && plan ? (
+        <div className="space-y-2 border-t border-border pt-2 text-[11px] leading-snug">
+          <p className="text-paper">
             <span className="text-olive">{t(locale, "decision.intent")}:</span> {copy.whyItMatters}
           </p>
-          <p>
-            <span className="text-olive">{t(locale, "decision.cost")}:</span> {copy.knownCost}
-          </p>
-          <p>
-            <span className="text-olive">{t(locale, "decision.effect")}:</span>{" "}
-            {copy.expectedEffect}
-          </p>
-          <p>
-            <span className="text-olive">{t(locale, "decision.risk")}:</span>{" "}
-            {ACTIONS.find((a) => a.id === selected)?.risk && copy.uncertainty
-              ? copy.uncertainty
-              : copy.shortExplanation}
-          </p>
-          <p className="text-warn">
-            <span className="text-olive">{t(locale, "decision.delayed")}:</span>{" "}
-            {delayedConsequence(selected!, locale)}
-          </p>
-          {copy.uncertainty ? (
-            <p className="text-warn">
-              <span className="text-olive">{t(locale, "decision.uncertainty")}:</span>{" "}
-              {copy.uncertainty}
+          {memoryFor(state, target, locale) ? (
+            <p className="op-memory text-muted">
+              <span className="text-olive">{tr ? "Aktör hafızası" : "Actor memory"}:</span>{" "}
+              {memoryFor(state, target, locale)}
             </p>
+          ) : null}
+          {methods.length ? (
+            <MethodCompare
+              state={state}
+              plan={plan}
+              methods={methods}
+              method={method}
+              onPick={setMethod}
+              locale={locale}
+              blocked={(m) =>
+                !canPlay(state, selected!) ||
+                (m === "operational" && state.actionsLeft < (chosen?.ap ?? 1) + 1)
+              }
+            />
           ) : null}
           <div className="move-preview space-y-1.5 rounded-sm border border-olive/40 bg-bg/50 p-2">
             <p className="scan font-mono text-[10px] text-olive">
               {t(locale, "move.previewTitle")}
             </p>
             {preview?.ok ? (
-              <ChangeList changes={preview.changes} empty={t(locale, "move.noChange")} />
+              <>
+                <RiskRewardGrid preview={preview} locale={locale} />
+                <DueLine preview={preview} state={state} locale={locale} />
+                {preview.rewards.map((id) => (
+                  <p key={id} className="op-reward rounded-sm bg-olive/10 px-2 py-1 text-paper">
+                    <span className="font-mono text-[10px] text-olive">
+                      {tr ? "HEDEF TAMAMLANIR" : "OBJECTIVE COMPLETES"}
+                    </span>{" "}
+                    {t(locale, `obj.${id}`)} · {rewardLine(id, locale)}
+                  </p>
+                ))}
+              </>
             ) : (
               <p className="text-[11px] text-warn">{t(locale, "move.previewBlocked")}</p>
             )}
+            {copy.uncertainty ? (
+              <p className="text-warn">
+                <span className="text-olive">{t(locale, "decision.uncertainty")}:</span>{" "}
+                {copy.uncertainty}
+              </p>
+            ) : null}
             <p className="text-[10px] leading-snug text-subtle">{t(locale, "move.previewNote")}</p>
           </div>
           <Button className="mt-1 w-full" disabled={!available || !preview?.ok} onClick={commit}>
@@ -683,42 +657,59 @@ function ContextualDecisions({ state, target }: { state: GameState; target: Deci
   );
 }
 
+/** "Label:" unless the label is already a question. */
+const label = (text: string) => (/[?:]$/.test(text) ? text : `${text}:`);
+
 function OutcomeCard({ copy }: { copy: ReturnType<typeof copyForAction> }) {
   const state = useGame((s) => s.state);
-  const pending = state?.tags
-    .filter((tag) => tag.startsWith("plan-due:"))
-    .at(-1)
-    ?.split(":");
   const locale = useLocale((s) => s.locale);
   const lastResult = useGame((s) => s.lastResult);
+  const tr = locale === "tr";
+  const pending = state ? pendingPlans(state) : [];
   return (
-    <div className="mt-3 rounded-sm border border-olive/40 bg-olive/10 p-2.5 text-xs leading-snug">
+    <div className="op-outcome mt-3 space-y-2 rounded-sm border border-olive/40 bg-olive/10 p-2.5 text-xs leading-snug">
       <p className="scan font-mono text-[10px] text-olive">{t(locale, "decision.after")}</p>
-      {lastResult && lastResult.turn === state?.turn ? (
-        <div className="mt-1.5 space-y-1">
-          <p className="text-olive">{t(locale, "move.resultTitle")}</p>
-          <ChangeList changes={lastResult.changes} empty={t(locale, "move.noChange")} />
-        </div>
-      ) : null}
-      <p className="mt-1 text-paper">
-        <span className="text-olive">{t(locale, "decision.happened")}:</span>{" "}
+      <p className="text-paper">
+        <span className="text-olive">{label(t(locale, "decision.happened"))}</span>{" "}
         {copy.resultExplanation}
       </p>
-      <p className="mt-1 text-muted">
-        <span className="text-olive">{t(locale, "decision.why")}:</span> {copy.whyItMatters}
+      {lastResult && lastResult.turn === state?.turn ? (
+        <div className="space-y-1">
+          <p className="text-olive">{t(locale, "move.resultTitle")}</p>
+          <RiskRewardGrid
+            preview={{ ok: true, changes: lastResult.changes, rewards: [], due: null }}
+            locale={locale}
+          />
+        </div>
+      ) : null}
+      <p className="text-warn">
+        <span className="text-olive">{label(t(locale, "decision.watch"))}</span> {copy.nextSuggestion}
       </p>
-      <p className="mt-1 text-muted">
-        <span className="text-olive">{t(locale, "decision.changed")}:</span> {copy.expectedEffect}
-      </p>
-      <p className="mt-1 text-warn">
-        <span className="text-olive">{t(locale, "decision.watch")}:</span> {copy.nextSuggestion}
-      </p>
-      {pending ? (
-        <p className="mt-2 border-t border-border pt-2 text-paper">
-          {locale === "tr"
-            ? `Beklenen karşılık: ${pending[1]}. tur. ${pending[2] === "quiet" ? "Sessiz temasın güven etkisi henüz gelmedi." : pending[2] === "institutional" ? "Kurumsal ilginin sonraki adımını izle." : "Müdahalenin bıraktığı izi sonraki tur izle."}`
-            : `Expected response: turn ${pending[1]}. ${pending[2] === "quiet" ? "The contact has not returned yet." : pending[2] === "institutional" ? "Watch the institution’s next response." : "Watch the trail left by the intervention."}`}
-        </p>
+      {state && pending.length ? (
+        <div className="op-pending border-t border-border pt-2">
+          <p className="mb-1 font-mono text-[10px] uppercase tracking-wide text-olive">
+            {tr ? "Yolda olan sonuçlar" : "Consequences on the way"}
+          </p>
+          <ul className="grid gap-1">
+            {pending.map((p) => {
+              const due = dueSummary(planDue(state, p.method, p.nodeId, p.edgeId), locale);
+              return (
+                <li key={p.tag} className="rounded-sm bg-bg/50 px-2 py-1 text-[11px]">
+                  <span className="font-mono text-[10px] text-olive">
+                    {p.due}. {tr ? "tur" : "turn"}
+                  </span>{" "}
+                  <span className="text-paper">{p.label}</span> — {due.head}
+                  {due.parts.length ? `: ${due.parts.join(" · ")}` : ""}
+                </li>
+              );
+            })}
+          </ul>
+          <p className="mt-1 text-[10px] text-subtle">
+            {tr
+              ? "Bugünkü koşullarla hesaplanır; ısı ve iz değişirse sonuç da değişir."
+              : "Projected under today's conditions; if heat or trail changes, so does the outcome."}
+          </p>
+        </div>
       ) : null}
     </div>
   );
