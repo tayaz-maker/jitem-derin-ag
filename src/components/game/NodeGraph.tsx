@@ -1,406 +1,274 @@
-import { useMemo, type KeyboardEvent } from "react";
-import { EDGES, NODES } from "@/game/data";
-import { isEdgeVisible, isNodeVisible, nodeById } from "@/game/engine";
-import { evidenceColor } from "@/game/evidence";
-import { edgeSignal, dangerousActors } from "@/game/sim/edges";
-import { edgeWhy, nodeWhy } from "@/game/sim/inspect";
+import { useMemo, useState } from "react";
+import { buildAtlas, atlasPlan, type AtlasModel } from "@/game/sim/atlas";
+import { planMethods } from "@/game/sim/planning";
 import { useGame } from "@/game/store";
-import { t, useLocale } from "@/game/i18n";
+import { useLocale } from "@/game/i18n";
+import { copyForAction } from "@/game/i18n/interactive";
+import { AtlasSurface } from "./AtlasSurface";
+import { ChangeList } from "./MoveGuide";
+import { RiskRewardGrid, DueLine } from "./OperationDesk";
+import { dueSummary, METHOD_COPY, rewardLine } from "./operation-copy";
 
-const CLUSTERS = [
-  { id: "jitem", x: 250, y: 280, faction: "jitem" as const },
-  { id: "mit", x: 680, y: 140, faction: "mit" as const },
-  { id: "emniyet", x: 800, y: 420, faction: "emniyet" as const },
-];
-
-function activate(e: KeyboardEvent, fn: () => void) {
-  if (e.key === "Enter" || e.key === " ") {
-    e.preventDefault();
-    fn();
+/** A neighbourhood crop never changes the underlying visibility or simulation. */
+function focusModel(model: AtlasModel, focus: boolean): AtlasModel {
+  if (!focus) return model;
+  const selected = model.nodes.find((n) => n.selected);
+  const edge = model.edges.find((e) => e.selected);
+  const ids = new Set(edge ? [edge.from, edge.to] : selected ? [selected.id] : []);
+  if (!ids.size) return model;
+  const edges = model.edges.filter(
+    (e) => ids.has(e.from) || ids.has(e.to) || e.affected || e.due.length,
+  );
+  for (const e of edges) {
+    ids.add(e.from);
+    ids.add(e.to);
   }
+  const nodes = model.nodes.filter((n) => ids.has(n.id));
+  const x = Math.min(...nodes.map((n) => n.x)) - 100,
+    y = Math.min(...nodes.map((n) => n.y)) - 70;
+  const width = Math.max(300, Math.max(...nodes.map((n) => n.x)) - x + 100);
+  const height = Math.max(220, Math.max(...nodes.map((n) => n.y)) - y + 70);
+  return { ...model, nodes, edges, bounds: { x, y, width, height } };
 }
 
 export function NodeGraph() {
   const state = useGame((s) => s.state);
-  const pickNode = useGame((s) => s.pickNode);
-  const pickEdge = useGame((s) => s.pickEdge);
-  const setGraphMode = useGame((s) => s.setGraphMode);
-  const setMobilePane = useGame((s) => s.setMobilePane);
-  const locale = useLocale((s) => s.locale);
-  const visibleNodes = useMemo(
-    () => (state ? NODES.filter((n) => isNodeVisible(state, n.id)) : []),
-    [state],
+  const draft = useGame((s) => s.move);
+  const pickNode = useGame((s) => s.pickNode),
+    pickEdge = useGame((s) => s.pickEdge);
+  const setMove = useGame((s) => s.setMove),
+    play = useGame((s) => s.play);
+  const setGraphMode = useGame((s) => s.setGraphMode),
+    setMobilePane = useGame((s) => s.setMobilePane);
+  const locale = useLocale((s) => s.locale),
+    tr = locale === "tr";
+  const [svgOnly, setSvgOnly] = useState(false);
+  const model = useMemo(
+    () => (state ? buildAtlas(state, atlasPlan(state, draft)) : null),
+    [state, draft],
   );
-  const visibleEdges = useMemo(
-    () => (state ? EDGES.filter((e) => isEdgeVisible(state, e.id)) : []),
-    [state],
+  const surface = useMemo(
+    () => (model ? focusModel(model, state?.graphMode === "people") : null),
+    [model, state?.graphMode],
   );
-  const dangerIds = useMemo(
-    () => (state ? new Set(dangerousActors(state)) : new Set<string>()),
-    [state],
-  );
-  if (!state) return null;
-
-  const arming =
-    [
-      "bag_guclendir",
-      "bag_gevset",
-      "bag_gozet",
-      "bag_yalitim",
-      "bag_ifsa",
-      "bag_arabul",
-      "bag_koru",
-    ].includes(state.pendingAction ?? "") ||
-    ["kisi_koru", "kisi_kullan", "kisi_harca", "kisi_mesafe"].includes(state.pendingAction ?? "");
-
-  const clustered = state.graphMode === "factions";
-  const minX = Math.min(...visibleNodes.map((n) => n.x)) - 85;
-  const minY = Math.min(...visibleNodes.map((n) => n.y)) - 85;
-  const boardWidth = Math.max(300, Math.max(...visibleNodes.map((n) => n.x)) - minX + 85);
-  const boardHeight = Math.max(270, Math.max(...visibleNodes.map((n) => n.y)) - minY + 100);
-  const boardView = clustered ? "-48 -16 1120 660" : `${minX} ${minY} ${boardWidth} ${boardHeight}`;
-  const selected = state.selectedNodeId;
-  const neighborIds = new Set<string>();
-  if (selected) {
-    for (const e of visibleEdges) {
-      if (e.from === selected) neighborIds.add(e.to);
-      if (e.to === selected) neighborIds.add(e.from);
-    }
-  }
-
-  const why = state.selectedEdgeId
-    ? edgeWhy(state, state.selectedEdgeId, locale)
-    : state.selectedNodeId
-      ? nodeWhy(state, state.selectedNodeId, locale)
-      : null;
-
+  if (!state || !model || !surface) return null;
+  const selectedEdge = model.edges.find((e) => e.selected);
+  const selectedNode = model.nodes.find((n) => n.selected);
+  const title = selectedEdge?.label ?? selectedNode?.name;
+  const choose = (value: string) => {
+    if (value.startsWith("edge:")) pickEdge(value.slice(5));
+    else if (value.startsWith("node:")) pickNode(value.slice(5));
+  };
   return (
-    <div className="network-board relative h-full min-h-[220px] w-full overflow-hidden bg-bg">
-      <img
-        src={`${import.meta.env.BASE_URL}images/map.jpg`}
-        alt=""
-        className="absolute inset-0 size-full object-cover opacity-10"
-      />
-      <div className="absolute inset-0 bg-bg/55" />
-      <div className="absolute right-2 top-2 z-20 flex gap-1">
-        <button
-          type="button"
-          onClick={() => setGraphMode("factions")}
-          className={`min-h-10 rounded-sm px-2 text-[11px] ${clustered ? "bg-olive text-olive-fg" : "bg-surface text-muted"}`}
-        >
-          {t(locale, "map.zoomFar")}
-        </button>
-        <button
-          type="button"
-          onClick={() => setGraphMode("people")}
-          className={`min-h-10 rounded-sm px-2 text-[11px] ${!clustered ? "bg-olive text-olive-fg" : "bg-surface text-muted"}`}
-        >
-          {t(locale, "map.zoomNear")}
-        </button>
-      </div>
-      <svg
-        viewBox={boardView}
-        className="relative z-10 h-full w-full"
-        role="img"
-        aria-label={t(locale, "map.aria")}
-        preserveAspectRatio="xMidYMid meet"
-      >
-        <title>{t(locale, "map.aria")}</title>
-        {clustered
-          ? CLUSTERS.filter((c) =>
-              visibleNodes.some((n) => n.faction === c.faction || n.id === c.id),
-            ).map((c) => {
-              const count = visibleNodes.filter(
-                (n) => n.faction === c.faction || n.id === c.id,
-              ).length;
-              const heat = visibleNodes
-                .filter((n) => n.faction === c.faction)
-                .reduce((s, n) => s + (state.nodeHeat[n.id] ?? 0), 0);
-              const clusterName = t(locale, `map.clusters.${c.id}`);
-              return (
-                <g
-                  key={c.id}
-                  transform={`translate(${c.x} ${c.y})`}
-                  className="cursor-pointer"
-                  tabIndex={0}
-                  role="button"
-                  aria-label={clusterName}
-                  onClick={() => {
-                    pickNode(c.id);
-                    setGraphMode("people");
-                  }}
-                  onKeyDown={(e) =>
-                    activate(e, () => {
-                      pickNode(c.id);
-                      setGraphMode("people");
-                    })
-                  }
-                >
-                  <rect
-                    x={-74}
-                    y={-30}
-                    width={148}
-                    height={60}
-                    rx={4}
-                    fill="var(--color-elevated)"
-                    stroke={heat > 2 ? "var(--color-stamp)" : "var(--color-paper)"}
-                  />
-                  <text
-                    textAnchor="middle"
-                    y={-4}
-                    fill="var(--color-fg)"
-                    fontSize={13}
-                    fontFamily="IBM Plex Sans, sans-serif"
-                  >
-                    {clusterName}
-                  </text>
-                  <text
-                    textAnchor="middle"
-                    y={16}
-                    fill="var(--color-muted)"
-                    fontSize={10}
-                    fontFamily="IBM Plex Mono, monospace"
-                  >
-                    {t(locale, "map.nodes", { n: count, heat })}
-                  </text>
-                </g>
-              );
-            })
-          : null}
-
-        {!clustered &&
-          visibleEdges.map((e) => {
-            const a = nodeById(e.from);
-            const b = nodeById(e.to);
-            if (!a || !b) return null;
-            const str = state.edgeStr[e.id] ?? 1;
-            const selectedE = state.selectedEdgeId === e.id;
-            const near = selected && (e.from === selected || e.to === selected);
-            const color = evidenceColor(e.evidence);
-            const live = state.edgeLive[e.id];
-            const sig = live ? edgeSignal(live) : null;
-            const hot = sig === "hot" || sig === "pressure";
-            const fragile = sig === "fragile";
-            return (
-              <g key={e.id}>
-                <line
-                  x1={a.x}
-                  y1={a.y}
-                  x2={b.x}
-                  y2={b.y}
-                  stroke={hot ? "var(--color-stamp)" : color}
-                  strokeWidth={selectedE ? 4 : near ? 2.6 : Math.max(1, 1 + str + (hot ? 0.6 : 0))}
-                  strokeOpacity={str <= 0 ? 0.2 : selectedE || near ? 0.95 : 0.4 + str * 0.12}
-                  strokeDasharray={
-                    fragile || e.evidence === "TARTIŞMALI"
-                      ? "6 4"
-                      : e.evidence === "BOŞLUK"
-                        ? "2 5"
-                        : undefined
-                  }
-                  onClick={(ev) => {
-                    ev.stopPropagation();
-                    pickEdge(e.id);
-                  }}
-                />
-                <line
-                  x1={a.x}
-                  y1={a.y}
-                  x2={b.x}
-                  y2={b.y}
-                  stroke="transparent"
-                  strokeWidth={28}
-                  className="cursor-pointer"
-                  tabIndex={0}
-                  role="button"
-                  aria-label={e.label}
-                  onClick={(ev) => {
-                    ev.stopPropagation();
-                    pickEdge(e.id);
-                  }}
-                  onKeyDown={(ev) => activate(ev, () => pickEdge(e.id))}
-                />
-                {selectedE && live ? (
-                  <text
-                    x={(a.x + b.x) / 2}
-                    y={(a.y + b.y) / 2 - 8}
-                    textAnchor="middle"
-                    fill="var(--color-paper)"
-                    fontSize={10}
-                    fontFamily="IBM Plex Mono, monospace"
-                  >
-                    {locale === "tr"
-                      ? {
-                          stable: "İşleyen bağlantı",
-                          pressure: "Baskı hattı",
-                          fragile: "Kırılgan bağ",
-                          hot: "Soruşturma izi",
-                          sealed: "Korunan koridor",
-                        }[edgeSignal(live)]
-                      : {
-                          stable: "Working connection",
-                          pressure: "Pressure front",
-                          fragile: "Fragile tie",
-                          hot: "Investigation exposure",
-                          sealed: "Protected corridor",
-                        }[edgeSignal(live)]}
-                  </text>
-                ) : null}
-              </g>
-            );
-          })}
-
-        {!clustered &&
-          visibleNodes.map((n) => {
-            const isSel = state.selectedNodeId === n.id;
-            const dead = Boolean(state.dead[n.id]);
-            const heated =
-              (state.nodeHeat[n.id] ?? 0) > 0 || Boolean(state.actorMemory[n.id]?.length);
-            const dangerous = dangerIds.has(n.id);
-            const near = neighborIds.has(n.id);
-            const focus =
-              isSel ||
-              near ||
-              heated ||
-              n.kind === "kurum" ||
-              n.appearTurn <= Math.max(1, state.turn - 1) ||
-              visibleNodes.length <= 10;
-            const fade = !focus;
-            const color =
-              n.kind === "kurum"
-                ? "var(--color-paper)"
-                : n.kind === "koridor"
-                  ? "var(--color-olive)"
-                  : "var(--color-fg)";
-            const r = n.kind === "kurum" ? 18 : 14;
-            return (
-              <g
-                key={n.id}
-                transform={`translate(${n.x} ${n.y})`}
-                className="cursor-pointer"
-                opacity={fade ? 0.22 : dead ? 0.7 : 1}
-                tabIndex={0}
-                role="button"
-                aria-label={n.name}
-                onClick={(ev) => {
-                  ev.stopPropagation();
-                  pickNode(n.id);
-                }}
-                onKeyDown={(ev) => activate(ev, () => pickNode(n.id))}
-              >
-                {isSel ? (
-                  <circle
-                    r={r + 12}
-                    fill="none"
-                    stroke="var(--color-olive)"
-                    strokeWidth={1.5}
-                    opacity={0.9}
-                  />
-                ) : null}
-                {heated && !dead ? (
-                  <circle
-                    r={r + 7}
-                    fill="none"
-                    stroke="var(--color-stamp)"
-                    strokeWidth={1}
-                    opacity={0.55}
-                  />
-                ) : null}
-                {dangerous && !dead ? (
-                  <circle
-                    r={r + 10}
-                    fill="none"
-                    stroke="var(--color-stamp)"
-                    strokeWidth={1.4}
-                    strokeDasharray="2 3"
-                    opacity={0.8}
-                  />
-                ) : null}
-                {n.kind === "kurum" ? (
-                  <rect
-                    x={-22}
-                    y={-14}
-                    width={44}
-                    height={28}
-                    rx={3}
-                    fill="var(--color-elevated)"
-                    stroke={color}
-                    strokeWidth={isSel ? 2 : 1.2}
-                    opacity={dead ? 0.45 : 1}
-                  />
-                ) : n.kind === "koridor" ? (
-                  <rect
-                    x={-13}
-                    y={-13}
-                    width={26}
-                    height={26}
-                    rx={1}
-                    transform="rotate(45)"
-                    fill="var(--color-surface)"
-                    stroke={color}
-                    strokeWidth={isSel ? 2 : 1.2}
-                    opacity={dead ? 0.45 : 1}
-                  />
-                ) : (
-                  <circle
-                    r={r}
-                    fill="var(--color-surface)"
-                    stroke={color}
-                    strokeWidth={isSel ? 2 : 1.2}
-                    opacity={dead ? 0.45 : 1}
-                    strokeDasharray={dead ? "3 3" : undefined}
-                  />
-                )}
-                <text
-                  y={n.kind === "kurum" ? 32 : 28}
-                  textAnchor="middle"
-                  fill={dead ? "var(--color-subtle)" : "var(--color-fg)"}
-                  fontSize={11}
-                  fontFamily="IBM Plex Sans, sans-serif"
-                >
-                  {n.name}
-                </text>
-                {dead ? (
-                  <text
-                    y={4}
-                    textAnchor="middle"
-                    fill="var(--color-stamp)"
-                    fontSize={7}
-                    fontFamily="IBM Plex Mono, monospace"
-                  >
-                    {t(locale, "map.closed")}
-                  </text>
-                ) : null}
-              </g>
-            );
-          })}
-      </svg>
-      <div className="absolute bottom-2 left-2 right-2 z-20 flex items-center justify-between gap-2 rounded-sm border border-border bg-surface/90 px-2 py-1.5">
-        <p className="text-[11px] leading-snug text-muted">
-          {arming
-            ? t(locale, "map.arm")
-            : why
-              ? why
-              : clustered
-                ? t(locale, "map.cluster")
-                : visibleNodes.length > 12
-                  ? t(locale, "map.focus")
-                  : t(locale, "map.legend")}
-        </p>
-        {why && !arming ? (
-          // Desktop already reveals the full ACTIONABLE/DETAIL file next to
-          // the map on selection (see SidePanel's auto tab-switch); this is
-          // the mobile-only bridge from a MAP SUMMARY tap to that same file,
-          // since mobile shows one pane at a time.
-          <button
-            type="button"
-            onClick={() => setMobilePane("kisi")}
-            className="min-h-8 shrink-0 rounded-sm bg-olive px-2 text-[11px] font-medium text-olive-fg lg:hidden"
+    <section
+      className="network-board atlas-board"
+      aria-label={tr ? "İlişki ve karar atlası" : "Relationship and decision atlas"}
+    >
+      <div className="atlas-toolbar">
+        <label className="atlas-target">
+          <span>{tr ? "Karar hedefi" : "Decision target"}</span>
+          <select
+            aria-label={tr ? "Karar hedefi" : "Decision target"}
+            value={
+              selectedEdge
+                ? `edge:${selectedEdge.id}`
+                : selectedNode
+                  ? `node:${selectedNode.id}`
+                  : ""
+            }
+            onChange={(e) => choose(e.target.value)}
           >
-            {t(locale, "map.openFile")}
+            <option value="" disabled>
+              {tr ? "Hedef seç" : "Choose target"}
+            </option>
+            <optgroup label={tr ? "Aktör / koridor" : "Actor / corridor"}>
+              {model.nodes.map((n) => (
+                <option key={n.id} value={`node:${n.id}`}>
+                  {n.name}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label={tr ? "Bağlar" : "Connections"}>
+              {model.edges.map((e) => (
+                <option key={e.id} value={`edge:${e.id}`}>
+                  {e.label} · {e.evidence}
+                </option>
+              ))}
+            </optgroup>
+          </select>
+        </label>
+        <div className="atlas-tools">
+          <button
+            aria-pressed={state.graphMode === "people"}
+            onClick={() => setGraphMode(state.graphMode === "people" ? "factions" : "people")}
+          >
+            {state.graphMode === "people"
+              ? tr
+                ? "Tüm ağı göster"
+                : "Show full network"
+              : tr
+                ? "Hedefe odaklan"
+                : "Focus target"}
           </button>
-        ) : null}
+          <button aria-pressed={svgOnly} onClick={() => setSvgOnly(!svgOnly)}>
+            {svgOnly
+              ? tr
+                ? "Otomatik çizim"
+                : "Automatic rendering"
+              : tr
+                ? "Basit çizim"
+                : "Simple rendering"}
+          </button>
+        </div>
       </div>
-    </div>
+      <AtlasSurface
+        model={surface}
+        svgOnly={svgOnly}
+        locale={locale}
+        onNode={pickNode}
+        onEdge={pickEdge}
+      />
+      <div className="atlas-legend">
+        {tr
+          ? "Sarı: hamle etkisi · Kırmızı: yüksek iz riski · T: dönüş turu · Sayılar: risk puanı, olasılık değil"
+          : "Amber: move effect · Red: high exposure · T: return turn · Numbers: risk score, not probability"}
+      </div>
+      <div className="atlas-readout" aria-live="polite">
+        <div className="atlas-heading">
+          <strong>{title ?? (tr ? "Ağdan bir hedef seç" : "Choose a network target")}</strong>
+          <button className="lg:hidden" onClick={() => setMobilePane("kisi")}>
+            {tr ? "Hamle seç" : "Choose move"}
+          </button>
+        </div>
+        {selectedEdge && (
+          <p>
+            {selectedEdge.evidence} · {tr ? "Sızıntı riski" : "Leak risk"} {selectedEdge.risk} →{" "}
+            {selectedEdge.afterRisk}
+            {selectedEdge.live &&
+              ` · ${tr ? "Güven" : "Trust"} ${selectedEdge.live.trust} · ${tr ? "Gerilim" : "Tension"} ${selectedEdge.live.tension}`}
+          </p>
+        )}
+        {model.plan && model.preview ? (
+          <div className="atlas-decision" data-testid="atlas-decision">
+            <p>
+              {tr ? "Hazırlanan hamle" : "Prepared move"}:{" "}
+              <strong>{copyForAction(model.plan.id, locale, state).label}</strong>
+            </p>
+            {draft && (
+              <div className="atlas-methods">
+                {planMethods(state, draft.id).map((method) => (
+                  <button
+                    key={method}
+                    aria-pressed={draft.method === method}
+                    onClick={() => setMove({ ...draft, method })}
+                  >
+                    {METHOD_COPY[method][locale][0]}
+                  </button>
+                ))}
+              </div>
+            )}
+            {model.preview.ok ? (
+              <>
+                <RiskRewardGrid preview={model.preview} locale={locale} />
+                <DueLine preview={model.preview} state={state} locale={locale} />
+                {model.rewards.map((id) => (
+                  <p key={id}>
+                    {tr ? "Hedef ödülü" : "Objective reward"}: {rewardLine(id, locale)}
+                  </p>
+                ))}
+                <button className="atlas-commit" onClick={() => play(model.plan!)}>
+                  {tr ? "Bu hamleyi uygula" : "Commit this move"}
+                </button>
+              </>
+            ) : (
+              <p>
+                {tr
+                  ? "Bu hamle şu an uygulanamıyor. Hedefi veya yöntemi değiştir."
+                  : "This move is unavailable. Change target or approach."}
+              </p>
+            )}
+          </div>
+        ) : (
+          <p>
+            {tr
+              ? "Bir hamle seç: bedeli, iz bıraktığı bağlar ve gecikmiş karşılığı burada birlikte görünsün."
+              : "Choose a move to see its cost, exposed ties and delayed return together."}
+          </p>
+        )}
+        {model.edges.some((e) => e.affected) && (
+          <details open>
+            <summary>{tr ? "Etkilenen bağlar" : "Affected connections"}</summary>
+            <ul className="atlas-links">
+              {model.edges
+                .filter((e) => e.affected)
+                .map((e) => (
+                  <li key={e.id}>
+                    <span>
+                      {e.label} ·{" "}
+                      {e.direct
+                        ? tr
+                          ? "doğrudan"
+                          : "direct"
+                        : tr
+                          ? "ortak aktör izi"
+                          : "shared actor trail"}
+                    </span>
+                    <b>
+                      {e.risk} → {e.afterRisk}
+                    </b>
+                  </li>
+                ))}
+            </ul>
+          </details>
+        )}
+        {model.pending.length > 0 && (
+          <details open>
+            <summary>
+              {tr
+                ? "Dönüş sırası — bugünkü koşullarla"
+                : "Return schedule — under current conditions"}
+            </summary>
+            <ol className="atlas-returns">
+              {model.pending.map((p) => {
+                const copy = dueSummary(p.effect, locale);
+                return (
+                  <li key={p.tag}>
+                    <button
+                      onClick={() =>
+                        p.edgeId ? pickEdge(p.edgeId) : p.nodeId && pickNode(p.nodeId)
+                      }
+                    >
+                      <b>T{p.due}</b> · {p.label} ·{" "}
+                      {p.proposed ? (tr ? "öneri" : "proposed") : tr ? "bekliyor" : "pending"}
+                    </button>
+                    <p>
+                      {copy.head} · {copy.parts.join(" · ")}
+                    </p>
+                  </li>
+                );
+              })}
+            </ol>
+          </details>
+        )}
+        <details>
+          <summary>
+            {tr ? `Sonraki dönüş · T${state.turn + 1}` : `Next return · T${state.turn + 1}`}
+          </summary>
+          <p>
+            {tr
+              ? "Yalnız sıradaki plan dönüşleri; olaylar ve diğer hamleler sonucu değiştirebilir."
+              : "Scheduled returns only; events and other moves can change the outcome."}
+          </p>
+          <ChangeList
+            changes={model.nextChanges}
+            empty={
+              tr
+                ? "Bu turda planlanmış bir dönüş etkisi yok."
+                : "No scheduled return effect in this turn."
+            }
+          />
+        </details>
+      </div>
+    </section>
   );
 }

@@ -1,0 +1,42 @@
+name: Decision atlas
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: atlas-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  atlas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Verify built atlas and renderer lifecycle
+        env:
+          ATLAS_BROWSER_OUT: ${{ runner.temp }}/jitem-atlas-proof
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 8081 > "$RUNNER_TEMP/atlas-preview.log" 2>&1 &
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8081/ > /dev/null; then break; fi
+            sleep 1
+          done
+          npm run test:atlas:browser -- http://127.0.0.1:8081
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: decision-atlas-browser-proof
+          path: |
+            ${{ runner.temp }}/jitem-atlas-proof
+            ${{ runner.temp }}/atlas-preview.log
+          if-no-files-found: warn

@@ -21,6 +21,6 @@ test("every referenced public image exists", () => {
   const names = new Set();
   for (const path of files("src"))
     for (const match of readFileSync(path, "utf8").matchAll(/images\/([a-z0-9-]+\.(?:jpg|png|webp|svg))/g)) names.add(match[1]);
-  assert.ok(names.has("map.jpg"));
+  assert.ok(names.size > 0, "the scan must cover existing public image references");
   for (const name of names) assert.ok(statSync(join("public/images", name)).isFile(), name);
 });
