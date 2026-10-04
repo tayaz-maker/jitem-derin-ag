@@ -22,6 +22,7 @@ export interface MoveDraft {
   targetKind: "node" | "edge";
   targetId: string;
   method: PlanMethod;
+  claimId?: string;
 }
 /** What the last committed move actually changed, for the result card. */
 export interface MoveResult {
@@ -73,21 +74,18 @@ function writeSave(state: GameState) {
 }
 
 function readSave(): GameState | null {
-  try {
-    const raw =
-      localStorage.getItem(SAVE_KEY) ??
-      localStorage.getItem(SAVE_KEY + ":bak") ??
-      localStorage.getItem(LEGACY_SAVE_KEY);
-    if (!raw) return null;
-    return parseSave(raw);
-  } catch {
+  // A malformed candidate returns null, not an exception. Try each independently;
+  // loading is read-only so corrupt bytes remain available for manual recovery.
+  for (const key of [SAVE_KEY, SAVE_KEY + ":bak", LEGACY_SAVE_KEY]) {
     try {
-      const bak = localStorage.getItem(SAVE_KEY + ":bak");
-      return bak ? parseSave(bak) : null;
+      const raw = localStorage.getItem(key);
+      const saved = raw ? parseSave(raw) : null;
+      if (saved) return saved;
     } catch {
-      return null;
+      // Storage denial for one candidate must not mask a readable backup.
     }
   }
+  return null;
 }
 
 const EDGE_ACTIONS: ActionId[] = [

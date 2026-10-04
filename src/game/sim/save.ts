@@ -116,7 +116,7 @@ export function serialize(state: GameState) {
 export function parseSave(raw: string): GameState | null {
   try {
     const parsed = JSON.parse(raw) as { version?: number; schemaVersion?: number; state?: GameState };
-    if (!parsed?.state) return null;
+    if (!isRecord(parsed) || !isRecord(parsed.state)) return null;
     return migrate(parsed.state);
   } catch {
     return null;

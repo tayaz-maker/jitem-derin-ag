@@ -458,14 +458,14 @@ function ContextualDecisions({ state, target }: { state: GameState; target: Deci
   const selected: ActionId | null = draft && draft.targetId === target.id ? draft.id : null;
   const method: PlanMethod = selected ? draft!.method : "quiet";
   const setSelected = (id: ActionId | null) =>
-    setMove(id ? { id, targetKind: target.kind, targetId: target.id, method: "quiet" } : null);
+    setMove(id ? { id, targetKind: target.kind, targetId: target.id, method: "quiet", claimId: boundClaim?.id } : null);
   const setMethod = (m: PlanMethod) => {
     if (draft) setMove({ ...draft, method: m });
   };
   const claims = targetClaims(state, target).filter(
     (c) => state.hat !== "hukuk" || ["PARTIAL", "TRUE"].includes(state.hand[c.id].status),
   );
-  const boundClaim = claims.find((c) => c.id === claimId) ?? claims[0];
+  const boundClaim = claims.find((c) => c.id === (claimId || (draft?.targetId === target.id ? draft.claimId : undefined))) ?? claims[0];
   const evidenceHat = state.hat === "hukuk" || state.hat === "arastirmaci";
   const tr = locale === "tr";
 
