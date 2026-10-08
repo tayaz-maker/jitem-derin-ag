@@ -32,6 +32,7 @@ jobs:
             sleep 1
           done
           npm run test:atlas:browser -- http://127.0.0.1:8081
+          node scripts/production-quality-browser.mjs http://127.0.0.1:8081
       - uses: actions/upload-artifact@v4
         if: always()
         with:

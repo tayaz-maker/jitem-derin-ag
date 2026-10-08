@@ -47,7 +47,8 @@ export function ClaimDrawer({
         </div>
         <div>
           <p className="text-paper">{t(locale, "claim.level")}</p>
-          <Badge tone={evidenceTone(claim.evidence)}>{claim.evidence}</Badge>
+          <Badge tone={evidenceTone(claim.evidence)}>{t(locale, `evidence.${claim.evidence}.label`)}</Badge>{" "}
+          <Badge>{t(locale, `layer.${claim.layer}`)}</Badge>
         </div>
         <div>
           <p className="text-paper">{t(locale, "claim.whyGame")}</p>

@@ -485,7 +485,7 @@ describe("embedded shell", () => {
     );
     assert.match(
       source,
-      /lg:grid-cols-\[minmax\(360px,1\.05fr\)_minmax\(420px,1\.2fr\)_minmax\(300px,360px\)\]/,
+      /lg:grid-cols-\[minmax\(0,0\.9fr\)_minmax\(0,1\.15fr\)_minmax\(280px,0\.85fr\)\]/,
     );
     assert.match(source, /lg:grid-cols-\[minmax\(0,1\.65fr\)_minmax\(380px,460px\)\]/);
     assert.match(source, /aria-label=\{t\(locale, "pane\.olay"\)\}/);

@@ -157,7 +157,7 @@ export function AtlasSurface({ model, svgOnly, locale, onNode, onEdge }: Props) 
                   width={98}
                   height={38}
                   rx={4}
-                  fill="#10191f"
+                  fill="#0d1412"
                   stroke={e.affected ? ATLAS_COLORS.warn : ATLAS_COLORS.muted}
                 />
                 <text textAnchor="middle" y={0} fill={ATLAS_COLORS.paper} fontSize={11}>
@@ -193,7 +193,7 @@ export function AtlasSurface({ model, svgOnly, locale, onNode, onEdge }: Props) 
               fill={ATLAS_COLORS.paper}
               fontSize={12}
               paintOrder="stroke"
-              stroke="#10191f"
+              stroke="#0d1412"
               strokeWidth={4}
             >
               {n.name}

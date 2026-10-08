@@ -24,8 +24,8 @@ export function Dosya() {
   const [tab, setTab] = useState<(typeof TAB_KEYS)[number]>("Pitch");
 
   return (
-    <div className="flex min-h-dvh flex-col bg-bg text-fg">
-      <header className="flex items-center justify-between border-b border-border px-4 py-3">
+    <div className="game-shell flex min-h-0 flex-col overflow-hidden bg-bg text-fg">
+      <header className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
         <div>
           <p className="scan font-mono text-[10px] text-olive">{t(locale, "dosya.kicker")}</p>
           <h1 className="text-lg font-medium">{t(locale, "dosya.title")}</h1>
@@ -42,7 +42,7 @@ export function Dosya() {
           </Button>
         </div>
       </header>
-      <nav className="flex gap-1 overflow-x-auto border-b border-border px-3 py-2">
+      <nav className="flex shrink-0 gap-1 overflow-x-auto border-b border-border px-3 py-2">
         {TAB_KEYS.map((id) => (
           <button
             key={id}
@@ -57,7 +57,7 @@ export function Dosya() {
           </button>
         ))}
       </nav>
-      <div className="mx-auto w-full max-w-3xl flex-1 overflow-y-auto px-4 py-6 text-sm leading-relaxed text-muted">
+      <div className="mx-auto w-full max-w-3xl min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-6 text-sm leading-relaxed text-muted">
         {tab === "Pitch" ? <Pitch /> : null}
         {tab === "Kaynak" ? <Kaynak /> : null}
         {tab === "Ağ" ? <Ag /> : null}

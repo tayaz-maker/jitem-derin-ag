@@ -12,7 +12,7 @@ export const ATLAS_COLORS = {
   warn: "#e4ab70",
   muted: "#858a8e",
   risk: "#e18478",
-  surface: "#172127",
+  surface: "#17201c",
 };
 
 /** Match the desk's exact target and held-record choice. Drafts remain UI-only. */
