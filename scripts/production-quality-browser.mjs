@@ -19,6 +19,7 @@ try {
       assert.equal(overflow, false, `${locale}/${width} must fit`);
     };
     await fits();
+    assert.equal(await page.locator("header p").first().evaluate((el) => el.scrollWidth <= el.clientWidth), true, "date and phase must remain readable");
     if (width < 1024) {
       await page.locator("nav").getByRole("button", { name: locale === "tr" ? "Harita" : "Map", exact: true }).click();
       await page.getByLabel(locale === "tr" ? "Karar hedefi" : "Decision target", { exact: true }).selectOption("node:dogan");
