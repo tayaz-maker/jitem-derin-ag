@@ -42,6 +42,7 @@ import {
 } from "@/game/i18n";
 import { hatBlocks } from "@/game/sim/hats";
 import { ClaimDrawer } from "./ClaimDrawer";
+import { ResourceActions } from "./ResourceActions";
 import { DueLine, MethodCompare, RiskRewardGrid } from "./OperationDesk";
 import { dueSummary, rewardLine } from "./operation-copy";
 
@@ -161,9 +162,10 @@ export function PersonPane() {
     ? sourceUxFor({
         layer: "sourceClaim",
         evidence: node.evidence,
-        contradiction: node.sourceClaim,
+
       })
     : [];
+  const relatedClaims = node ? targetClaims(state, { kind: "node", id: node.id, label: node.name }) : [];
   const ni = node ? nodeInteractive(state, node.id, locale) : null;
   const ei = edge ? edgeInteractive(state, edge.id, locale) : null;
 
@@ -295,34 +297,16 @@ export function PersonPane() {
               {ux.slice(0, 3).map((tag) => (
                 <Badge key={tag}>{tag}</Badge>
               ))}
-              {node.sourceIds[0] ? (
-                <button
-                  type="button"
-                  className="rounded-sm border border-border px-1.5 py-0.5 text-[10px] text-olive"
-                  onClick={() =>
-                    setClaimId(node.researchId.startsWith("clm_") ? node.researchId : null)
-                  }
-                >
-                  {t(locale, "claim.title")}
-                </button>
-              ) : null}
             </div>
-            {node.sourceIds.length ? (
-              <button
-                type="button"
-                className="mt-2 w-full rounded-sm border border-border bg-bg/40 px-2 py-2 text-left text-[11px] text-olive"
-                onClick={() => {
-                  const related = Object.keys(state.hand).find((id) => id.startsWith("clm_"));
-                  setClaimId(related ?? "clm_jitem_exists");
-                }}
-              >
-                {t(locale, "claim.title")}
+            {relatedClaims.map((claim) => (
+              <button key={claim.id} type="button"
+                className="mt-2 min-h-11 w-full rounded-sm border border-border bg-bg/40 px-2 py-2 text-left text-xs text-olive"
+                onClick={() => setClaimId(claim.id)}>
+                {claim.title}
               </button>
-            ) : null}
-            {claimId ? (
-              <div className="mt-2">
-                <ClaimDrawer claimId={claimId} onClose={() => setClaimId(null)} />
-              </div>
+            ))}
+            {claimId && relatedClaims.some((claim) => claim.id === claimId) ? (
+              <div className="mt-2"><ClaimDrawer claimId={claimId} onClose={() => setClaimId(null)} /></div>
             ) : null}
             <dl className="mt-3 space-y-2 text-xs leading-relaxed text-muted">
               <div>
@@ -353,7 +337,7 @@ function ActionBlock() {
   const feedback = useGame((s) => s.feedback);
   const locale = useLocale((s) => s.locale);
   const max = apFor(state.hat);
-  const spent = max - state.actionsLeft;
+
   const hintKey = onboardingHint(state);
 
   return (
@@ -424,11 +408,11 @@ function ActionBlock() {
         <p className="mt-1 text-muted">{t(locale, "decision.pickTargetHint")}</p>
       </div>
 
+      <ResourceActions />
       <Button
         variant={state.actionsLeft === 0 ? "default" : "outline"}
         className="w-full"
         onClick={resolve}
-        disabled={spent < 1}
       >
         {t(locale, "act.resolve")}
       </Button>
@@ -554,7 +538,7 @@ function ContextualDecisions({ state, target }: { state: GameState; target: Deci
           >
             {claims.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.title} · {state.hand[c.id].status}
+                {c.title} · {t(locale, `know.${state.hand[c.id].status}`)}
               </option>
             ))}
           </select>

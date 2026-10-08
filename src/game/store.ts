@@ -258,20 +258,20 @@ export const useGame = create<Store>((set, get) => ({
       contextual: opts?.contextual,
     };
     // Same input the preview used, so the result card shows what was shown.
-    const state = executeAction(moveInput(s, plan), plan);
+    const input = moveInput(s, plan);
+    const state = executeAction(input, plan);
+    // A refused move must not save or display a successful outcome.
+    if (state === input || state.actionsLeft >= s.actionsLeft) return;
     const locale = useLocale.getState().locale;
     const targetId =
-      opts?.nodeId ?? opts?.edgeId ?? s.selectedNodeId ?? s.selectedEdgeId ?? undefined;
+      plan.edgeId ?? plan.nodeId ?? undefined;
     const feedback = resultForAction(id, locale, state, targetId);
     writeSave(state);
     set({
       state,
       feedback,
       move: null,
-      lastResult:
-        state === s
-          ? null
-          : { id, targetId: targetId ?? null, turn: s.turn, changes: diffState(s, state) },
+      lastResult: { id, targetId: targetId ?? null, turn: s.turn, changes: diffState(s, state) },
     });
   },
 

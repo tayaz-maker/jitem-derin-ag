@@ -54,6 +54,10 @@ function EventBody() {
         <Badge tone={evidenceTone(ev.evidence)}>{t(locale, `evidence.${ev.evidence}.label`)}</Badge>
         <Badge>{layer}</Badge>
       </div>
+      <div className="mt-3 space-y-2 rounded-md border border-border bg-bg/50 p-3 text-xs leading-relaxed text-muted">
+        {ev.anchor ? <p><strong className="text-paper">{t(locale, "event.fixed")}.</strong> {t(locale, "event.fixedNote")}</p> : null}
+        <p><strong className="text-paper">{t(locale, "event.agency")}</strong> {t(locale, "event.agencyNote")}</p>
+      </div>
       <p className="mt-1 font-mono text-[11px] text-muted">{ev.fileNo}</p>
       <p className="mt-3 text-sm leading-relaxed text-fg">{body}</p>
       {ev.addendum ? (

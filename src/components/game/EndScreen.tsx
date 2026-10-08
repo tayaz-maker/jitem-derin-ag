@@ -48,7 +48,7 @@ export function EndScreen() {
     <div className="game-shell relative flex min-h-0 flex-col overflow-hidden bg-bg text-fg">
       <img src={imageUrl(road ? "road" : "office")} alt="" className="absolute inset-0 size-full object-cover opacity-35" />
       <div className="absolute inset-0 bg-linear-to-t from-bg via-bg/80 to-bg/50" />
-      <div className="relative z-10 mx-auto flex w-full max-w-xl flex-1 flex-col justify-end gap-4 overflow-y-auto px-5 pb-14 pt-12">
+      <div className="relative z-10 mx-auto flex w-full max-w-xl min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 pb-14 pt-12">
         <div className="flex items-center justify-between">
           <p className="scan font-mono text-[11px] text-olive">{t(locale, "end.title")}</p>
           <LangSwitch />

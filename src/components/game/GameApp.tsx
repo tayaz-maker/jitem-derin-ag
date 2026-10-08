@@ -73,14 +73,14 @@ export function GameApp() {
           className={cn(
             "grid h-full min-h-0 grid-rows-1",
             eventOpen
-              ? "lg:grid-cols-[minmax(360px,1.05fr)_minmax(420px,1.2fr)_minmax(300px,360px)]"
+              ? "lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.15fr)_minmax(280px,0.85fr)]"
               : "lg:grid-cols-[minmax(0,1.65fr)_minmax(380px,460px)]",
           )}
         >
           <div
             className={cn(
               "min-h-0",
-              mobilePane === "map" || eventOpen ? "block" : "hidden lg:block",
+              mobilePane === "map" ? "block" : "hidden lg:block",
             )}
           >
             <NodeGraph />
@@ -118,10 +118,10 @@ export function GameApp() {
           ) : null}
         </div>
 
-        {eventOpen ? (
-          <div className="absolute inset-x-0 bottom-0 top-[16%] z-30 overflow-y-auto overscroll-contain rounded-t-lg border-t border-border bg-surface shadow-[0_-8px_24px_rgba(0,0,0,0.35)] lg:hidden">
+        {eventOpen && mobilePane === "olay" ? (
+          <div className="absolute inset-x-0 bottom-0 top-0 z-30 overflow-y-auto overscroll-contain rounded-t-lg border-t border-border bg-surface shadow-[0_-8px_24px_rgba(0,0,0,0.35)] lg:hidden">
             <div className="mx-auto min-h-full w-full max-w-xl">
-              <div className="w-full bg-surface p-4">
+              <div className="w-full bg-surface">
                 <EventModal />
               </div>
             </div>
@@ -137,9 +137,10 @@ export function GameApp() {
             key={p.id}
             type="button"
             onClick={() => setMobilePane(p.id)}
+            aria-current={mobilePane === p.id ? "page" : undefined}
             className={cn(
               "min-h-12 truncate px-1 text-[11px] font-medium leading-tight",
-              mobilePane === p.id || (eventOpen && p.id === "olay")
+              mobilePane === p.id
                 ? "bg-elevated text-paper"
                 : "text-muted",
             )}

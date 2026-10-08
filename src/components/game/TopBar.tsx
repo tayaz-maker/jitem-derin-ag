@@ -40,7 +40,7 @@ export function TopBar() {
 
   return (
     <header className="hud-pad shrink-0 border-b border-border bg-surface/95">
-      <div className="flex h-11 min-w-0 items-center gap-2 px-2 sm:h-12 sm:px-3">
+      <div className="flex min-h-12 min-w-0 items-center gap-2 px-2 sm:px-3">
         {embedded ? null : (
           <p className="hidden shrink-0 font-mono text-[10px] tracking-widest text-olive sm:block">{t(locale, "hud.wordmark")}</p>
         )}
@@ -70,21 +70,22 @@ export function TopBar() {
             type="button"
             onClick={() => setOpen((v) => !v)}
             className={cn(
-              "min-h-9 rounded-sm border px-1.5 font-mono text-[10px] tabular",
+              "min-h-11 rounded-sm border px-1.5 font-mono text-[10px] tabular",
               open ? "border-olive/60 bg-elevated text-paper" : "border-border bg-bg/60 text-muted",
             )}
             aria-label={t(locale, "hud.capacity")}
+            aria-expanded={open}
           >
             {state.phase === "actions" ? `${state.actionsLeft}` : "·"}
           </button>
         </div>
         <div className="flex items-center">
           {embedded ? null : <LangSwitch />}
-          <Button variant="ghost" size="icon" className="size-9" onClick={() => setScreen("dosya")} aria-label={t(locale, "hud.file")}>
+          <Button variant="ghost" size="icon" className="size-11" onClick={() => setScreen("dosya")} aria-label={t(locale, "hud.file")}>
             <FileText />
           </Button>
           {embedded ? null : (
-            <Button variant="ghost" size="icon" className="size-9" onClick={clearSave} aria-label={t(locale, "hud.reset")}>
+            <Button variant="ghost" size="icon" className="size-11" onClick={clearSave} aria-label={t(locale, "hud.reset")}>
               <RotateCcw />
             </Button>
           )}
@@ -135,8 +136,10 @@ function StatChip({
     <button
       type="button"
       onClick={onToggle}
+      aria-label={`${t(locale, `stat.${k}.label`)}: ${v}`}
+      aria-expanded={open}
       className={cn(
-        "min-h-9 min-w-[2.6rem] rounded-sm border px-1 py-0.5 text-left",
+        "min-h-11 min-w-11 rounded-sm border px-1 py-0.5 text-left",
         open ? "border-olive/60 bg-elevated" : "border-border bg-bg/60",
       )}
     >

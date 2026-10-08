@@ -1,3 +1,5 @@
+import { CLAIM_BY_ID } from "@/game/db";
+import { Button } from "@/components/ui/button";
 import { useGame } from "@/game/store";
 import { actLabel, mechanicUnlocked } from "@/game/sim/acts";
 import { investigationView } from "@/game/sim/investigation";
@@ -63,6 +65,10 @@ export function ReportPane() {
         <h2 className="text-lg font-medium text-paper">{t(locale, "report.title")}</h2>
         <p className="mt-1 text-xs text-subtle">{t(locale, "report.blurb")}</p>
       </div>
+      {state.phase === "resolution" ? (
+        <Button className="w-full" onClick={() => useGame.getState().nextTurn()}>{t(locale, "res.next")}</Button>
+      ) : null}
+      <p className="text-xs leading-relaxed text-muted">{t(locale, "report.confidenceNote")}</p>
       {inv.stage !== "dormant" || mechanicUnlocked(state, "investigation") ? (
         <div className="rounded-sm border border-border bg-bg/30 p-2">
           <p className="text-[11px] font-medium text-olive">
@@ -87,10 +93,10 @@ export function ReportPane() {
             <li key={h.claimId}>
               <button
                 type="button"
-                className="text-left text-xs text-muted underline-offset-2 hover:text-paper"
+                className="min-h-11 text-left text-xs text-muted underline-offset-2 hover:text-paper"
                 onClick={() => setClaimId(h.claimId)}
               >
-                {h.claimId.replace("clm_", "")}: {t(locale, `know.${h.status}`)} ({h.confidence}%)
+                {CLAIM_BY_ID[h.claimId]?.title ?? h.claimId}: {t(locale, `know.${h.status}`)} · {t(locale, "report.confidence", { n: h.confidence })}
               </button>
             </li>
           ))}
