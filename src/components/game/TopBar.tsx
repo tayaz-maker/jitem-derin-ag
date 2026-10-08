@@ -40,11 +40,11 @@ export function TopBar() {
 
   return (
     <header className="hud-pad shrink-0 border-b border-border bg-surface/95">
-      <div className="flex min-h-12 min-w-0 items-center gap-2 px-2 sm:px-3">
+      <div className="flex min-h-12 min-w-0 flex-wrap items-center gap-x-2 gap-y-1 px-2 py-1 sm:flex-nowrap sm:py-0 sm:px-3">
         {embedded ? null : (
           <p className="hidden shrink-0 font-mono text-[10px] tracking-widest text-olive sm:block">{t(locale, "hud.wordmark")}</p>
         )}
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 basis-full sm:flex-1 sm:basis-auto">
           <p className="truncate text-xs font-medium text-fg sm:text-sm">
             {ev ? `${ev.year}` : "1986"}
             <span className="text-subtle"> · {phaseShort(locale, state.phase, state.actionsLeft, max, state.turn)}</span>
@@ -53,7 +53,7 @@ export function TopBar() {
             {t(locale, `hat.${state.hat}.title`)} · {actLabel(state, locale)}
           </p>
         </div>
-        <div className="flex min-w-0 items-center gap-1">
+        <div className="flex min-w-0 flex-1 items-center gap-1 sm:flex-none">
           {HUD_STATS.map((k) => (
             <StatChip
               key={k}
