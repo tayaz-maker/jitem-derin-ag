@@ -1,0 +1,34 @@
+name: Release26 capacity proof
+on:
+  push:
+    branches: [qa/release26-capacity-proof-20261020]
+permissions:
+  contents: read
+jobs:
+  capacity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Wait for exact source
+        run: |
+          for attempt in {1..48}; do
+            if node --input-type=module -e 'const r=await fetch("https://www.tariklab.com/games/jitem-derin-ag/SOURCE.json",{cache:"no-store"});const s=await r.json();if(s.standaloneSha!=="37c5416e7a49b2ecc998f0d1071a7484d6e508c0")process.exit(1)'; then exit 0; fi
+            sleep 10
+          done
+          exit 1
+      - name: Resource vectors, zero-capacity refusal and continuation
+        env:
+          ATLAS_BROWSER_OUT: ${{ runner.temp }}/capacity26
+        run: node --experimental-strip-types scripts/release26-capacity.ts https://www.tariklab.com/games/jitem-derin-ag
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release26-capacity-evidence
+          path: ${{ runner.temp }}/capacity26
