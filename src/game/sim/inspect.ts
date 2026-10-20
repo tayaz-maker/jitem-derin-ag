@@ -1,7 +1,7 @@
 import { EDGES, NODES } from "../data.ts";
 import type { GameState, Locale } from "../types.ts";
 import { dangerousActors, edgeForecast, edgeSignal } from "./edges.ts";
-import { t } from "../i18n/copy.ts";
+import { t, connectionLabel } from "../i18n/copy.ts";
 
 /**
  * MAP SUMMARY tier only: what this is and why it might matter at a glance.
@@ -34,7 +34,7 @@ export function edgeWhy(state: GameState, id: string, locale: Locale = "tr"): st
   const signal = live ? t(locale, `map.signal.${edgeSignal(live)}`) : t(locale, "map.noLive");
   const forecast = edgeForecast(state, id, locale);
   return t(locale, "map.inspectEdge", {
-    label: e.label,
+    label: connectionLabel(locale, e.label),
     evidence: t(locale, `evidence.${e.evidence}.label`),
     signal,
     forecast,

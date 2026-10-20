@@ -37,6 +37,12 @@ try {
     await page.getByRole("button", { name: locale === "tr" ? "Kararı uygula" : "Commit decision", exact: true }).filter({ visible: true }).click();
     const saveAfter = await page.evaluate(() => localStorage.getItem("jitem-derin-ag-v3"));
     assert.ok(JSON.parse(saveAfter).state.stats.kara > JSON.parse(saveBefore).state.stats.kara);
+    if (locale === "en") {
+      const receipts = await page.locator("footer").textContent();
+      assert.match(receipts, /Covert funds were raised/);
+      assert.doesNotMatch(receipts, /Örtülü kaynak|OYUNSAL REKONSTRÜKSİYON/);
+      assert.ok(JSON.parse(saveAfter).state.logs.some((entry) => entry.text.includes("Örtülü kaynak")), "localizing the receipt preserves the saved source text");
+    }
     await fits();
     await page.screenshot({ path: `${out}/quality-${locale}-${width}.png`, fullPage: true });
     await page.getByRole("button", { name: locale === "tr" ? "Dosya" : "File", exact: true }).click();

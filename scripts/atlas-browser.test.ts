@@ -98,6 +98,10 @@ try {
         "preview does not save or mutate game",
       );
       const readout = await page.locator(".atlas-readout").innerText();
+      if (locale === "en") {
+        assert.doesNotMatch(readout, /GÜÇLÜ|BELGELİ|TARTIŞMALI|BOŞLUK|idari \/ saha/);
+        if (edge.id === "dogan-ersever") assert.match(readout, /administrative \/ field/);
+      }
       await page
         .getByRole("button", {
           name: locale === "tr" ? "Basit çizim" : "Simple rendering",

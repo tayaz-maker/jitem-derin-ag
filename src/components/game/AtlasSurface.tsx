@@ -1,3 +1,4 @@
+import { t, connectionLabel } from "@/game/i18n/copy";
 import { useEffect, useRef, useState } from "react";
 import type { AtlasModel } from "@/game/sim/atlas";
 import { ATLAS_COLORS } from "@/game/sim/atlas";
@@ -137,7 +138,7 @@ export function AtlasSurface({ model, svgOnly, locale, onNode, onEdge }: Props) 
               strokeWidth={28}
               tabIndex={0}
               role="button"
-              aria-label={`${e.label} · ${e.evidence}`}
+              aria-label={`${connectionLabel(locale, e.label)} · ${t(locale, `evidence.${e.evidence}.label`)}`}
               onClick={() => onEdge(e.id)}
               onKeyDown={(ev) => {
                 if (ev.key === "Enter" || ev.key === " ") {

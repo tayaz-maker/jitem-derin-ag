@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 import { actionsEn, en } from "./en.ts";
 import { actionsTr, tr } from "./tr.ts";
 import { flattenKeys } from "./format.ts";
-import { actionCopy, choiceCopy, eventCopy, familyVariantCopy, t, logLine } from "./copy.ts";
+import { actionCopy, choiceCopy, eventCopy, familyVariantCopy, t, logLine, connectionLabel } from "./copy.ts";
 import { detectLocale } from "./locale.ts";
 import { createGame, executeAction, canPlay, apFor, resolveTurn } from "../engine.ts";
 import { parseSave, serialize } from "../sim/save.ts";
@@ -172,6 +172,29 @@ describe("ending causal is decision-based", () => {
 });
 
 describe("resolution notes are semantic keys", () => {
+  it("localizes connection labels while retaining source metadata", () => {
+    assert.equal(connectionLabel("en", "idari / saha"), "administrative / field");
+    assert.equal(connectionLabel("tr", "idari / saha"), "idari / saha");
+    assert.equal(connectionLabel("en", "Unmapped source title"), "Unmapped source title");
+  });
+  it("renders saved action receipts and family addenda in EN without rewriting a save", () => {
+    let s = createGame("saha", 1);
+    s = { ...s, phase: "actions", actionsLeft: 5 };
+    s = executeAction(s, { id: "kara_topla" });
+    const raw = s.logs.at(-1)!.text;
+    assert.equal(raw, actionsTr.kara_topla.resultOk);
+    const saved = JSON.stringify(serialize(s));
+    assert.equal(logLine("en", raw), actionsEn.kara_topla.resultOk);
+    assert.equal(logLine("tr", raw), raw);
+    assert.equal(JSON.stringify(serialize(s)), saved);
+    s = executeAction(s, { id: "kara_topla" });
+    assert.equal(logLine("en", s.logs.at(-1)!.text), "Covert funds were raised again. The return diminished.");
+    const addendum = "OYUNSAL REKONSTRÜKSİYON: Saha hattı fiilî timden bakar. Resmi dil uzaktır.";
+    assert.equal(logLine("en", addendum), familyVariantCopy("en", addendum, "addendum"));
+    assert.equal(logLine("tr", addendum), addendum);
+    assert.equal(logLine("en", "An unrecognized historical quotation"), "An unrecognized historical quotation");
+  });
+
   it("never exposes a Turkish family fallback in English", () => {
     const raw = "OYUNSAL REKONSTRÜKSİYON: İdari masa doğuşu dosyadan görür.";
     const rendered = familyVariantCopy("en", raw, "addendum");
