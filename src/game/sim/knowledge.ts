@@ -2,6 +2,8 @@ import { ALL_CLAIMS, RESEARCH_BY_PLAY } from "../db/catalog.ts";
 import type { Faction, GameState, Hat, KnowledgeEntry, KnowledgeStatus, Locale } from "../types.ts";
 import { rollAi } from "./rng.ts";
 import { t } from "../i18n/copy.ts";
+import { EDGES, NODES } from "../data.ts";
+import { propagationRisk } from "./edges.ts";
 
 export function entry(
   claimId: string,
@@ -144,6 +146,19 @@ export function theySeePlayer(state: GameState, actorId: string, locale: Locale 
   return t(locale, "see.vague");
 }
 
+/** Existing world channels only; this bounded coefficient is a game balance rule. */
+export function allyLeakThreshold(state: GameState, from: Faction, to: Faction): number {
+  const channels = EDGES.filter(edge => {
+    const a = NODES.find(node => node.id === edge.from), b = NODES.find(node => node.id === edge.to);
+    if (!a || !b || edge.appearTurn > state.turn || a.appearTurn > state.turn || b.appearTurn > state.turn) return false;
+    if ((a.kind === "kisi" && state.dead[a.id]) || (b.kind === "kisi" && state.dead[b.id])) return false;
+    return (a.faction === from && b.faction === to) || (a.faction === to && b.faction === from);
+  });
+  if (!channels.length) return 0.62;
+  const risk = Math.max(...channels.map(edge => propagationRisk(state, edge.id)));
+  return Math.max(0.52, Math.min(0.72, 0.62 + (50 - risk) / 500));
+}
+
 /** Allied factions may inherit a rumor. Never copies the player hand. One leak note per tick. */
 export function tickKnowledge(state: GameState, notes: string[]): GameState {
   let next = state;
@@ -160,7 +175,7 @@ export function tickKnowledge(state: GameState, notes: string[]): GameState {
         if (theirs && theirs.status !== "UNKNOWN") continue;
         const [rolled, r] = rollAi(next, next.turn + claimId.length + ally.length);
         next = rolled;
-        if (r <= 0.62) continue;
+        if (r <= allyLeakThreshold(next, mind.id, ally)) continue;
         next = setFactionKnow(
           next,
           ally,
