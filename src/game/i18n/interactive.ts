@@ -1,6 +1,6 @@
 import type { ActionId, FogGrade, GameState, KnowledgeStatus } from "../types.ts";
 import type { InteractiveCopy, Locale } from "./types.ts";
-import { t, actionCopy } from "./copy.ts";
+import { t, actionCopy, connectionLabel } from "./copy.ts";
 import { ALL_CLAIMS } from "../db/catalog.ts";
 import { NODES, EDGES } from "../data.ts";
 
@@ -140,7 +140,7 @@ export function edgeInteractive(state: GameState, id: string, locale: Locale) {
   const trust = live?.trust ?? 0;
   const secrecy = live?.secrecy ?? 50;
   return {
-    what: e.label,
+    what: connectionLabel(locale, e.label),
     why: e.source,
     trust:
       locale === "en"

@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { buildAtlas, atlasPlan, type AtlasModel } from "@/game/sim/atlas";
 import { planMethods } from "@/game/sim/planning";
 import { useGame } from "@/game/store";
-import { useLocale } from "@/game/i18n";
+import { useLocale, t, connectionLabel } from "@/game/i18n";
 import { copyForAction } from "@/game/i18n/interactive";
 import { AtlasSurface } from "./AtlasSurface";
 import { ChangeList } from "./MoveGuide";
@@ -54,7 +54,7 @@ export function NodeGraph() {
   if (!state || !model || !surface) return null;
   const selectedEdge = model.edges.find((e) => e.selected);
   const selectedNode = model.nodes.find((n) => n.selected);
-  const title = selectedEdge?.label ?? selectedNode?.name;
+  const title = selectedEdge ? connectionLabel(locale, selectedEdge.label) : selectedNode?.name;
   const choose = (value: string) => {
     if (value.startsWith("edge:")) pickEdge(value.slice(5));
     else if (value.startsWith("node:")) pickNode(value.slice(5));
@@ -91,7 +91,7 @@ export function NodeGraph() {
             <optgroup label={tr ? "Bağlar" : "Connections"}>
               {model.edges.map((e) => (
                 <option key={e.id} value={`edge:${e.id}`}>
-                  {e.label} · {e.evidence}
+                  {connectionLabel(locale, e.label)} · {t(locale, `evidence.${e.evidence}.label`)}
                 </option>
               ))}
             </optgroup>
@@ -142,7 +142,7 @@ export function NodeGraph() {
         </div>
         {selectedEdge && (
           <p>
-            {selectedEdge.evidence} · {tr ? "Sızıntı riski" : "Leak risk"} {selectedEdge.risk} →{" "}
+            {t(locale, `evidence.${selectedEdge.evidence}.label`)} · {tr ? "Sızıntı riski" : "Leak risk"} {selectedEdge.risk} →{" "}
             {selectedEdge.afterRisk}
             {selectedEdge.live &&
               ` · ${tr ? "Güven" : "Trust"} ${selectedEdge.live.trust} · ${tr ? "Gerilim" : "Tension"} ${selectedEdge.live.tension}`}
@@ -204,7 +204,7 @@ export function NodeGraph() {
                 .map((e) => (
                   <li key={e.id}>
                     <span>
-                      {e.label} ·{" "}
+                      {connectionLabel(locale, e.label)} ·{" "}
                       {e.direct
                         ? tr
                           ? "doğrudan"
@@ -238,7 +238,7 @@ export function NodeGraph() {
                         p.edgeId ? pickEdge(p.edgeId) : p.nodeId && pickNode(p.nodeId)
                       }
                     >
-                      <b>T{p.due}</b> · {p.label} ·{" "}
+                      <b>T{p.due}</b> · {connectionLabel(locale, p.label)} ·{" "}
                       {p.proposed ? (tr ? "öneri" : "proposed") : tr ? "bekliyor" : "pending"}
                     </button>
                     <p>

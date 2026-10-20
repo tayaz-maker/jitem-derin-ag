@@ -1,4 +1,4 @@
-import { t } from "@/game/i18n";
+import { t, connectionLabel } from "@/game/i18n";
 import { OBJECTIVE_REWARDS } from "@/game/sim/objectives";
 import type { PlanDue, PlanMethod } from "@/game/sim/planning";
 import type { Change } from "@/game/sim/preview";
@@ -77,7 +77,7 @@ export function changeLabel(c: Change, locale: "tr" | "en") {
     case "records":
       return t(locale, "move.change.records");
     case "edge":
-      return `${c.label} · ${t(locale, `move.change.${c.field}`)}`;
+      return `${connectionLabel(locale, c.label)} · ${t(locale, `move.change.${c.field}`)}`;
     case "node":
       return `${c.label} · ${t(locale, "move.change.node")}`;
     case "faction":

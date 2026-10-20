@@ -33,6 +33,7 @@ import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
+  connectionLabel,
   copyForAction,
   t,
   useLocale,
@@ -174,7 +175,7 @@ export function PersonPane() {
       <div className="target-pane p-3 lg:p-0">
         <div className="target-strip sticky top-0 z-10 bg-surface/95 pb-2">
           <p className="scan font-mono text-[10px] text-olive">{t(locale, "map.edge")}</p>
-          <h2 className="mt-1 text-lg font-medium text-fg">{edge.label}</h2>
+          <h2 className="mt-1 text-lg font-medium text-fg">{connectionLabel(locale, edge.label)}</h2>
           <div className="mt-1 flex flex-wrap gap-1">
             <Badge tone={evidenceTone(edge.evidence)}>
               {t(locale, `evidence.${edge.evidence}.label`)}
@@ -194,7 +195,7 @@ export function PersonPane() {
           <dl className="mt-2 space-y-1.5 text-xs leading-relaxed text-muted">
             <div>
               <dt className="text-paper">{t(locale, "map.edgeWhat")}</dt>
-              <dd>{ei?.what ?? edge.label}</dd>
+              <dd>{ei?.what ?? connectionLabel(locale, edge.label)}</dd>
             </div>
             <div>
               <dt className="text-paper">{t(locale, "map.edgeWhy")}</dt>
@@ -259,7 +260,7 @@ export function PersonPane() {
               .slice(0, 3)
               .map((e) => (
                 <button key={e.id} type="button" onClick={() => useGame.getState().pickEdge(e.id)}>
-                  {e.label}{" "}
+                  {connectionLabel(locale, e.label)}{" "}
                   <small>
                     {locale === "tr" ? "Bağı incele ve karar ver" : "Inspect connection and decide"}
                   </small>
@@ -388,7 +389,7 @@ function ActionBlock() {
           .slice(0, 3)
           .map((e) => (
             <button type="button" key={e.id} onClick={() => useGame.getState().pickEdge(e.id)}>
-              <span>{e.label}</span>
+              <span>{connectionLabel(locale, e.label)}</span>
               <small>
                 {
                   {
