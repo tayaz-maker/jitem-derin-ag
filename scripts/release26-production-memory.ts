@@ -21,7 +21,7 @@ await mkdir(out, { recursive: true });
 const rows: unknown[] = [];
 let failure: string | null = null;
 const get = async (path: string) => {
-  const response = await fetch(base + "/" + path, { redirect: "error", cache: "no-store", signal: AbortSignal.timeout(15000) });
+  const response = await fetch(base + "/" + (path === "index.html" ? "" : path), { redirect: "error", cache: "no-store", signal: AbortSignal.timeout(15000) });
   assert.equal(response.status, 200, path);
   return Buffer.from(await response.arrayBuffer());
 };
