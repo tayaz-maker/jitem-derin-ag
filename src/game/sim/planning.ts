@@ -249,24 +249,27 @@ export type PendingPlan = {
   label: string;
 };
 
+/** Schema-5 callback grammar, shared by save admission and runtime inspection. */
+export function parsePlanTag(tag: unknown): PendingPlan | null {
+  if (typeof tag !== "string" || !tag.startsWith("plan-due:")) return null;
+  const parts = tag.split(":");
+  if (parts.length !== 6) return null;
+  const [, dueRaw, method, nodeId, edgeId, originRaw] = parts;
+  if (!["quiet", "institutional", "operational"].includes(method)) return null;
+  if (!/^\d+$/.test(dueRaw) || !/^\d+$/.test(originRaw)) return null;
+  const due = Number(dueRaw), origin = Number(originRaw);
+  if (!Number.isInteger(origin) || origin < 1 || origin > 10 || !Number.isInteger(due) || due <= origin || due > 12) return null;
+  const node = nodeId ? NODES.find(n => n.id === nodeId) : undefined;
+  const edge = edgeId ? EDGES.find(e => e.id === edgeId) : undefined;
+  if ((!nodeId && !edgeId) || (nodeId && !node) || (edgeId && !edge)) return null;
+  return { tag, due, method: method as PlanMethod, nodeId: nodeId || undefined,
+    edgeId: edgeId || undefined, origin, label: node?.name ?? edge!.label };
+}
+
 export function pendingPlans(state: GameState): PendingPlan[] {
-  return state.tags
-    .filter((t) => t.startsWith("plan-due:"))
-    .map((tag) => {
-      const [, due, method, nodeId, edgeId, origin] = tag.split(":");
-      return {
-        tag,
-        due: Number(due),
-        method: method as PlanMethod,
-        nodeId: nodeId || undefined,
-        edgeId: edgeId || undefined,
-        origin: Number(origin),
-        label:
-          NODES.find((n) => n.id === nodeId)?.name ??
-          EDGES.find((e) => e.id === edgeId)?.label ??
-          edgeId,
-      };
-    })
+  return (Array.isArray(state.tags) ? state.tags : [])
+    .map(parsePlanTag)
+    .filter((p): p is PendingPlan => p !== null)
     .sort((a, b) => a.due - b.due);
 }
 

@@ -66,8 +66,18 @@ interface Store {
 function writeSave(state: GameState) {
   try {
     const payload = JSON.stringify(serialize(state));
+    if (!parseSave(payload)) return;
+    const previous = localStorage.getItem(SAVE_KEY);
+    const backupKey = SAVE_KEY + ":bak";
+    const backup = localStorage.getItem(backupKey);
+    const previousGood = previous && parseSave(previous);
+    const backupGood = backup && parseSave(backup);
+    const nextBackup = previousGood && previous !== payload ? previous : !backupGood ? payload : null;
+    if (nextBackup !== null) {
+      localStorage.setItem(backupKey, nextBackup);
+      if (localStorage.getItem(backupKey) !== nextBackup) return;
+    }
     localStorage.setItem(SAVE_KEY, payload);
-    localStorage.setItem(SAVE_KEY + ":bak", payload);
   } catch {
     /* private mode */
   }
