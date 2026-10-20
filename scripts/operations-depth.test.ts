@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createGame, executeAction, startActions } from "../src/game/engine.ts";
+import { applyEvent, createGame, executeAction, startActions } from "../src/game/engine.ts";
 import {
   decisionOptions,
   planDue,
@@ -15,6 +15,7 @@ import { previewMove } from "../src/game/sim/preview.ts";
 import { EDGES } from "../src/game/data.ts";
 import { serialize, parseSave } from "../src/game/sim/save.ts";
 import type { GameState } from "../src/game/types.ts";
+import { remember } from "../src/game/sim/memory.ts";
 
 function setup(seed = 71) {
   let state = startActions(createGame("saha", seed));
@@ -141,4 +142,83 @@ test("pending plans tolerate malformed in-memory rows but keep paid duplicate ca
   const tags = [null, 7, "plan-due:bad:quiet:ersever::2", "foreign:keep", tag, tag];
   assert.deepEqual(pendingPlans({ ...state, tags } as never).map(p => p.tag), [tag, tag]);
   assert.deepEqual(pendingPlans({ ...state, tags: null } as never), []);
+});
+
+const sameDue = ["plan-due:4:institutional::dogan-ersever:3", "plan-due:4:quiet::dogan-ersever:2"];
+function arrivalState(tags = sameDue): GameState {
+  const state = createGame("saha", 71);
+  return { ...state, turn: 4, investigation: { ...state.investigation, heat: 34 }, tags,
+    revealed: { ...state.revealed, dogan: true, ersever: true } };
+}
+
+test("same-due plans use one arrival snapshot and deterministic semantic notes", () => {
+  const aNotes: string[] = [], bNotes: string[] = [];
+  const state = arrivalState(); const original = structuredClone(state);
+  const a = tickPlans(state, aNotes), b = tickPlans(arrivalState([...sameDue].reverse()), bNotes);
+  assert.equal(a.edgeLive["dogan-ersever"].trust, 61);
+  assert.equal(a.stats.giz, 72); assert.equal(a.investigation.heat, 35);
+  assert.deepEqual(a, b); assert.deepEqual(aNotes, bNotes);
+  assert.deepEqual(state, original);
+});
+
+test("same-due opposing edge deltas clamp once at both boundaries", () => {
+  for (const heat of [0, 35]) for (const boundary of [0, 99, 100]) {
+    const base = arrivalState();
+    const state = { ...base, investigation: { ...base.investigation, heat }, edgeLive: {
+      ...base.edgeLive, "dogan-ersever": { ...base.edgeLive["dogan-ersever"], trust: boundary, tension: boundary },
+    } };
+    const a = tickPlans(state, []), b = tickPlans({ ...state, tags: [...sameDue].reverse() }, []);
+    assert.deepEqual(a, b);
+    if (heat === 35) assert.equal(a.edgeLive["dogan-ersever"].trust, boundary, "+4 and -4 conserve trust before clamp");
+    else assert.equal(a.edgeLive["dogan-ersever"].tension, boundary, "+3 and -3 conserve tension before clamp");
+  }
+});
+
+test("different due groups stay chronological, paid identical callbacks both land, and no callback replays", () => {
+  const duplicate = "plan-due:4:quiet::dogan-ersever:2";
+  const future = "plan-due:5:quiet::dogan-ersever:3";
+  const base = arrivalState([duplicate, duplicate, future]);
+  const state = { ...base, investigation: { ...base.investigation, heat: 0 } };
+  const restored = parseSave(JSON.stringify(serialize(state)))!;
+  const notes: string[] = []; const landed = tickPlans(restored, notes);
+  assert.equal(landed.edgeLive["dogan-ersever"].trust, state.edgeLive["dogan-ersever"].trust + 10);
+  assert.equal(notes.length, 2); assert.deepEqual(landed.tags, [future]);
+  const again: string[] = []; assert.deepEqual(tickPlans(landed, again), landed); assert.deepEqual(again, []);
+  const early = "plan-due:3:quiet::dogan-ersever:1", late = sameDue[0];
+  const first: string[] = [], second: string[] = [];
+  assert.deepEqual(tickPlans(arrivalState([late, early, future]), first), tickPlans(arrivalState([future, early, late]), second));
+  assert.deepEqual(first, second); assert.match(first[0], /note.plan.quiet/);
+});
+
+test("a real historical death cancels only the new personal quiet return, not institutional consequences", () => {
+  const anchored = applyEvent({ ...createGame("saha", 7), turn: 7 });
+  assert.equal(anchored.dead.ersever, true);
+  const state = { ...anchored, turn: 8, tags: ["plan-due:8:quiet:ersever::6"], investigation: { ...anchored.investigation, heat: 0 } };
+  const before = structuredClone(state); const notes: string[] = [];
+  const effect = planDue(state, "quiet", "ersever");
+  assert.equal(effect.outcome, "unavailable"); assert.deepEqual(effect.edge, {}); assert.deepEqual(effect.stats, {});
+  const after = tickPlans(state, notes);
+  assert.deepEqual(after.edgeLive, before.edgeLive); assert.deepEqual(after.stats, before.stats);
+  assert.deepEqual(after.actorMemory, before.actorMemory); assert.deepEqual(after.dead, before.dead);
+  assert.equal(after.actionsLeft, before.actionsLeft); assert.equal(notes.length, 1); assert.match(notes[0], /note.plan.unavailable/);
+  assert.equal(planDue(state, "institutional", "ersever").outcome, "response");
+  assert.equal(planDue(state, "operational", "ersever").outcome, "blowback");
+  assert.equal(planDue(state, "quiet", undefined, "dogan-ersever").outcome, "unavailable");
+  assert.equal(planDue({ ...state, revealed: {} }, "quiet", undefined, "dogan-ersever").outcome, "unavailable", "visibility cannot revive a dead personal contact");
+});
+
+test("actual spend/distance and legacy betrayal block personal returns while living positive controls remain", () => {
+  const base = remember(remember({ ...createGame("saha", 27), turn: 6, phase: "actions" as const, actionsLeft: 4 }, "ersever", "protected"), "ersever", "promise-kept");
+  for (const id of ["kisi_harca", "kisi_mesafe"] as const) {
+    const changed = executeAction(base, { id, nodeId: "ersever" });
+    assert.ok(changed.actorMemory.ersever.includes(id === "kisi_harca" ? "spent" : "abandoned"));
+    assert.equal(planDue(changed, "quiet", "ersever").outcome, "unavailable");
+    assert.equal(planDue(changed, "quiet", undefined, "dogan-ersever").outcome, "unavailable");
+  }
+  for (const tag of ["spent", "abandoned", "promise-broken"] as const)
+    assert.equal(planDue(remember(base, "ersever", tag), "quiet", "ersever").outcome, "unavailable");
+  assert.equal(planDue(base, "quiet", "ersever").outcome, "returned");
+  assert.equal(planDue(remember(base, "ersever", "used"), "quiet", "ersever").outcome, "returned");
+  const p = previewMove(base, { id: "kisi_mesafe", nodeId: "ersever", method: "quiet", contextual: true });
+  assert.equal(p.due?.effect.outcome, "unavailable");
 });
