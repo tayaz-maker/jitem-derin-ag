@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { executeAction } from "../src/game/engine.ts";
+import { canPlay, executeAction } from "../src/game/engine.ts";
 import { moveInput } from "../src/game/sim/preview.ts";
 import { mkdir, writeFile } from "node:fs/promises";
 import { chromium } from "playwright";
@@ -43,9 +43,10 @@ try {
     let count = 0;
     while (JSON.parse(saveAfter).state.actionsLeft > 0 && count++ < 8) {
       const before = JSON.parse(saveAfter).state;
-      const plan = { id: "kara_topla" };
+      const plan = { id: canPlay(before, "kara_topla") ? "kara_topla" : "dosya_oku" };
+      assert.ok(canPlay(before, plan.id), "choose only an affordable actual action");
       const expected = executeAction(moveInput(before, plan), plan);
-      await select.selectOption("kara_topla");
+      await select.selectOption(plan.id);
       await page.getByRole("button", { name: locale === "tr" ? "Kararı uygula" : "Commit decision", exact: true }).filter({ visible: true }).first().click();
       saveAfter = await page.evaluate(() => localStorage.getItem("jitem-derin-ag-v3"));
       const after = JSON.parse(saveAfter).state;
