@@ -220,6 +220,31 @@ describe("past help and later betrayal", () => {
   });
 });
 
+describe("historical actor liveness in memory consequences", () => {
+  for (const [seed, tag] of [[1, "protected"], [7, "spent"]] as const) {
+    it(`does not create fresh personal ${tag === "protected" ? "help" : "talk"} after the death anchor`, () => {
+      let state = applyEvent({ ...createGame("saha", seed), turn: 7 });
+      state = remember(state, "ersever", tag);
+      assert.equal(state.dead.ersever, true);
+      assert.equal(state.flags.erseverDead, true);
+      const before = structuredClone(state);
+      const notes: string[] = [];
+      const next = tickMemory(state, notes);
+      assert.deepEqual(notes, []);
+      assert.deepEqual(next, before, "keep history, knowledge, stats and RNG; do not invent a posthumous action");
+      const restored = parseSave(JSON.stringify(serialize(state)));
+      assert.ok(restored);
+      const reloadedNotes: string[] = [];
+      assert.deepEqual(tickMemory(restored, reloadedNotes), restored);
+      assert.deepEqual(reloadedNotes, []);
+      assert.ok(hasMemory(restored, "ersever", tag), "historical relationship memory remains");
+      const livingNotes: string[] = [];
+      tickMemory({ ...state, dead: { ...state.dead, ersever: false } }, livingNotes);
+      assert.ok(livingNotes.includes(`note.mem.${tag === "protected" ? "help" : "talk"}|id=ersever`), "living actors retain the same seeded consequences");
+    });
+  }
+});
+
 describe("relationship effects", () => {
   it("strengthen increases edgeStr", () => {
     let s = createGame("saha", 5);

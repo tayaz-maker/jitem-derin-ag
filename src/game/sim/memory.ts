@@ -70,6 +70,7 @@ export function tickMemory(state: GameState, notes: string[]): GameState {
   let next = state;
   if (next.turn < 4) return next;
   for (const id of Object.keys(next.actorMemory)) {
+    if (next.dead[id]) continue;
     const tags = next.actorMemory[id] ?? [];
     if (!tags.length) continue;
     const last = lastTalkTurn(next, id);
