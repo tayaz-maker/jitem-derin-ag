@@ -45,3 +45,8 @@ Inspected public/games/ihtilal/{engine,solo,basin-network,save,report,briefing}.
 IHTILAL archival must first preserve a named GitHub ref at the exact pre-removal commit and inventory runtime, original cards, source ledger, docs, tests and saves. Then audit catalogue src/lib/games.ts, localized catalogue entries, /ihtilal redirect, /oyna/$slug dispatch, Resources links/content, service-worker app-shell entries, route tests and historical deep links. Keep archived source and user saves; removal from discoverable live routes is not source deletion. Do not mark archived or unpublish before those gates pass. No runtime/catalogue removal occurs in this PR.
 
 Racon Manager follows verified JITEM transfer/archive. Kıyı Eşiği (slug esik) needs its own reuse assessment and preserved GitHub archive before removal. Cards, Anatomy Atlas, comic-map production and site optimization remain deferred.
+
+
+## Actor-liveness follow-up
+
+The existing turn-7 historical event sets dead.ersever and flags.erseverDead, but tickMemory still generated a new help response (seed 1) or talk/media rumour (seed 7) for that actor. The personal-response tick now skips dead actors before RNG consumption. Historical actor memory, decisions, existing knowledge, faction memory and source-backed scheduled events remain untouched. Two failing-before regressions use the real death-anchor applyEvent path, verify save/reload and preserved RNG/state, and retain the identical seeded response for the living control. This does not remove historical records, retroactively silence documents, cancel institutional consequences, or change the save schema.
