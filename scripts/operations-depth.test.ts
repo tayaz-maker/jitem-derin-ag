@@ -134,3 +134,11 @@ test("a desk move commits exactly its preview even while a person is selected on
   useGame.getState().play(plan);
   assert.deepEqual(useGame.getState().lastResult?.changes, expected);
 });
+
+test("pending plans tolerate malformed in-memory rows but keep paid duplicate callbacks", () => {
+  const state = createGame("saha", 71);
+  const tag = "plan-due:12:quiet:ersever::10";
+  const tags = [null, 7, "plan-due:bad:quiet:ersever::2", "foreign:keep", tag, tag];
+  assert.deepEqual(pendingPlans({ ...state, tags } as never).map(p => p.tag), [tag, tag]);
+  assert.deepEqual(pendingPlans({ ...state, tags: null } as never), []);
+});

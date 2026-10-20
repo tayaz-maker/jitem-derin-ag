@@ -4,6 +4,7 @@ import { initialHand, initialTruth } from "./knowledge.ts";
 import type { GameState, Hat } from "../types.ts";
 import { SAVE_VERSION, SCHEMA_VERSION } from "../types.ts";
 import { apFor, parseHat } from "./hats.ts";
+import { parsePlanTag } from "./planning.ts";
 
 const FLAG_DEFAULTS: GameState["flags"] = {
   commandShifted: false,
@@ -117,6 +118,15 @@ export function parseSave(raw: string): GameState | null {
   try {
     const parsed = JSON.parse(raw) as { version?: number; schemaVersion?: number; state?: GameState };
     if (!isRecord(parsed) || !isRecord(parsed.state)) return null;
+    for (const record of [parsed, parsed.state]) {
+      for (const key of ["version", "schemaVersion"] as const) {
+        if (key in record && (!Number.isInteger(record[key]) || (record[key] as number) > SCHEMA_VERSION)) return null;
+      }
+    }
+    if ("tags" in parsed.state) {
+      if (!Array.isArray(parsed.state.tags) || parsed.state.tags.some(tag =>
+        typeof tag !== "string" || (tag.startsWith("plan-due:") && !parsePlanTag(tag)))) return null;
+    }
     return migrate(parsed.state);
   } catch {
     return null;
