@@ -55,7 +55,8 @@ try {
       assert.ok(after.actionsLeft >= 0);
     }
     assert.equal(JSON.parse(saveAfter).state.actionsLeft, 0);
-    assert.equal(await select.locator('option[value="kara_topla"]').isDisabled(), true, "exhausted capacity blocks another collect");
+    await page.waitForFunction(() => { const el = document.querySelector('.plan-record option[value="kara_topla"]'); return el?.disabled === true; });
+    assert.equal(await select.locator('option[value="kara_topla"]').getAttribute("disabled") !== null, true, "exhausted capacity blocks another collect");
     const turn = JSON.parse(saveAfter).state.turn;
     await page.getByRole("button", { name: locale === "tr" ? "Turu kapat" : "Close the turn", exact: true }).filter({ visible: true }).first().click();
     assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem("jitem-derin-ag-v3")).state.phase), "resolution");
