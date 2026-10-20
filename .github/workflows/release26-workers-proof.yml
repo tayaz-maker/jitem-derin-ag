@@ -1,0 +1,44 @@
+name: Release26 Workers proof
+on:
+  push:
+    branches: [qa/release26-workers-proof-20261020]
+permissions:
+  contents: read
+jobs:
+  workers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Require exact Workers source
+        run: |
+          for attempt in {1..36}; do
+            if node --input-type=module -e 'const r=await fetch("https://tariklab.tayaz29.workers.dev/games/jitem-derin-ag/SOURCE.json",{cache:"no-store"});console.log("Workers SOURCE status",r.status);if(r.status!==200)process.exit(1);const s=await r.json();if(s.standaloneSha!=="37c5416e7a49b2ecc998f0d1071a7484d6e508c0")process.exit(1)'; then exit 0; fi
+            sleep 10
+          done
+          exit 1
+      - name: Bind the same reviewed proof to the Workers origin
+        run: sed -i 's#https://www.tariklab.com#https://tariklab.tayaz29.workers.dev#g' scripts/release26-production-memory.ts scripts/release26-production-support.ts
+      - name: Exact source hashes and relationship memory
+        env:
+          ATLAS_BROWSER_OUT: ${{ runner.temp }}/workers26/memory
+        run: node --experimental-strip-types scripts/release26-production-memory.ts
+      - name: Positive and negative support controls
+        env:
+          ATLAS_BROWSER_OUT: ${{ runner.temp }}/workers26/support
+        run: node --experimental-strip-types scripts/release26-production-support.ts
+      - name: Campaign action and save reload
+        env:
+          ATLAS_BROWSER_OUT: ${{ runner.temp }}/workers26/product
+        run: node scripts/production-quality-browser.mjs https://tariklab.tayaz29.workers.dev/games/jitem-derin-ag
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release26-workers-evidence
+          path: ${{ runner.temp }}/workers26
