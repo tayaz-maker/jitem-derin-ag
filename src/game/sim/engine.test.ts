@@ -25,7 +25,7 @@ import {
   viewEvent,
 } from "./families.ts";
 import { initialFactions } from "./factions.ts";
-import { hasMemory, talkChance } from "./memory.ts";
+import { hasMemory, talkChance, remember, tickMemory } from "./memory.ts";
 import { tickInvestigation } from "./investigation.ts";
 import { causalNarrative, pickEnding } from "./recap.ts";
 import { parseSave, serialize, migrate } from "./save.ts";
@@ -168,6 +168,55 @@ describe("actor memory", () => {
     };
     s = executeAction(s, { id: "kisi_koru", nodeId: "aygan" });
     assert.equal(hasMemory(s, "aygan", "protected"), true);
+  });
+});
+
+describe("past help and later betrayal", () => {
+  function helpedActor() {
+    let state = createGame("saha", 4);
+    state = { ...state, turn: 4 };
+    state = remember(remember(state, "ersever", "protected"), "ersever", "promise-kept");
+    const notes: string[] = [];
+    state = tickMemory(state, notes);
+    assert.deepEqual(notes, ["note.mem.help|id=ersever"]);
+    assert.ok(state.tags.includes("helped:ersever"));
+    return state;
+  }
+
+  it("past assistance cannot suppress the consequences of a later real spend decision", () => {
+    let state = helpedActor();
+    state = { ...state, turn: 6, phase: "actions", actionsLeft: 3, selectedNodeId: "ersever", revealed: { ...state.revealed, ersever: true } };
+    state = executeAction(state, { id: "kisi_harca", nodeId: "ersever" });
+    assert.ok(hasMemory(state, "ersever", "spent"));
+    assert.ok(hasMemory(state, "ersever", "promise-broken"));
+    const before = structuredClone(state);
+    const restored = parseSave(JSON.stringify(serialize(state)));
+    assert.ok(restored);
+    const notes: string[] = [];
+    const next = tickMemory(state, notes);
+    assert.deepEqual(notes, ["note.mem.talk|id=ersever", "note.mem.spentLeak|id=ersever"]);
+    assert.equal(next.stats.giz, state.stats.giz - 3);
+    assert.equal(next.stats.kamuoyu, state.stats.kamuoyu + 2);
+    assert.equal(next.factions.media.knowledgeBase.clm_jitem_exists.status, "RUMOR");
+    assert.ok(next.tags.includes("helped:ersever"), "past help remains in history");
+    assert.deepEqual(state, before, "memory processing must not mutate its input");
+    assert.deepEqual(JSON.parse(JSON.stringify(serialize(tickMemory(restored, [])))), JSON.parse(JSON.stringify(serialize(next))), "save/load preserves the delayed outcome and RNG");
+    assert.equal(next.version, 5);
+    assert.equal(next.schemaVersion, 5);
+    const cooldownNotes: string[] = [];
+    assert.deepEqual(tickMemory({ ...next, turn: 7 }, cooldownNotes), { ...next, turn: 7 });
+    assert.deepEqual(cooldownNotes, []);
+  });
+
+  it("assistance remains one-shot across later turns and save/load", () => {
+    const state = helpedActor();
+    const restored = parseSave(JSON.stringify(serialize(state)));
+    assert.ok(restored);
+    const notes: string[] = [];
+    const next = tickMemory({ ...restored, turn: 6 }, notes);
+    assert.deepEqual(next.stats, restored.stats);
+    assert.deepEqual(notes, []);
+    assert.equal(next.tags.filter(t => t === "helped:ersever").length, 1);
   });
 });
 
