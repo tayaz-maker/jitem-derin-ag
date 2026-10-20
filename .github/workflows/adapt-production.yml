@@ -1,0 +1,59 @@
+name: ADAPT production acceptance
+on:
+  push:
+    branches: [qa/adapt-production-20261020]
+permissions:
+  contents: read
+jobs:
+  production:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: www
+            origin: https://www.tariklab.com
+          - label: workers
+            origin: https://tariklab.tayaz29.workers.dev
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Exact 31 hashes and retained production scope
+        env:
+          ATLAS_BROWSER_OUT: ${{ runner.temp }}/adapt-proof/memory
+        run: node --experimental-strip-types scripts/adapt-production-browser.ts '${{ matrix.origin }}'
+      - name: Personal support boundaries
+        env:
+          ATLAS_BROWSER_OUT: ${{ runner.temp }}/adapt-proof/support
+        run: node --experimental-strip-types scripts/support-payoff-browser.ts '${{ matrix.origin }}/games/jitem-derin-ag'
+      - name: Campaign and mobile acceptance
+        env:
+          ATLAS_BROWSER_OUT: ${{ runner.temp }}/adapt-proof/product
+        run: node scripts/production-quality-browser.mjs '${{ matrix.origin }}/games/jitem-derin-ag'
+      - name: Capacity accounting
+        env:
+          ATLAS_BROWSER_OUT: ${{ runner.temp }}/adapt-proof/capacity
+        run: node --experimental-strip-types scripts/adapt-capacity-browser.ts '${{ matrix.origin }}/games/jitem-derin-ag'
+      - name: Save reliability
+        env:
+          ATLAS_BROWSER_OUT: ${{ runner.temp }}/adapt-proof/save
+        run: node --experimental-strip-types scripts/save-reliability-browser.ts '${{ matrix.origin }}/games/jitem-derin-ag'
+      - name: Due consistency
+        env:
+          ATLAS_BROWSER_OUT: ${{ runner.temp }}/adapt-proof/due
+        run: node --experimental-strip-types scripts/due-consistency-browser.ts '${{ matrix.origin }}/games/jitem-derin-ag'
+      - name: Relationship rumor channel
+        env:
+          ATLAS_BROWSER_OUT: ${{ runner.temp }}/adapt-proof/rumor
+        run: node --experimental-strip-types scripts/rumor-channel-browser.ts '${{ matrix.origin }}/games/jitem-derin-ag'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: adapt-production-${{ matrix.label }}
+          path: ${{ runner.temp }}/adapt-proof

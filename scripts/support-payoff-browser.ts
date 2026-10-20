@@ -7,7 +7,7 @@ import { remember, tickMemory } from "../src/game/sim/memory.ts";
 import { serialize } from "../src/game/sim/save.ts";
 import { SAVE_KEY, type GameState } from "../src/game/types.ts";
 const base = process.argv[2] ?? "http://127.0.0.1:8081";
-assert.ok(["http://127.0.0.1:8081", "http://localhost:8081"].includes(base));
+assert.ok(["http://127.0.0.1:8081", "http://localhost:8081", "https://www.tariklab.com/games/jitem-derin-ag", "https://tariklab.tayaz29.workers.dev/games/jitem-derin-ag"].includes(base));
 const out = process.env.ATLAS_BROWSER_OUT ?? "/workspace/screenshots/jitem-support";
 await mkdir(out, { recursive: true });
 let betrayed = { ...createGame("saha", 27), turn: 4 };
