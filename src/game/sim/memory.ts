@@ -74,7 +74,8 @@ export function tickMemory(state: GameState, notes: string[]): GameState {
     if (!tags.length) continue;
     const last = lastTalkTurn(next, id);
     if (last != null && next.turn - last < 2) continue;
-    if (next.tags.includes(`helped:${id}`)) continue;
+    // Past help is one-shot, not immunity from a later betrayal.
+    if (next.tags.includes(`helped:${id}`) && talkChance(next, id) < 0.48) continue;
     const [rolled, r] = rollAi(next, next.turn + id.length * 17);
     next = rolled;
     const talk = talkChance(next, id);
@@ -90,7 +91,7 @@ export function tickMemory(state: GameState, notes: string[]): GameState {
         next = { ...next, tags: [...next.tags, `leaked-media:${id}`] };
         notes.push(`note.mem.spentLeak|id=${id}`);
       }
-    } else if (help >= 0.55 && r > 0.72) {
+    } else if (help >= 0.55 && r > 0.72 && !next.tags.includes(`helped:${id}`)) {
       next = applyStat(next, "giz", 2);
       next = applyStat(next, "sadakat", 1);
       next = { ...next, tags: [...next.tags, `helped:${id}`] };
