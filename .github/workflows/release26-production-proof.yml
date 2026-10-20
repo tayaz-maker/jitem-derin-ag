@@ -1,0 +1,63 @@
+name: Release26 production proof
+on:
+  push:
+    branches: [qa/release26-production-proof-20261020]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  production:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Wait for exact released source
+        run: |
+          for attempt in {1..48}; do
+            if node --input-type=module -e 'const r=await fetch("https://www.tariklab.com/games/jitem-derin-ag/SOURCE.json",{cache:"no-store"});const s=await r.json();if(s.standaloneSha!=="37c5416e7a49b2ecc998f0d1071a7484d6e508c0")process.exit(1)'; then exit 0; fi
+            sleep 10
+          done
+          exit 1
+      - name: Exact hashes and relationship memory
+        env:
+          ATLAS_BROWSER_OUT: ${{ runner.temp }}/release26/memory
+        run: node --experimental-strip-types scripts/release26-production-memory.ts
+      - name: Stale support boundary with living positive control
+        env:
+          ATLAS_BROWSER_OUT: ${{ runner.temp }}/release26/support
+        run: node --experimental-strip-types scripts/release26-production-support.ts
+      - name: Campaign decision and operation loop
+        env:
+          ATLAS_BROWSER_OUT: ${{ runner.temp }}/release26/product
+        run: node scripts/production-quality-browser.mjs https://www.tariklab.com/games/jitem-derin-ag
+      - name: Workers access classification
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/release26/workers"
+          node --input-type=module <<'JS'
+          import { chromium } from "playwright";
+          import { writeFile } from "node:fs/promises";
+          const browser=await chromium.launch({headless:true,args:["--no-sandbox"]});
+          const page=await browser.newPage();
+          let result={url:"https://tariklab.tayaz29.workers.dev/oyna/jitem-derin-ag",browserPass:false};
+          try {
+            const response=await page.goto(result.url,{waitUntil:"networkidle",timeout:45000});
+            result.httpStatus=response?.status();
+            result.body=(await page.locator("body").innerText()).slice(0,3000);
+            result.accessBlocked=result.httpStatus===403||/1010|Access denied|forbidden/i.test(result.body);
+            result.classification=result.accessBlocked?"ACCESS_BLOCKED":"ACCESS_OBSERVED_REGRESSION_NOT_RUN";
+            await page.screenshot({path:process.env.RUNNER_TEMP+"/release26/workers/access.png",fullPage:true});
+          } catch(e) { result.classification="ACCESS_ERROR";result.error=String(e); }
+          finally {await writeFile(process.env.RUNNER_TEMP+"/release26/workers/access.json",JSON.stringify(result,null,2));await browser.close();}
+          JS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release26-production-evidence
+          path: ${{ runner.temp }}/release26
