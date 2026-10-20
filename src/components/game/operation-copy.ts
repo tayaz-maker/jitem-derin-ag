@@ -37,7 +37,9 @@ export function dueSummary(due: PlanDue, locale: Locale) {
   if (due.hostility && due.faction)
     parts.push(`${t(locale, `move.faction.${due.faction}`)} ${tr ? "düşmanlığı" : "hostility"} ${signed(due.hostility)}`);
   const head =
-    due.outcome === "burned"
+    due.outcome === "unavailable"
+      ? t(locale, "move.contactUnavailable")
+      : due.outcome === "burned"
       ? tr
         ? "Temas yanık döner"
         : "The contact comes back burned"

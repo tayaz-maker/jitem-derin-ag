@@ -788,7 +788,7 @@ export const tr = {
     yesil: "Yeşil harcandı. Fail iddiası ısındı; emir boşluğu durur.",
   },
   note: {
-    plan: { quiet: "{target}: {turn}. turdaki sessiz temas şimdi güveni toparladı. Beklerken erişim daraldı.", institutional: "{target}: {turn}. turdaki kurumsal temas karşılık buldu; bağ toparlandı ama kurumun ilgisi arttı.", operational: "{target}: {turn}. turdaki hızlı müdahalenin izi geri döndü. Bağdaki gerilim ve soruşturma yakınlığı arttı.", burned: "{target}: {turn}. turdaki sessiz temas yanık döndü. Soruşturma çok yakındı; güven düştü, bağ açığa çıktı." },
+    plan: { unavailable: "{target}: {turn}. turdaki kişisel temas artık karşılık veremiyor.", quiet: "{target}: {turn}. turdaki sessiz temas şimdi güveni toparladı. Beklerken erişim daraldı.", institutional: "{target}: {turn}. turdaki kurumsal temas karşılık buldu; bağ toparlandı ama kurumun ilgisi arttı.", operational: "{target}: {turn}. turdaki hızlı müdahalenin izi geri döndü. Bağdaki gerilim ve soruşturma yakınlığı arttı.", burned: "{target}: {turn}. turdaki sessiz temas yanık döndü. Soruşturma çok yakındı; güven düştü, bağ açığa çıktı." },
     jitem: {
       freelance: "JİTEM hattı kapasite açığını kendi başına kapatıyor. Masa emretmedi.",
       resentment: "JİTEM: harcanan saha hattı kin taşıyor. Freelance sızıntı.",
@@ -899,6 +899,7 @@ export const tr = {
     ui5: "Alt: kayıt. Mobil: beş sekme.",
   },
   move: {
+    contactUnavailable: "Kişisel temas artık karşılık veremiyor",
     selected: "Seçili hamle",
     clear: "Seçimi kaldır",
     previewTitle: "Uygularsan (önizleme)",

@@ -134,7 +134,7 @@ function planEdges(state: GameState, nodeId?: string, edgeId?: string) {
 
 export type PlanDue = {
   method: PlanMethod;
-  outcome: "returned" | "burned" | "response" | "blowback";
+  outcome: "returned" | "burned" | "response" | "blowback" | "unavailable";
   edge: Partial<Record<"trust" | "dependency" | "secrecy" | "tension", number>>;
   stats: Partial<Record<"giz" | "hukuk", number>>;
   hostility: number;
@@ -154,7 +154,11 @@ export function planDue(
 ): PlanDue {
   const edges = planEdges(state, nodeId, edgeId);
   if (method === "quiet") {
-    const actors = nodeId ? [nodeId] : edges.flatMap((e) => [e.from, e.to]);
+    const targetEdge = edgeId ? EDGES.find(e => e.id === edgeId) : undefined;
+    const actors = targetEdge ? [targetEdge.from, targetEdge.to] : nodeId ? [nodeId] : [];
+    const unavailable = actors.some(id => NODES.find(n => n.id === id)?.kind === "kisi" &&
+      (state.dead[id] || (state.actorMemory[id] ?? []).some(tag => ["spent", "abandoned", "promise-broken"].includes(tag))));
+    if (unavailable) return { method, outcome: "unavailable", edge: {}, stats: {}, hostility: 0, heat: 0 };
     const burned =
       state.investigation.heat >= QUIET_BURN_HEAT ||
       actors.some((id) => (state.nodeHeat[id] ?? 0) >= QUIET_BURN_ACTOR_HEAT);
@@ -169,30 +173,41 @@ export function planDue(
     : { method, outcome: "blowback", edge: { tension: 7, secrecy: -4 }, stats: {}, hostility: faction ? 5 : 0, faction, heat: 3 };
 }
 
-function applyDue(state: GameState, due: PlanDue, nodeId?: string, edgeId?: string): GameState {
+/** Sum a same-due group first; apply each affected field's bounds only once. */
+function applyDue(state: GameState, arrivals: Array<{ plan: PendingPlan; due: PlanDue }>): GameState {
+  const edges: Record<string, PlanDue["edge"]> = {};
+  const statsDelta: PlanDue["stats"] = {};
+  const hostility: Record<string, number> = {};
+  let heat = 0;
+  for (const { plan, due } of arrivals) {
+    for (const e of planEdges(state, plan.nodeId, plan.edgeId)) {
+      const delta = edges[e.id] ??= {};
+      for (const [field, change] of Object.entries(due.edge)) {
+        const key = field as keyof PlanDue["edge"];
+        delta[key] = (delta[key] ?? 0) + (change ?? 0);
+      }
+    }
+    for (const [field, change] of Object.entries(due.stats)) {
+      const key = field as keyof PlanDue["stats"];
+      statsDelta[key] = (statsDelta[key] ?? 0) + (change ?? 0);
+    }
+    if (due.faction) hostility[due.faction] = (hostility[due.faction] ?? 0) + due.hostility;
+    heat += due.heat;
+  }
   let next = state;
-  for (const e of planEdges(state, nodeId, edgeId)) next = touchEdge(next, e.id, due.edge);
+  for (const [id, delta] of Object.entries(edges)) next = touchEdge(next, id, delta);
+  const bound = (n: number) => Math.max(0, Math.min(100, n));
   const stats = { ...next.stats };
-  for (const [k, v] of Object.entries(due.stats))
-    stats[k as "giz"] = Math.max(0, Math.min(100, stats[k as "giz"] + (v ?? 0)));
-  next = { ...next, stats };
-  if (due.faction && due.hostility)
-    next = {
-      ...next,
-      factions: {
-        ...next.factions,
-        [due.faction]: {
-          ...next.factions[due.faction],
-          hostility: Math.min(100, next.factions[due.faction].hostility + due.hostility),
-        },
-      },
-    };
-  if (due.heat)
-    next = {
-      ...next,
-      investigation: { ...next.investigation, heat: Math.min(100, next.investigation.heat + due.heat) },
-    };
-  return next;
+  for (const [field, change] of Object.entries(statsDelta)) {
+    const key = field as keyof PlanDue["stats"];
+    stats[key] = bound(stats[key] + (change ?? 0));
+  }
+  const factions = { ...next.factions };
+  for (const [id, delta] of Object.entries(hostility)) {
+    const key = id as keyof typeof factions;
+    factions[key] = { ...factions[key], hostility: bound(factions[key].hostility + delta) };
+  }
+  return { ...next, stats, factions, investigation: { ...next.investigation, heat: bound(next.investigation.heat + heat) } };
 }
 
 export function applyPlanConsequences(
@@ -275,17 +290,20 @@ export function pendingPlans(state: GameState): PendingPlan[] {
 
 export function tickPlans(state: GameState, notes: string[]): GameState {
   let next = state;
-  for (const p of pendingPlans(state)) {
-    if (p.due > state.turn) continue;
-    const due = planDue(next, p.method, p.nodeId, p.edgeId);
-    next = applyDue(next, due, p.nodeId, p.edgeId);
-    notes.push(
-      encodeNote(due.outcome === "burned" ? "note.plan.burned" : `note.plan.${p.method}`, {
-        target: p.label,
-        turn: p.origin,
-      }),
-    );
-    next = { ...next, tags: next.tags.filter((t) => t !== p.tag) };
+  const lexical = (a: string, b: string) => a < b ? -1 : a > b ? 1 : 0;
+  const duePlans = pendingPlans(state).filter(p => p.due <= state.turn).sort((a, b) =>
+    a.due - b.due || a.origin - b.origin || lexical(a.method, b.method) || lexical(a.nodeId ?? "", b.nodeId ?? "") || lexical(a.edgeId ?? "", b.edgeId ?? ""));
+  for (let i = 0; i < duePlans.length;) {
+    const group: PendingPlan[] = [];
+    const turn = duePlans[i].due;
+    while (i < duePlans.length && duePlans[i].due === turn) group.push(duePlans[i++]);
+    const arrivals = group.map(plan => ({ plan, due: planDue(next, plan.method, plan.nodeId, plan.edgeId) }));
+    next = applyDue(next, arrivals);
+    for (const { plan, due } of arrivals) notes.push(encodeNote(
+      due.outcome === "unavailable" ? "note.plan.unavailable" : due.outcome === "burned" ? "note.plan.burned" : `note.plan.${plan.method}`,
+      { target: plan.label, turn: plan.origin },
+    ));
+    next = { ...next, tags: next.tags.filter(tag => !group.some(plan => plan.tag === tag)) };
   }
   return next;
 }
