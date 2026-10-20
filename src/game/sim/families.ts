@@ -96,6 +96,11 @@ export function familyEligible(f: EventFamily, s: GameState, side: boolean) {
   return true;
 }
 
+/** History remains, but a dead or betrayed actor cannot return fresh support. */
+function canReturnSupport(s: GameState, id: string) {
+  return !s.dead[id] && !hasMemory(s, id, "spent") && !hasMemory(s, id, "abandoned") && !hasMemory(s, id, "promise-broken");
+}
+
 function liveSig(s: GameState, id: string) {
   const live = s.edgeLive[id];
   return live ? edgeSignal(live) : "stable";
@@ -362,6 +367,7 @@ export const FAMILIES: EventFamily[] = [
     act: 4,
     turnWindow: [5, 8],
     exclusivity: "protect-pay",
+    actorState: (s) => ["ersever", "eymur"].some(id => canReturnSupport(s, id) && hasMemory(s, id, "protected")),
     triggers: (s) => hasMemory(s, "ersever", "protected") || hasMemory(s, "eymur", "protected"),
     playerHistory: (s) => hasMemory(s, "ersever", "protected") || hasMemory(s, "eymur", "protected"),
     variants: [
@@ -609,6 +615,7 @@ export const FAMILIES: EventFamily[] = [
     act: 4,
     turnWindow: [5, 8],
     exclusivity: "promise",
+    actorState: (s) => ["ersever", "aygan"].some(id => canReturnSupport(s, id) && hasMemory(s, id, "promise-kept")),
     triggers: (s) => hasMemory(s, "ersever", "promise-kept") || hasMemory(s, "aygan", "promise-kept"),
     playerHistory: (s) => hasMemory(s, "ersever", "promise-kept") || hasMemory(s, "aygan", "promise-kept"),
     variants: [

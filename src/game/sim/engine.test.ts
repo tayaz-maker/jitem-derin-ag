@@ -245,6 +245,49 @@ describe("historical actor liveness in memory consequences", () => {
   }
 });
 
+describe("support payoff follows the current relationship", () => {
+  const protectedPayoff = FAMILIES.find(f => f.id === "fam_protect_payoff")!;
+  const promisePayoff = FAMILIES.find(f => f.id === "fam_promise_payoff")!;
+  it("an actual spend decision cannot also earn kept-promise or protection support", () => {
+    let state = createGame("saha", 27);
+    state = remember(remember(state, "ersever", "protected"), "ersever", "promise-kept");
+    state = { ...state, turn: 6, phase: "actions", actionsLeft: 3, selectedNodeId: "ersever", revealed: { ...state.revealed, ersever: true } };
+    state = executeAction(state, { id: "kisi_harca", nodeId: "ersever" });
+    assert.ok(hasMemory(state, "ersever", "promise-broken"));
+    const before = structuredClone(state);
+    assert.equal(familyEligible(protectedPayoff, state, true), false);
+    assert.equal(familyEligible(promisePayoff, state, true), false);
+    const restored = parseSave(JSON.stringify(serialize(state)))!;
+    assert.equal(familyEligible(protectedPayoff, restored, true), false);
+    assert.equal(familyEligible(promisePayoff, restored, true), false);
+    assert.deepEqual(state, before, "eligibility leaves historical memory and all effects untouched");
+  });
+  it("a real death anchor blocks fresh support from that actor but keeps the historical record", () => {
+    let state = applyEvent({ ...createGame("saha", 7), turn: 7 });
+    state = remember(remember(state, "ersever", "protected"), "ersever", "promise-kept");
+    assert.equal(state.dead.ersever, true);
+    assert.equal(familyEligible(protectedPayoff, state, true), false);
+    assert.equal(familyEligible(promisePayoff, state, true), false);
+    assert.ok(hasMemory(state, "ersever", "protected"));
+    assert.ok(hasMemory(state, "ersever", "promise-kept"));
+    const another = remember(state, "eymur", "protected");
+    assert.equal(familyEligible(protectedPayoff, another, true), true, "living protected source remains eligible");
+    assert.equal(familyEligible(promisePayoff, another, true), false, "another actor cannot supply an unrelated promise");
+    assert.equal(familyEligible(promisePayoff, remember(another, "aygan", "promise-kept"), true), true);
+  });
+  it("old saves with retained spent/abandoned history cannot revive a stale promise reward", () => {
+    for (const tag of ["spent", "abandoned"] as const) {
+      let state = { ...createGame("saha", 11), turn: 6 };
+      state = remember(remember(remember(state, "ersever", "protected"), "ersever", "promise-kept"), "ersever", tag);
+      assert.equal(hasMemory(state, "ersever", "promise-broken"), false, "legacy history need not contain the newer break tag");
+      const restored = parseSave(JSON.stringify(serialize(state)))!;
+      assert.equal(familyEligible(protectedPayoff, restored, true), false);
+      assert.equal(familyEligible(promisePayoff, restored, true), false);
+      assert.equal(restored.schemaVersion, 5);
+    }
+  });
+});
+
 describe("relationship effects", () => {
   it("strengthen increases edgeStr", () => {
     let s = createGame("saha", 5);
