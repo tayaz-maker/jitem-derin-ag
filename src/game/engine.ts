@@ -440,6 +440,7 @@ function executeCoreAction(state: GameState, plan: PlannedAction): GameState {
   if (!canPlay(state, plan.id)) return state;
   const apCost = actionAp(plan.id);
   let next: GameState = { ...state, actionsLeft: state.actionsLeft - apCost, pendingAction: null };
+  let decisionTarget: string | undefined;
   const sahaHat = state.hat === "saha";
   const idariHat = state.hat === "idari";
 
@@ -471,6 +472,7 @@ function executeCoreAction(state: GameState, plan: PlannedAction): GameState {
         next.actionsLeft += apCost;
         break;
       }
+      decisionTarget = edge.id;
       const cur = next.edgeStr[edge.id] ?? 1;
       next.edgeStr = { ...next.edgeStr, [edge.id]: Math.min(3, cur + 1) };
       next = touchEdge(next, edge.id, { trust: 12, dependency: 10, secrecy: -8, tension: 4 });
@@ -490,6 +492,7 @@ function executeCoreAction(state: GameState, plan: PlannedAction): GameState {
         next.actionsLeft += apCost;
         break;
       }
+      decisionTarget = edge.id;
       if (edge.belgelıLockTurn && next.turn >= edge.belgelıLockTurn) {
         next = addLog(next, "BELGELİ kilit. Bu bağ gevşemez.", "sistem");
         next.actionsLeft += apCost;
@@ -512,6 +515,7 @@ function executeCoreAction(state: GameState, plan: PlannedAction): GameState {
         next.actionsLeft += apCost;
         break;
       }
+      decisionTarget = edge.id;
       next = touchEdge(next, edge.id, { secrecy: -6 });
       next = applyStat(next, "bilgi", 5);
       next = applyStat(next, "giz", -3);
@@ -526,6 +530,7 @@ function executeCoreAction(state: GameState, plan: PlannedAction): GameState {
         next.actionsLeft += apCost;
         break;
       }
+      decisionTarget = edge.id;
       if (edge.belgelıLockTurn && next.turn >= edge.belgelıLockTurn) {
         next = addLog(next, "BELGELİ kilit. Yalıtım bu bağı koparmaz.", "sistem");
         next.actionsLeft += apCost;
@@ -548,6 +553,7 @@ function executeCoreAction(state: GameState, plan: PlannedAction): GameState {
         next.actionsLeft += apCost;
         break;
       }
+      decisionTarget = edge.id;
       next = touchEdge(next, edge.id, { secrecy: -22, tension: 16 });
       next = applyStat(next, "kamuoyu", 8);
       next = applyStat(next, "hukuk", 6);
@@ -564,6 +570,7 @@ function executeCoreAction(state: GameState, plan: PlannedAction): GameState {
         next.actionsLeft += apCost;
         break;
       }
+      decisionTarget = edge.id;
       next = touchEdge(next, edge.id, { tension: -16, trust: 8, secrecy: -4 });
       next = applyStat(next, "sadakat", 3);
       next = applyStat(next, "giz", -2);
@@ -577,6 +584,7 @@ function executeCoreAction(state: GameState, plan: PlannedAction): GameState {
         next.actionsLeft += apCost;
         break;
       }
+      decisionTarget = edge.id;
       next = touchEdge(next, edge.id, { secrecy: 14, tension: -6, trust: 6, dependency: 8 });
       next = applyStat(next, "giz", 4);
       next = applyStat(next, "saha", -2);
@@ -601,6 +609,7 @@ function executeCoreAction(state: GameState, plan: PlannedAction): GameState {
         next.actionsLeft += apCost;
         break;
       }
+      decisionTarget = faction;
       if (faction === "emniyet" && !mechanicUnlocked(next, "emniyet") && next.turn < 8) {
         next = addLog(next, "Emniyet hattı henüz ısınmadı.", "sistem");
         next.actionsLeft += apCost;
@@ -740,6 +749,7 @@ function executeCoreAction(state: GameState, plan: PlannedAction): GameState {
       next = applyStat(next, "giz", -3);
       next = applyStat(next, "kamuoyu", pick ? 2 : 1);
       if (pick) {
+        decisionTarget = pick.id;
         next = setHand(next, entry(pick.id, "PARTIAL", { source: pick.sourceIds.join(" / "), confidence: 58 }));
         next = recordComparison(next, pick.id, pick.sourceIds);
         next = setFactionKnow(next, "media", entry(pick.id, "RUMOR", { source: "karşılaştırma sızıntısı", confidence: 30 }));
@@ -763,6 +773,7 @@ function executeCoreAction(state: GameState, plan: PlannedAction): GameState {
         next = addLog(next, "Tutulacak karşılaştırma yok.", "sistem", "act.src_tut.none");
         break;
       }
+      decisionTarget = claimId;
       const media = next.factions.media.knowledgeBase[claimId];
       if (media) {
         next = setFactionKnow(next, "media", { ...media, confidence: Math.max(8, media.confidence - 18), propagationRisk: Math.max(8, media.propagationRisk - 12) });
@@ -780,6 +791,7 @@ function executeCoreAction(state: GameState, plan: PlannedAction): GameState {
         next = addLog(next, "Paylaşılacak karşılaştırma yok.", "sistem", "act.src_paylas.none");
         break;
       }
+      decisionTarget = claimId;
       next = setFactionKnow(next, "hukuk", entry(claimId, "PARTIAL", { source: "karşılaştırma paylaşımı", confidence: 52 }));
       next = applyStat(next, "hukuk", 4);
       next = applyStat(next, "giz", -3);
@@ -794,6 +806,7 @@ function executeCoreAction(state: GameState, plan: PlannedAction): GameState {
         next = addLog(next, "Yayımlanacak karşılaştırma yok.", "sistem", "act.src_yayin.none");
         break;
       }
+      decisionTarget = claimId;
       next = setFactionKnow(next, "media", entry(claimId, "PARTIAL", { source: "yayımlanan karşılaştırma", confidence: 48 }));
       next = applyStat(next, "kamuoyu", 6);
       next = applyStat(next, "giz", -6);
@@ -809,6 +822,7 @@ function executeCoreAction(state: GameState, plan: PlannedAction): GameState {
         next = addLog(next, "Yoklanacak söylenti yok.", "sistem", "act.dogrula.none");
         break;
       }
+      decisionTarget = rumor.claimId;
       const claim = ALL_CLAIMS.find((c) => c.id === rumor.claimId);
       const world = next.truth[rumor.claimId];
       const nextStatus = claim?.contradiction || world === "UNKNOWN" || world === "PARTIAL" ? "PARTIAL" : world === "TRUE" ? "PARTIAL" : "RUMOR";
@@ -843,6 +857,7 @@ function executeCoreAction(state: GameState, plan: PlannedAction): GameState {
         break;
       }
       const claimId = bound.id;
+      decisionTarget = claimId;
       const sourceId = nextEvidenceSource(next, claimId);
       // Exhausted sources are still readable, at the existing cost, but do not
       // mint a fresh evidence link merely because the turn changed.
@@ -862,6 +877,7 @@ function executeCoreAction(state: GameState, plan: PlannedAction): GameState {
       const claimId = plan.claimId ?? (next.investigation.chain ?? [])
         .find(c => claimEvidence(next, c.claimId).sufficient)?.claimId
         ?? next.investigation.chain?.[0]?.claimId;
+      decisionTarget = claimId;
       const evidence = claimId ? claimEvidence(next, claimId) : undefined;
       const compared = (next.investigation.comparisons ?? []).some(c => c.claimId === claimId);
       if (evidence?.sufficient) {
@@ -879,7 +895,10 @@ function executeCoreAction(state: GameState, plan: PlannedAction): GameState {
     }
   }
 
-  next = pushDecision(next, { kind: "action", id: plan.id, summary: plan.id });
+  if (["soru_yonlendir", "soru_sinir", "soru_ac"].includes(plan.id) && plan.claimId &&
+    state.hand[plan.claimId] && state.hand[plan.claimId].status !== "UNKNOWN") decisionTarget = plan.claimId;
+  next = pushDecision(next, { kind: "action", id: plan.id,
+    ...(decisionTarget ? { target: decisionTarget } : {}), summary: plan.id });
   return revealDueNodes(syncObjectives(next));
 }
 
