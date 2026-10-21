@@ -4,7 +4,7 @@ import { actOf, mechanicUnlocked } from "./sim/acts.ts";
 import { seedEdgeLive, touchEdge } from "./sim/edges.ts";
 import { applyConsequence, applyFamilyFire, pickSideFamilies, pickVariant, selectAnchorFamily, viewEvent } from "./sim/families.ts";
 import { initialFactions, tickFactions } from "./sim/factions.ts";
-import { addDocument, recordChainLink, recordComparison, tickInvestigation } from "./sim/investigation.ts";
+import { addDocument, claimEvidence, nextEvidenceSource, sourceDocumentId, recordChainLink, recordComparison, tickInvestigation } from "./sim/investigation.ts";
 import { entry, initialHand, initialTruth, setFactionKnow, setHand, tickKnowledge } from "./sim/knowledge.ts";
 import { remember, tickMemory, breakPromise } from "./sim/memory.ts";
 import { syncObjectives } from "./sim/objectives.ts";
@@ -831,6 +831,7 @@ function executeCoreAction(state: GameState, plan: PlannedAction): GameState {
       const unusedStrong = eligible.filter((c) => (c.evidence === "BELGELİ" || c.evidence === "GÜÇLÜ") && !chained.has(c.id));
       const bound =
         byPlan ??
+        eligible.find(c => chained.has(c.id) && nextEvidenceSource(next, c.id)) ??
         unusedCompared[0] ??
         unusedStrong[0] ??
         eligible.find((c) => compared.includes(c.id)) ??
@@ -842,7 +843,12 @@ function executeCoreAction(state: GameState, plan: PlannedAction): GameState {
         break;
       }
       const claimId = bound.id;
-      const docId = `doc-${claimId}-t${next.turn}`;
+      const sourceId = nextEvidenceSource(next, claimId);
+      // Exhausted sources are still readable, at the existing cost, but do not
+      // mint a fresh evidence link merely because the turn changed.
+      const docId = sourceId ? sourceDocumentId(claimId, sourceId)
+        : (next.investigation.chain ?? []).find(c => c.claimId === claimId)?.documentId;
+      if (!docId) break;
       next = recordChainLink(next, claimId, docId);
       next = applyStat(next, "hukuk", 7);
       next = applyStat(next, "giz", -4);
@@ -853,12 +859,14 @@ function executeCoreAction(state: GameState, plan: PlannedAction): GameState {
       break;
     }
     case "kanit_esigi": {
-      const docs = next.investigation.documents.length;
-      const chainN = (next.investigation.chain ?? []).length;
-      const comparedN = (next.investigation.comparisons ?? []).length;
-      if (docs >= 2 || chainN >= 2) {
+      const claimId = plan.claimId ?? (next.investigation.chain ?? [])
+        .find(c => claimEvidence(next, c.claimId).sufficient)?.claimId
+        ?? next.investigation.chain?.[0]?.claimId;
+      const evidence = claimId ? claimEvidence(next, claimId) : undefined;
+      const compared = (next.investigation.comparisons ?? []).some(c => c.claimId === claimId);
+      if (evidence?.sufficient) {
         next = { ...next, tags: [...next.tags, "inv-direct"] };
-        next = applyStat(next, "hukuk", 6 + (comparedN >= 1 ? 2 : 0));
+        next = applyStat(next, "hukuk", 6 + (compared ? 2 : 0));
         next = applyStat(next, "giz", -3);
         next = addLog(next, "Kanıt eşiği işletildi. Dosya bir kat ilerledi.", "aksiyon", "act.kanit_esigi");
       } else {

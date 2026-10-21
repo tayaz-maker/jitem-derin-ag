@@ -68,7 +68,7 @@ function evalStatus(state: GameState, id: string): Objective["status"] {
       : ["investigation", "evidence", "public", "response"].includes(state.investigation.stage) ? "done" : "open";
     if (id === "obj_inv") return ["evidence", "public", "response"].includes(state.investigation.stage) ? "done" : "open";
   }
-  const reports = state.decisions.filter((d) => d.id === "rapor_yaz" || d.id === "dosya_oku").length;
+  const reports = new Set(state.investigation.documents.filter(id => /^(rapor|dosya)-t\d+$/.test(id))).size;
   switch (id) {
     case "obj_edge":
       return state.decisions.some((d) => d.id === "bag_guclendir" || d.id === "bag_gevset") ? "done" : "open";

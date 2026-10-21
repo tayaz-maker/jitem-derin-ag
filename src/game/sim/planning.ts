@@ -1,6 +1,7 @@
 import { EDGES, NODES } from "../data.ts";
 import { ALL_CLAIMS } from "../db/catalog.ts";
 import type { ActionId, GameState, PlannedAction } from "../types.ts";
+import { nextEvidenceSource } from "./investigation.ts";
 import { touchEdge } from "./edges.ts";
 import { encodeNote } from "../i18n/format.ts";
 
@@ -52,7 +53,7 @@ export function decisionOptions(
       return [];
     const chained = state.investigation.chain?.some((c) => c.claimId === claimId);
     const out: ActionId[] = chained
-      ? ["kanit_esigi", "soru_yonlendir", "soru_sinir"]
+      ? [...(nextEvidenceSource(state, claimId) ? ["delil_zincir" as const] : []), "kanit_esigi", "soru_yonlendir", "soru_sinir"]
       : ["delil_zincir"];
     return out.filter((id) => !state.tags.includes(`plan-used:${state.turn}:${id}:${claimId}`));
   }

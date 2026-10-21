@@ -1,3 +1,4 @@
+import { ALL_CLAIMS } from "../db/catalog.ts";
 import type { GameState, InvestigationStage } from "../types.ts";
 import { applyStat } from "./stats.ts";
 import { mechanicUnlocked } from "./acts.ts";
@@ -165,4 +166,28 @@ export function recordChainLink(state: GameState, claimId: string, documentId: s
   }
   const tags = next.tags.includes("chain-link") ? next.tags : [...next.tags, "chain-link"];
   return { ...next, tags, investigation: { ...next.investigation, chain } };
+}
+
+/** Provenance stays in the existing document/link fields; generic legacy notes
+ * are retained, but never promoted into claim-specific source evidence. */
+export function sourceDocumentId(claimId: string, sourceId: string): string {
+  return `doc-${claimId}-source-${sourceId}`;
+}
+
+export function claimEvidence(state: GameState, claimId: string) {
+  const claim = ALL_CLAIMS.find(c => c.id === claimId);
+  const documents = new Set((state.investigation.chain ?? [])
+    .filter(c => c.claimId === claimId && state.investigation.documents.includes(c.documentId))
+    .map(c => c.documentId));
+  const linkedSources = (claim?.sourceIds ?? []).filter(id => documents.has(sourceDocumentId(claimId, id)));
+  const comparedSources = (state.investigation.comparisons ?? [])
+    .filter(c => c.claimId === claimId).flatMap(c => c.sourceIds)
+    .filter(id => claim?.sourceIds.includes(id));
+  const sources = new Set([...linkedSources, ...comparedSources]);
+  return { documents, linkedSources, sources, sufficient: documents.size >= 1 && sources.size >= 2 };
+}
+
+export function nextEvidenceSource(state: GameState, claimId: string): string | undefined {
+  const linked = claimEvidence(state, claimId).linkedSources;
+  return ALL_CLAIMS.find(c => c.id === claimId)?.sourceIds.find(id => !linked.includes(id));
 }
