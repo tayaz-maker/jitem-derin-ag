@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useGame } from "@/game/store";
 import { actLabel, mechanicUnlocked } from "@/game/sim/acts";
 import { investigationView } from "@/game/sim/investigation";
-import { visibleObjectives } from "@/game/sim/objectives";
+import { visibleObjectives, objectiveKey } from "@/game/sim/objectives";
 import { factionSignals } from "@/game/sim/intel";
 import { t, useLocale, logEntryLine, logLine } from "@/game/i18n";
 import { ClaimDrawer } from "./ClaimDrawer";
@@ -81,7 +81,7 @@ export function ReportPane() {
         <ul className="space-y-1">
           {objs.map((o) => (
             <li key={o.id} className="text-xs text-muted">
-              {o.status === "done" ? "✓" : o.status === "failed" ? "×" : "·"} {t(locale, `obj.${o.id}`)}
+              {o.status === "done" ? "✓" : o.status === "failed" ? "×" : "·"} {t(locale, objectiveKey(state, o.id))}
             </li>
           ))}
         </ul>

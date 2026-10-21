@@ -23,7 +23,7 @@ import { edgeSignal, liveLine } from "@/game/sim/edges";
 import { investigationView } from "@/game/sim/investigation";
 import { theySeePlayer } from "@/game/sim/knowledge";
 import { memoryLine } from "@/game/sim/memory";
-import { visibleObjectives } from "@/game/sim/objectives";
+import { visibleObjectives, objectiveKey } from "@/game/sim/objectives";
 import { SOURCE_BY_ID } from "@/game/db";
 import { useGame } from "@/game/store";
 import type { ActionId, GameState, PlannedAction } from "@/game/types";
@@ -366,7 +366,7 @@ function ActionBlock() {
             .slice(0, 3)
             .map((o) => (
               <li key={o.id} className="flex justify-between gap-2 text-[11px] text-muted">
-                <span>{t(locale, `obj.${o.id}`)}</span>
+                <span>{t(locale, objectiveKey(state, o.id))}</span>
                 <span className="shrink-0 font-mono text-[10px] text-olive">{rewardLine(o.id, locale)}</span>
               </li>
             ))}
@@ -492,7 +492,7 @@ function ContextualDecisions({ state, target }: { state: GameState; target: Deci
       {openObjective ? (
         <p className="text-[11px] leading-snug text-muted">
           <span className="text-olive">{t(locale, "decision.openObj")}:</span>{" "}
-          {t(locale, `obj.${openObjective.id}`)} · {rewardLine(openObjective.id, locale)}
+          {t(locale, objectiveKey(state, openObjective.id))} · {rewardLine(openObjective.id, locale)}
         </p>
       ) : null}
       {selected && chosen ? (
@@ -622,7 +622,7 @@ function ContextualDecisions({ state, target }: { state: GameState; target: Deci
                     <span className="font-mono text-[10px] text-olive">
                       {tr ? "HEDEF TAMAMLANIR" : "OBJECTIVE COMPLETES"}
                     </span>{" "}
-                    {t(locale, `obj.${id}`)} · {rewardLine(id, locale)}
+                    {t(locale, objectiveKey(state, id))} · {rewardLine(id, locale)}
                   </p>
                 ))}
               </>
