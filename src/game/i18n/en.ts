@@ -778,6 +778,10 @@ export const en: DeepStringify<typeof tr> = {
     obj_balance: "Cool the police line, hold field capacity",
     obj_secret_aygan: "Do not burn the informant",
   },
+  research: {
+    unworked: "No claim has been compared or linked to evidence yet; receiving information is not a resolution.",
+    summary: "Research: {opened} opened, {compared} compared, {published} published, {linked} linked claims. Open questions: {questions}. Source contradictions remain unresolved.",
+  },
   endOrder: {
     intact: "The working network is thin; official language is still ‘it does not exist’. A controlled break-up is possible.",
     legal: "Legal and public sit forward. Some ties are locked; orders stay in the gap.",

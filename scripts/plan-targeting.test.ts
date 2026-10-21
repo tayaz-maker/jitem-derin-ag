@@ -133,3 +133,68 @@ test("generic duplicate reads count actual unique notes, while legacy notes and 
   assert.deepEqual(resumed.investigation.documents, ["dosya-t1"]);
   assert.equal(claimEvidence(resumed, "clm_official_denial").sufficient, false);
 });
+
+import { ALL_CLAIMS } from "../src/game/db/catalog.ts";
+import { buildDossier, displayDossier, formatReplayJson, researchHistory } from "../src/game/sim/recap.ts";
+
+test("actual claim, actor and edge targets survive schema-5 reload; failed and legacy actions gain no invented target", () => {
+  let s = { ...startActions(createGame("arastirmaci", 42)), actionsLeft: 20 };
+  s = executeAction(s, { id: "kaynak_karsilastir" });
+  const a = s.investigation.comparisons![0].claimId;
+  assert.equal(s.decisions.at(-1)?.target, a, "fallback records actual selected claim");
+  for (const id of ["src_tut", "src_paylas", "src_yayin", "dogrula"] as const) {
+    s = executeAction(s, { id, claimId: a });
+    assert.equal(s.decisions.at(-1)?.target, a);
+  }
+  const h = executeAction(startActions(createGame("hukuk", 42)), { id: "delil_zincir" });
+  assert.equal(h.decisions.at(-1)?.target, h.investigation.chain![0].claimId);
+  let f = { ...startActions(createGame("saha", 42)), turn: 3, actionsLeft: 10 };
+  const edge = EDGES.find(e => f.revealed[e.from] && f.revealed[e.to])!;
+  f = executeAction(f, { id: "bag_gozet", edgeId: edge.id });
+  assert.equal(f.decisions.at(-1)?.target, edge.id);
+  f = executeAction(f, { id: "kisi_koru", nodeId: "dogan" });
+  assert.equal(f.decisions.at(-1)?.target, "dogan");
+  for (const state of [s, h, f]) {
+    const resumed = parseSave(JSON.stringify(serialize(state)))!;
+    assert.deepEqual(resumed.decisions, state.decisions);
+    assert.equal(resumed.schemaVersion, 5);
+  }
+  const legacy = structuredClone(s);
+  for (const d of legacy.decisions) delete d.target;
+  const raw = JSON.stringify(serialize(legacy));
+  const resumed = parseSave(raw)!;
+  const before = JSON.stringify(serialize(resumed));
+  formatReplayJson(resumed); displayDossier(resumed, "en");
+  assert.equal(JSON.stringify(serialize(resumed)), before);
+  assert.ok(resumed.decisions.every(d => d.target === undefined));
+  const invalid = executeAction(startActions(createGame("saha", 42)), { id: "bag_gozet", edgeId: "nonexistent" });
+  assert.equal(invalid.decisions.at(-1)?.target, undefined);
+});
+
+test("different investigations produce personal final dossiers, with unresolved claims kept unresolved", () => {
+  const base = { ...startActions(createGame("arastirmaci", 42)), actionsLeft: 20 };
+  const claims = ALL_CLAIMS.filter(c => c.contradiction && base.hand[c.id]?.status && base.hand[c.id].status !== "UNKNOWN");
+  assert.ok(claims.length >= 2);
+  const run = (id: string) => executeAction(executeAction(base, { id: "kaynak_karsilastir", claimId: id }), { id: "src_yayin", claimId: id });
+  const a = run(claims[0].id), b = run(claims[1].id);
+  const ah = researchHistory(a), bh = researchHistory(b);
+  assert.notDeepEqual(ah, bh);
+  const row = ah.find(c => c.claimId === claims[0].id)!;
+  assert.ok(row.opened && row.compared && row.published && row.openQuestion);
+  assert.equal(row.status, "PARTIAL");
+  const foreign = ALL_CLAIMS.find(c => c.contradiction && (!a.hand[c.id] || a.hand[c.id].status === "UNKNOWN"))!;
+  // A stale pre-fix final cache must not reintroduce unencountered catalogue material.
+  a.dossier = { ...buildDossier(a), contradictions: [foreign.contradiction!] };
+  for (const locale of ["tr", "en"] as const) {
+    const dossier = displayDossier(a, locale);
+    assert.ok(!dossier.contradictions.some(x => x.includes(foreign.contradiction!)));
+    assert.notDeepEqual(dossier.causal, displayDossier(b, locale).causal);
+    assert.match(dossier.causal.at(-1)!, locale === "en" ? /unresolved/ : /çözülmüş sayılmaz/);
+  }
+  const replay = formatReplayJson(a);
+  assert.deepEqual(replay.research, ah);
+  assert.ok(replay.decisions.some(d => d.target === claims[0].id));
+  const field = createGame("saha", 42);
+  assert.ok(buildDossier(field).contradictions.every(line => ALL_CLAIMS.some(c =>
+    field.hand[c.id]?.status !== "UNKNOWN" && field.hand[c.id] && line.startsWith(c.title + ":"))));
+});

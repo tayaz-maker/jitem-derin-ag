@@ -785,6 +785,10 @@ export const tr = {
     obj_balance: "Emniyet hattını soğut, saha kapasitesini tut",
     obj_secret_aygan: "İtirafçıyı yakma",
   },
+  research: {
+    unworked: "Henüz bir iddiayı karşılaştırmadın veya delil zincirine işlemedin; açılan bilgiler bir çözüm değildir.",
+    summary: "Araştırma: {opened} açılan, {compared} karşılaştırılan, {published} yayımlanan, {linked} zincire bağlı iddia. Açık sorular: {questions}. Kaynak çelişkileri çözülmüş sayılmaz.",
+  },
   endOrder: {
     intact: "Fiilî ağ ince, resmi dil hâlâ ‘yok’. Kontrollü parçalanma mümkün.",
     legal: "Hukuk ve kamu önde. Bazı bağlar kilitli, emirler boşlukta.",

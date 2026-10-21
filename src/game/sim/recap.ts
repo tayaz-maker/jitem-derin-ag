@@ -31,6 +31,46 @@ function driftKeys(state: GameState): string[] {
   return keys;
 }
 
+/** Derived from player-visible records only. Never infer a missing legacy
+ * decision target from a current selection or an unrelated callback. */
+export function researchHistory(state: GameState) {
+  return ALL_CLAIMS.flatMap(claim => {
+    const held = state.hand[claim.id];
+    const compared = (state.investigation.comparisons ?? []).some(c => c.claimId === claim.id);
+    const linked = (state.investigation.chain ?? []).some(c => c.claimId === claim.id &&
+      state.investigation.documents.includes(c.documentId));
+    const decisions = state.decisions.filter(d => d.target === claim.id);
+    const tagged = (prefix: string) => state.tags.includes(`${prefix}:${claim.id}`);
+    const retained = tagged("src-held"), shared = tagged("src-shared"), published = tagged("src-published");
+    if ((!held || held.status === "UNKNOWN") && !compared && !linked && !decisions.length && !retained && !shared && !published) return [];
+    return [{ claimId: claim.id, title: claim.title, layer: claim.layer,
+      status: held?.status ?? "UNKNOWN", opened: Boolean(held && held.status !== "UNKNOWN"),
+      compared, retained, shared, published, linked,
+      openQuestion: Boolean(claim.contradiction) || !held || held.status !== "TRUE",
+      decisions: decisions.map(d => ({ turn: d.turn, id: d.id, target: d.target })),
+    }];
+  });
+}
+
+function personalContradictions(state: GameState) {
+  const ids = new Set(researchHistory(state).map(c => c.claimId));
+  return ALL_CLAIMS.filter(c => ids.has(c.id) && c.contradiction)
+    .map(c => `${c.title}: ${c.contradiction}`).slice(0, 8);
+}
+
+function researchSummary(state: GameState, locale: Locale) {
+  const history = researchHistory(state);
+  const worked = history.filter(c => c.compared || c.linked || c.decisions.length || c.published || c.shared || c.retained);
+  if (!worked.length) return t(locale, "research.unworked");
+  return t(locale, "research.summary", {
+    opened: history.filter(c => c.opened).length,
+    compared: history.filter(c => c.compared).length,
+    published: history.filter(c => c.published).length,
+    linked: history.filter(c => c.linked).length,
+    questions: worked.filter(c => c.openQuestion).map(c => c.title).slice(-3).join(" / ") || t(locale, "end.none"),
+  });
+}
+
 export function buildDossier(state: GameState): Dossier {
   const stanceProtect = Object.entries(state.stance).filter(([, v]) => v === "protect").map(([id]) => id);
   const memProtect = Object.entries(state.actorMemory).filter(([, tags]) => tags.includes("protected")).map(([id]) => id);
@@ -49,7 +89,7 @@ export function buildDossier(state: GameState): Dossier {
   const publicKnowledge = Object.entries(state.factions.media?.knowledgeBase ?? {})
     .filter(([, k]) => k.status === "TRUE" || k.status === "PARTIAL")
     .map(([id]) => ALL_CLAIMS.find((c) => c.id === id)?.title ?? id);
-  const contradictions = ALL_CLAIMS.filter((c) => c.contradiction).map((c) => `${c.title}: ${c.contradiction}`);
+  const contradictions = personalContradictions(state);
   const locale: Locale = "tr";
   const anchorDrift = driftKeys(state).map((k) => t(locale, k));
   const orderLeft = t(locale, `endOrder.${orderKey(state)}`);
@@ -71,7 +111,7 @@ export function buildDossier(state: GameState): Dossier {
 }
 
 export function displayDossier(state: GameState, locale: Locale) {
-  const d = state.dossier ?? buildDossier(state);
+  const d = buildDossier(state);
   return {
     title: t(locale, "end.title"),
     protectedActors: d.protectedActors,
@@ -93,7 +133,7 @@ function hasSpend(state: GameState) {
 }
 
 export function buildRecap(state: GameState): string[] {
-  const d = state.dossier ?? buildDossier(state);
+  const d = buildDossier(state);
   const lines: string[] = [d.title];
   lines.push(d.protectedActors.length ? `Korudukların: ${d.protectedActors.join(", ")}.` : "Kimseyi özellikle korumadın.");
   lines.push(d.sacrificedActors.length ? `Harcadıkların: ${d.sacrificedActors.join(", ")}.` : "Kimseyi açıkça harcamadın.");
@@ -121,7 +161,7 @@ export function replayFilename(seed: number) {
 }
 
 export function formatReplayJson(state: GameState) {
-  const d = state.dossier ?? buildDossier(state);
+  const d = buildDossier(state);
   const frames = state.replayMeta.events.length ? state.replayMeta.events : state.replay;
   return {
     saveKey: SAVE_KEY,
@@ -133,6 +173,7 @@ export function formatReplayJson(state: GameState) {
     stats: state.stats,
     investigation: state.investigation,
     decisions: state.decisions,
+    research: researchHistory(state),
     events: frames.map((f) => ({
       turn: f.turn,
       familyId: f.familyId ?? null,
@@ -285,6 +326,7 @@ export function causalNarrative(state: GameState, locale: Locale = "tr"): string
         : "Parçalı çıkar ağları kendi bildikleriyle yürüdü. Tek el yoktu.",
     );
   }
+  lines.push(researchSummary(state, locale));
   return lines;
 }
 
