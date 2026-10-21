@@ -1,4 +1,5 @@
 import { actOf } from "./acts.ts";
+import { t } from "../i18n/copy.ts";
 import { hasMemory } from "./memory.ts";
 import type { GameState, Objective, StatKey } from "../types.ts";
 
@@ -47,7 +48,26 @@ function payRewards(state: GameState, objectives: Objective[]): GameState {
   return next;
 }
 
+/** Stable IDs keep old completion/reward receipts; only the role's task changes. */
+export function objectiveKey(state: GameState, id: string): string {
+  return (state.hat === "arastirmaci" || state.hat === "hukuk") &&
+    ["obj_edge", "obj_person", "obj_truth", "obj_inv", "obj_chain"].includes(id)
+    ? `obj.${state.hat}_${id}` : `obj.${id}`;
+}
+
 function evalStatus(state: GameState, id: string): Objective["status"] {
+  if (state.hat === "arastirmaci" || state.hat === "hukuk") {
+    const research = state.hat === "arastirmaci";
+    const records = research ? state.investigation.comparisons : state.investigation.chain;
+    const count = new Set((records ?? []).map(r => r.claimId)).size;
+    if (id === "obj_edge") return count >= 1 ? "done" : "open";
+    if (id === "obj_person") return count >= 2 ? "done" : "open";
+    if (id === "obj_chain") return count >= 3 ? "done" : "open";
+    if (id === "obj_truth") return research
+      ? state.tags.some(tag => /^(src-held|src-shared|src-published):/.test(tag)) ? "done" : "open"
+      : ["investigation", "evidence", "public", "response"].includes(state.investigation.stage) ? "done" : "open";
+    if (id === "obj_inv") return ["evidence", "public", "response"].includes(state.investigation.stage) ? "done" : "open";
+  }
   const reports = state.decisions.filter((d) => d.id === "rapor_yaz" || d.id === "dosya_oku").length;
   switch (id) {
     case "obj_edge":
@@ -89,12 +109,21 @@ function evalStatus(state: GameState, id: string): Objective["status"] {
 export function syncObjectives(state: GameState): GameState {
   const act = actOf(state.turn);
   const want: string[] = [];
+  const evidenceRole = state.hat === "arastirmaci" || state.hat === "hukuk";
+  if (evidenceRole) {
+    if (act === 1) want.push("obj_edge");
+    if (act === 2) want.push("obj_person");
+    if (act === 3) want.push("obj_truth");
+    if (act >= 4) want.push("obj_inv");
+    if (act >= 6) want.push("obj_chain");
+  } else {
   if (act === 1) want.push("obj_edge");
   if (act === 2) want.push("obj_person", "obj_secret_aygan");
   if (act === 3) want.push("obj_truth", "obj_cool_mit");
   if (act === 4) want.push("obj_hold_ersever", "obj_leak");
   if (act >= 5) want.push("obj_inv", "obj_balance");
   if (act >= 6) want.push("obj_chain");
+  }
 
   const byId = Object.fromEntries(state.objectives.map((o) => [o.id, o]));
   const next: Objective[] = [];
@@ -103,13 +132,16 @@ export function syncObjectives(state: GameState): GameState {
     if (!def) continue;
     if (def.secret && act < 2) continue;
     const prev = byId[id];
-    next.push({ ...def, status: evalStatus(state, id) });
-    void prev;
+    next.push({ ...def, title: t("tr", objectiveKey(state, id)), status: prev?.status === "done" ? "done" : evalStatus(state, id) });
   }
   for (const o of state.objectives) {
     if (!want.includes(o.id) && o.status === "done") next.push(o);
   }
-  return payRewards({ ...state, objectives: next }, next);
+  // A completed legacy objective is already earned, even if its old save has
+  // no reward tag. Never grant it again after a predicate/role migration.
+  const tags = [...new Set([...state.tags, ...state.objectives
+    .filter(o => o.status === "done").map(o => `obj-reward:${o.id}`)])];
+  return payRewards({ ...state, tags, objectives: next }, next);
 }
 
 export function visibleObjectives(state: GameState) {
