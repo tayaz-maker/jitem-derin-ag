@@ -74,3 +74,62 @@ test("research decisions are bound to a held record about the actual selected ac
   }
   assert.deepEqual(decisionOptions(state, target, "not-held"), []);
 });
+
+// Keep the focused role acceptance in the existing CI test entry point.
+import "./role-objectives.test.ts";
+import { claimEvidence, recordComparison } from "../src/game/sim/investigation.ts";
+import { syncObjectives } from "../src/game/sim/objectives.ts";
+import { diffState, moveInput, previewMove } from "../src/game/sim/preview.ts";
+
+test("proof uses distinct sources for the selected claim, never generic or other-claim documents", () => {
+  const a = "clm_official_denial";
+  const b = "clm_jitem_exists";
+  let s = startActions(createGame("hukuk", 42));
+  s = executeAction(s, { id: "delil_zincir", claimId: a });
+  const first = structuredClone(s);
+  s = executeAction(s, { id: "dosya_oku" });
+  const withGeneric = structuredClone(s);
+  s = { ...s, turn: 2, actionsLeft: 4 };
+  const held = executeAction(s, { id: "kanit_esigi", claimId: a });
+  assert.ok(!held.tags.includes("inv-direct"));
+  assert.ok(held.tags.includes("inv-limit"));
+  assert.deepEqual(held.investigation.documents, withGeneric.investigation.documents);
+  const foreign = recordComparison(s, b, ["src_dogan", "src_aygan"]);
+  assert.equal(claimEvidence(foreign, a).sufficient, false);
+  const target = { kind: "node" as const, id: "jitem", label: "JİTEM" };
+  assert.ok(decisionOptions(s, target, a).includes("delil_zincir"));
+  const second = executeAction(s, { id: "delil_zincir", claimId: a, nodeId: "jitem", contextual: true });
+  assert.equal(claimEvidence(second, a).sufficient, true);
+  assert.equal(claimEvidence(second, a).sources.size, 2);
+  const plan = { id: "kanit_esigi" as const, claimId: a, nodeId: "jitem", contextual: true };
+  const before = structuredClone(second);
+  const preview = previewMove(second, plan);
+  const committed = executeAction(moveInput(second, plan), plan);
+  assert.deepEqual(preview.changes, diffState(second, committed));
+  assert.ok(committed.tags.includes("inv-direct"));
+  assert.deepEqual(second, before);
+  assert.equal(committed.actionsLeft, second.actionsLeft - 2);
+  // A relevant comparison is another paid research contribution, if present
+  // in a legacy/imported dossier; an unrelated comparison above was not.
+  const compared = recordComparison(first, a, ["src_dogan", "src_tbmm_susurluk"]);
+  assert.equal(claimEvidence(compared, a).sufficient, true);
+  const repeat = executeAction({ ...second, actionsLeft: 4, turn: 3 }, { id: "delil_zincir", claimId: a });
+  assert.deepEqual(repeat.investigation.chain, second.investigation.chain);
+  assert.deepEqual(repeat.investigation.documents, second.investigation.documents);
+});
+
+test("generic duplicate reads count actual unique notes, while legacy notes and completions survive", () => {
+  let s = startActions(createGame("saha", 42));
+  s = executeAction(executeAction(s, { id: "dosya_oku" }), { id: "dosya_oku" });
+  assert.deepEqual(s.investigation.documents, ["dosya-t1"]);
+  const projected = syncObjectives({ ...s, turn: 9 });
+  assert.equal(projected.objectives.find(o => o.id === "obj_chain")?.status, "open");
+  const later = executeAction({ ...s, turn: 2, actionsLeft: 4 }, { id: "dosya_oku" });
+  assert.equal(syncObjectives({ ...later, turn: 9 }).objectives.find(o => o.id === "obj_chain")?.status, "done");
+  const legacy = structuredClone(s);
+  delete legacy.investigation.comparisons;
+  delete legacy.investigation.chain;
+  const resumed = parseSave(JSON.stringify(serialize(legacy)))!;
+  assert.deepEqual(resumed.investigation.documents, ["dosya-t1"]);
+  assert.equal(claimEvidence(resumed, "clm_official_denial").sufficient, false);
+});
