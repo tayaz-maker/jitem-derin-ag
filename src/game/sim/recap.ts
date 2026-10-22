@@ -220,7 +220,6 @@ export function formatReplay(state: GameState): string {
 }
 
 export function causalNarrative(state: GameState, locale: Locale = "tr"): string[] {
-  const protectedN = Object.values(state.stance).filter((v) => v === "protect").length;
   const spentN = Object.values(state.stance).filter((v) => v === "spend").length;
   const denies = state.decisions.filter((d) => d.id === "inkar_yaz" || d.id === "sizinti_bastir" || d.id === "e6-bas" || d.id === "e10-inkar").length;
   const opens = state.decisions.filter((d) => d.id === "rapor_yaz" || d.id === "soru_ac" || d.id === "bag_ifsa" || d.id === "e6-not").length;
@@ -228,64 +227,60 @@ export function causalNarrative(state: GameState, locale: Locale = "tr"): string
   const lines: string[] = [];
   if (state.ending === "kontrollu_parcalanma" || state.ending === "inkar_ayakta") {
     lines.push(
-      protectedN >= 1
-        ? en
-          ? "The network did not fully come apart. The main reason is that you protected critical ties late while limiting public pressure."
-          : "Ağ tamamen çözülmedi. Bunun temel nedeni, geç dönemde kritik bağları korurken kamuoyu baskısını sınırlaman oldu."
-        : en
-          ? "The network did not fully come apart. Denial language and field capacity were carried at the same time."
-          : "Ağ tamamen çözülmedi. İnkâr dili ve saha kapasitesi aynı anda taşındı.",
+      en
+        ? "The network did not fully come apart at the recorded outcome."
+        : "Sonuç kaydında ağ tamamen çözülmedi.",
     );
     if (state.investigation.documents.length === 0 || state.investigation.suppressed.length) {
       lines.push(
         en
-          ? "Files that did not come into view kept the legal line from closing some connections."
-          : "Ancak açığa çıkmayan dosyalar, hukuk hattının bazı bağlantıları kapatmasına engel oldu.",
+          ? "Some records remain missing or suppressed in the file."
+          : "Dosyada eksik veya bastırılmış kayıtlar var.",
       );
     }
   } else if (state.ending === "giz_coktu" || state.ending === "susurluk_patlama") {
     lines.push(
       opens >= 2
         ? en
-          ? "Visibility was chosen: a report, an exposure or an opened surface carried secrecy into a public frame."
-          : "Görünürlük seçildi: rapor, ifşa veya yüzey açma, gizliliği kamu karesine taşıdı."
+          ? "Your reports, exposure or inquiry-opening decisions left a record. Secrecy broke at the outcome."
+          : "Rapor, ifşa veya soruşturmayı açma kararların iz bıraktı. Finalde gizlilik kırıldı."
         : en
-          ? "Secrecy could not carry the weight of the working structure. The leak was not pressed."
-          : "Gizlilik, fiilî yapının ağırlığını taşıyamadı. Sızıntı basılmadı.",
+          ? "Secrecy broke at the recorded outcome."
+          : "Sonuç kaydında gizlilik kırıldı.",
     );
   } else if (state.ending === "ersever_esigi") {
     lines.push(
       en
-        ? "The insider who talked arrived before the crash outside. Suppression came late."
-        : "Konuşan içerideki, dışarıdaki kazadan önce geldi. Bastırma geç kaldı.",
+        ? "The insider-talk threshold was reached in this game."
+        : "Oyunda içeriden konuşma eşiği aşıldı.",
     );
   } else if (state.ending === "kismi_adalet") {
     lines.push(
       en
-        ? "Public and legal heat rose. Some ties were documented; the order-gap remained."
-        : "Kamu ve hukuk ısındı. Bazı bağlar belgelendi; emir boşluğu durdu.",
+        ? "The legal and public conditions met the partial-justice threshold; the order-gap remains unresolved."
+        : "Hukuk ve kamuoyu koşulları kısmi adalet eşiğini karşıladı; emir boşluğu çözülmüş sayılmaz.",
     );
     const chainN = state.investigation.chain?.length ?? 0;
     const cmpN = state.investigation.comparisons?.length ?? 0;
     if (chainN >= 2) {
       lines.push(
         en
-          ? "The legal line contributed: claim-bound evidence links moved the file a tier without inventing an order."
-          : "Hukuk hattı katkı verdi: iddiaya bağlı delil halkaları dosyayı bir kat ilerletti; emir uydurulmadı.",
+          ? "Claim-bound evidence links remain in the file; the source of the order remains open."
+          : "Dosyada iddiaya bağlı delil halkaları var; emrin kaynağı açık kaldı.",
       );
     }
     if (cmpN >= 1) {
       lines.push(
         en
-          ? "The researcher line contributed: two sources were set side by side. Contradiction stayed on file."
-          : "Araştırmacı hattı katkı verdi: iki kaynak yan yana kondu. Çelişki dosyada kaldı.",
+          ? "Your claim-bound source comparisons remain in the file."
+          : "İddiaya bağlı kaynak karşılaştırmaların dosyada duruyor.",
       );
     }
   } else if (spentN >= 2) {
     lines.push(
       en
-        ? "Spent people wrote talk and resentment into memory. The network broke from inside."
-        : "Harcanan kişiler belleğe konuşma ve kin yazdı. Ağ kendi içinde kırıldı.",
+        ? "Your recorded stances include spending more than one person."
+        : "Kayıtlı duruşlarında birden fazla kişiyi harcama izi var.",
     );
   }
   const namedProtect = names(
@@ -298,25 +293,30 @@ export function causalNarrative(state: GameState, locale: Locale = "tr"): string
       .filter(([, tags]) => tags.includes("spent") || tags.includes("promise-broken"))
       .map(([id]) => id),
   );
-  if (namedProtect.length) {
+  const protectionRecords = state.decisions.flatMap((d) => {
+    if (!d.target || !Number.isInteger(d.turn) || d.turn < 1 || d.turn > state.turn) return [];
+    const target = d.kind === "stance" && d.id === "protect"
+      ? NODES.find((n) => n.id === d.target)?.name
+      : d.kind === "action" && d.id === "bag_koru"
+        ? EDGES.find((e) => e.id === d.target)?.label
+        : undefined;
+    return target ? [`${target} (T${d.turn})`] : [];
+  });
+  if (protectionRecords.length) {
+    const records = [...new Set(protectionRecords)].slice(-3).join("; ");
+    lines.push(en ? `Recorded protection decisions: ${records}.` : `Kayıtlı koruma kararların: ${records}.`);
+  } else if (namedProtect.length) {
     lines.push(
       en
-        ? `You protected ${namedProtect.join(", ")}. That memory still sits in the network.`
-        : `Korudukların: ${namedProtect.join(", ")}. Bu bellek ağda duruyor.`,
+        ? `Protection traces in memory: ${namedProtect.join(", ")}.`
+        : `Koruma izi taşıyanlar: ${namedProtect.join(", ")}.`,
     );
   }
   if (namedSpent.length) {
     lines.push(
       en
-        ? `You spent or broke word with ${namedSpent.join(", ")}. Talk and resentment followed.`
-        : `Harcanan veya sözü bozulanlar: ${namedSpent.join(", ")}. Konuşma ve kin bunu izledi.`,
-    );
-  }
-  if (denies >= 3 && state.stats.giz < 22) {
-    lines.push(
-      en
-        ? "Repeating denial did not hold the fog; repetition did not convince the public."
-        : "İnkâr tekrarı sis tutmadı; tekrar, kamuoyunu inandırmadı.",
+        ? `Spending or broken-word traces in memory: ${namedSpent.join(", ")}.`
+        : `Harcama veya bozulan söz izi taşıyanlar: ${namedSpent.join(", ")}.`,
     );
   }
   if (!lines.length) {
@@ -326,6 +326,13 @@ export function causalNarrative(state: GameState, locale: Locale = "tr"): string
         : "Parçalı çıkar ağları kendi bildikleriyle yürüdü. Tek el yoktu.",
     );
   }
+  // These are recorded decisions and final values, not an inferred trend or
+  // a claim that one action caused the ending. Legacy targetless rows remain
+  // usable for counts, but never acquire an invented target or decision date.
+  if (denies > 0) lines.push(en ? "Your record includes denial or suppression decisions." : "Kayıtlarında inkâr veya bastırma kararların var.");
+  lines.push(en
+    ? `Last record: secrecy ${state.stats.giz}, public pressure ${state.stats.kamuoyu}, legal pressure ${state.stats.hukuk}.`
+    : `Son kayıtta gizlilik ${state.stats.giz}, kamuoyu baskısı ${state.stats.kamuoyu}, hukuk baskısı ${state.stats.hukuk}.`);
   lines.push(researchSummary(state, locale));
   return lines;
 }
