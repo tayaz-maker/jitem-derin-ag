@@ -23,7 +23,8 @@ for (const hat of ["saha", "idari", "arastirmaci", "hukuk"] as Hat[]) {
     for (const turn of [1, 2, 3]) {
       assert.equal(s.turn, turn);
       assert.equal(onboardingHint(s), null, "no action instruction during an event");
-      s = applyEventChoice(s, eventViewFor(s).choices[0].id);
+      const event = eventViewFor(s); assert.ok(event);
+      s = applyEventChoice(s, event.choices[0].id);
       const plans = offered(s), before = JSON.stringify(serialize(s));
       const key = onboardingHint(s)!;
       if (["arastirmaci", "hukuk"].includes(hat)) {
