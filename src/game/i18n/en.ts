@@ -612,6 +612,16 @@ export const en: DeepStringify<typeof tr> = {
     whyYou: "Why does this concern me?",
   },
   onboard: {
+    arastirmaci: {
+      t1: "Turn 1 — pick a held, disputed claim and compare its sources. Comparison is not a verdict.",
+      t2: "Turn 2 — compare sources first; then retain, share or publish the claim. Consider the cost of visibility.",
+      t3: "Turn 3 — compare a new claim; retain, share or publish a compared claim. Contradictions may remain.",
+    },
+    hukuk: {
+      t1: "Turn 1 — select an eligible held claim and add an evidence link. A general file note is not proof of that claim.",
+      t2: "Turn 2 — link an eligible claim; add a distinct source for it if available. Exhausted sources add no new link.",
+      t3: "Turn 3 — link a claim first, then assess its proof threshold. Related documents and distinct sources are required.",
+    },
     t1: "Turn 1 — pick a tie. Tighten it and information flows, visibility rises. No invented line.",
     t1after: "The first tie decision landed. Visibility and trust changed. No person yet.",
     t2: "Turn 2 — pick a person. Protect them and talk-risk drops; spend them and you burn them for knowledge.",

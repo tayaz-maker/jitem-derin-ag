@@ -1059,8 +1059,9 @@ export function endingOf(id: EndingId) {
 }
 
 export function onboardingHint(state: GameState): string | null {
-  if (state.turn === 1 && state.phase === "actions") return "onboard.t1";
-  if (state.turn === 2 && state.phase === "actions") return "onboard.t2";
-  if (state.turn === 3 && state.phase === "actions") return "onboard.t3";
+  if (state.phase === "actions" && state.turn >= 1 && state.turn <= 3) {
+    const role = state.hat === "arastirmaci" || state.hat === "hukuk" ? `${state.hat}.` : "";
+    return `onboard.${role}t${state.turn}`;
+  }
   return null;
 }

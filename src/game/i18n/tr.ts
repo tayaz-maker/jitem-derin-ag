@@ -611,6 +611,16 @@ export const tr = {
     whyYou: "Beni neden ilgilendiriyor?",
   },
   onboard: {
+    arastirmaci: {
+      t1: "Tur 1 — eldeki çelişkili iddiayı seç, kaynaklarını karşılaştır. Karşılaştırma kesin hüküm değildir.",
+      t2: "Tur 2 — önce kaynakları karşılaştır; sonra iddiayı tut, paylaş veya yayımla. Görünürlüğün bedelini gözet.",
+      t3: "Tur 3 — yeni iddiada kaynakları karşılaştır; karşılaştırılmış iddiada tut, paylaş veya yayımla. Çelişki kalabilir.",
+    },
+    hukuk: {
+      t1: "Tur 1 — eldeki uygun iddiayı seç, delil zincirine bağla. Genel dosya notu bu iddianın ispatı değildir.",
+      t2: "Tur 2 — uygun iddiayı zincire bağla; varsa aynı iddiadan farklı kaynak ekle. Kaynak biterse yeni halka oluşmaz.",
+      t3: "Tur 3 — önce iddiayı zincire bağla, sonra kanıt eşiğini değerlendir. İlgili belge ve farklı kaynaklar gerekir.",
+    },
     t1: "Tur 1 — bir bağ seç. Sıkılaştırırsan bilgi akar, görünürlük artar. Yeni hat uydurulmaz.",
     t1after: "İlk bağ kararı işlendi. Sonuç: görünürlük ve güven değişti. Sırada kişi yok — henüz.",
     t2: "Tur 2 — bir kişi seç. Korursan konuşma riski düşer; harcarsan bilgi için yakarsın.",
