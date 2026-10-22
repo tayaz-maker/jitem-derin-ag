@@ -11,7 +11,8 @@ function campaign(protectTurn?: number) {
   let s = createGame("idari", 42), guard = 0;
   while (s.phase !== "ended" && guard++ < 40) {
     if (s.phase === "event") {
-      const choice = [...eventViewFor(s).choices].sort((a, b) => (b.effects.giz ?? 0) - (a.effects.giz ?? 0))[0];
+      const event = eventViewFor(s); assert.ok(event);
+      const choice = [...event.choices].sort((a, b) => (b.effects.giz ?? 0) - (a.effects.giz ?? 0))[0];
       s = applyEventChoice(s, choice.id);
     } else if (s.phase === "actions") {
       for (let i = 0; i < 5 && s.actionsLeft > 0; i++) {
